@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "この論文および付随コードを引用する場合は以下を用いてください。"
+title: "A powered null on a verified channel: separating effect-absent from low power in embodied LLM agents"
+abstract: "TODO: 150 語程度の要旨。数値を 2 つ入れる。"
+type: software
+authors:
+  - family-names: "TODO"
+    given-names: "TODO"
+    # orcid: "https://orcid.org/0000-0000-0000-0000"   # ORCID 取得後に有効化 (corresponding author 必須)
+    # affiliation: "TODO"                              # 所属欄の方針は docs/publication-plan.md §7 手順0 で決める
+license: TODO          # 例: コード=Apache-2.0、本文=CC-BY-4.0 (§ライセンスの節を参照)
+repository-code: "https://github.com/mikotomiura/powered-null"
+# doi: "TODO"          # Zenodo で DOI を切ったら記入
+# preferred-citation:  # arXiv / 雑誌に載ったら peer-reviewed 版をこちらへ
+#   type: article
+#   title: ""
+#   journal: ""
+#   year:
+#   doi: ""
+keywords:
+  - measurement validity
+  - LLM agents
+  - preregistration
+  - reproducibility

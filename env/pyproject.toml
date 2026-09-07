@@ -1,0 +1,313 @@
+[build-system]
+requires = ["uv_build>=0.4,<2.0"]
+build-backend = "uv_build"
+
+[project]
+name = "erre-sandbox"
+version = "0.0.1"
+description = "Autonomous 3D Society Emerging from the Cognitive Habits of Great Thinkers"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = "Apache-2.0 OR MIT"
+license-files = ["LICENSE", "LICENSE-MIT", "NOTICE"]
+authors = [
+    { name = "mikotomiura", email = "mmiura.network@gmail.com" },
+]
+keywords = ["llm", "agent", "cognitive-architecture", "godot", "research"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pydantic>=2.7,<3",
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "websockets>=13,<15",
+    "httpx>=0.27,<1",
+    "sqlite-vec>=0.1,<1",
+    "pyyaml>=6,<7",
+    "numpy>=2,<3",
+    # Evaluation data layer (m9-eval-system Phase 0). DuckDB is the single
+    # store for Tier 0 ``raw_dialog`` + ``metrics`` schemas; Parquet export
+    # is a downstream artefact. Kept in core (not eval extras) so the
+    # ``contracts.eval_paths`` schema-guard contract is always exercised by
+    # CI; heavy ML deps (sentence-transformers, scipy, ollama, empath, arch)
+    # remain isolated under ``optional-dependencies.eval``.
+    "duckdb>=1.1,<2",
+]
+
+[project.optional-dependencies]
+ui = [
+    "streamlit>=1.39,<2",
+]
+# m9-eval-system Tier A/B/C heavy ML deps (Codex MEDIUM-4: keep core
+# dependencies lightweight, isolate eval-only stack behind an extras
+# group). Install with ``uv sync --extra eval`` on the Mac when running
+# tier-a real-model tests; CI default keeps the resolution slim.
+eval = [
+    "scipy>=1.13,<2",                # bootstrap resample / stats helpers (P5)
+    "sentence-transformers>=3,<4",   # MPNet (novelty) + transformers pipeline (NLI)
+    "ollama>=0.3,<1",                # Tier C judge LLM HTTP client
+    "empath>=0.89",                  # Tier A secondary diagnostic (Big5 claim 不使用)
+    "arch>=7,<8",                    # 時系列 bootstrap helpers (HIGH-2)
+    "scikit-learn>=1.5,<2",          # m9-c-adopt Plan B lexical-5gram TF-IDF cosine kernel (vendi_lexical_5gram, DR-1/DR-2)
+    "langdetect>=1.0.9,<2",          # m9-c-adopt PR-18 Codex MEDIUM-2 反映: compute_burrows_delta.py が top-level で import、 `uv sync --extra eval` 直後の Phase 5 が ModuleNotFoundError で fail することを防ぐため eval extras 正規部品として固定
+]
+# m9-c-spike — SGLang multi-LoRA serving. Pinned to the PyPI 2026-04-08
+# release; G-GEAR install + ``--enable-lora`` smoke is verified in Phase K-α.
+# Kept off the default install — CI runs the SGLang adapter unit tests
+# via ``httpx.MockTransport`` so the heavy CUDA wheel stays optional.
+inference = [
+    "sglang==0.5.10.post1",
+]
+# m9-c-spike — Bounded Kant LoRA training stack (CS-3..CS-6, decisions.md).
+# Phase β (real Kant training) only fires after blockers B-1
+# (m9-individual-layer-schema-add) and B-2 (M9-eval P3 採取) clear; the
+# adapter scaffold + 4-種 hard-fail gate ship in this PR but consume
+# this extras stack only when ``train_kant_lora`` actually runs (peft /
+# transformers / datasets / accelerate / bitsandbytes are imported lazily
+# inside the function body, keeping the default ``import erre_sandbox.training``
+# free of GPU-stack dependencies).
+training = [
+    "transformers>=4.45,<5",
+    "accelerate>=0.34,<1",
+    "bitsandbytes>=0.43,<1",
+    "peft>=0.13,<1",
+    "datasets>=3,<4",
+]
+# m9-c-adopt PR-18 — 案 B Composite Burrows preference optimization の TRL
+# trainer wrapper (DPOTrainer / KTOTrainer / IPOTrainer のいずれか、 Phase 1.5
+# preflight spike で確定)。 trl は transformers / accelerate / peft / datasets
+# に依存するため [training] と一緒に install する想定:
+# ``uv sync --extra training --extra training-preference``。 単独 install
+# (``uv sync --extra training-preference``) では SFT 経路の dep が揃わないので
+# 必ず training と一緒に。 lazy import + mypy ignore + test importorskip の
+# 3 点 set 適用 (feedback_pre_push_ci_parity)。
+training-preference = [
+    "trl>=0.11,<1",
+]
+
+[project.scripts]
+erre-sandbox = "erre_sandbox.__main__:cli"
+
+[project.urls]
+Homepage = "https://github.com/mikotomiura/erre-sandbox"
+Repository = "https://github.com/mikotomiura/erre-sandbox"
+Issues = "https://github.com/mikotomiura/erre-sandbox/issues"
+
+[dependency-groups]
+lint = [
+    "ruff>=0.6,<1.0",
+]
+typecheck = [
+    "mypy>=1.11,<2",
+    "types-pyyaml>=6,<7",
+]
+test = [
+    "pytest>=8,<9",
+    "pytest-asyncio>=0.24,<1",
+]
+dev = [
+    { include-group = "lint" },
+    { include-group = "typecheck" },
+    { include-group = "test" },
+]
+
+# m9-c-spike — sglang==0.5.10.post1 ([inference]) ships its own
+# transformers==5.3.0 pin which collides with both [training] (peft +
+# transformers>=4.45,<5) and [eval] (sentence-transformers requires
+# transformers<5). Operationally these stacks never co-reside on the
+# same GPU host anyway: training runs first (peft saves a checkpoint),
+# then the SGLang server boots with the adapter loaded, and Tier C
+# judge LLM (eval, ollama-based) lives in a separate process. uv
+# ``conflicts`` splits the lockfile universe pairwise so the resolver
+# can pin transformers per-extra without forcing a single global
+# version. Callers run ``uv sync --extra inference`` or
+# ``uv sync --extra training`` (and may combine training+eval) but not
+# inference+training or inference+eval. Adapter unit tests use
+# httpx.MockTransport and do not import sglang, so CI default install
+# (no extras) still exercises the SGLangChatClient surface.
+[tool.uv]
+# sglang==0.5.10.post1 transitively requires flash-attn-4>=4.0.0b4
+# (pre-release). uv's default prerelease policy rejects unsolicited
+# pre-releases; allow them so the [inference] universe can resolve.
+# This only affects the [inference] extras universe — core / [eval] /
+# [training] resolutions still prefer stable releases by other constraints.
+prerelease = "allow"
+conflicts = [
+    [
+        { extra = "inference" },
+        { extra = "training" },
+    ],
+    [
+        { extra = "inference" },
+        { extra = "eval" },
+    ],
+    # m9-c-adopt PR-18 — training-preference (trl) は training (peft +
+    # transformers >=4.45 <5) と一緒に install することを前提とするが、
+    # inference (sglang transformers 5.3.0 pin) とは衝突する。 training と
+    # 同じ universe で resolve させるため、 inference との排他を明示。
+    [
+        { extra = "inference" },
+        { extra = "training-preference" },
+    ],
+]
+
+[tool.uv.build-backend]
+module-name = "erre_sandbox"
+module-root = "src"
+
+# =============================================================================
+# ruff
+# =============================================================================
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = [".venv", "docs/_pdf_derived", "godot_project", ".steering", "erre-sandbox-blender"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # docstring: 公開 API のみ require。全関数には要求しない
+    "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107",
+    "D203", "D213",
+    # mypy と責務重複するアノテーション系
+    "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ANN206", "ANN401",
+    # ruff format と衝突
+    "COM812", "ISC001",
+    # 日本語全角文字を許容する
+    "RUF001", "RUF002", "RUF003",
+    # pytest で assert を使うため
+    "S101",
+    # 例外文字列の形式規定はプロジェクト文化に合わない
+    "EM101", "EM102", "TRY003", "TRY300", "TRY301",
+    # Pydantic BaseModel 初期化は多引数が自然
+    "PLR0913",
+    # src レイアウトで誤検知しやすい
+    "INP001",
+    # コミット済み TODO / FIXME は許容
+    "TD002", "TD003", "FIX002",
+    # 日本語 docstring / コメント混在の環境で noisy
+    "DOC201", "DOC202", "DOC501",
+    # copyright header を全ファイルに強制しない
+    "CPY001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# S101 は global ignore 済みだが、将来 global から外して tests のみ許容に
+# 切り替える時のセーフティネットとして残している。
+"tests/**" = ["S101", "PLR2004", "D", "ANN", "SLF001", "S311", "TC003", "ERA001", "PLC0415"]
+"**/__init__.py" = ["F401", "D104"]
+# CLI subcommands intentionally print to stdout/stderr and use argparse
+# Namespace at runtime rather than as a TYPE_CHECKING-only import.
+"src/erre_sandbox/cli/**" = ["T201", "TC003"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["erre_sandbox"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+# =============================================================================
+# mypy — src は strict、tests は寛容
+# =============================================================================
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_ignores = true
+warn_return_any = false  # T05 完了後に true に昇格 (decisions.md 参照)
+plugins = ["pydantic.mypy"]
+exclude = ["^\\.venv/", "^build/", "^dist/", "^tools/"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["sqlite_vec.*", "streamlit.*"]
+ignore_missing_imports = true
+
+# m9-eval-system Tier A heavy ML deps live behind ``[eval]`` extras and
+# are imported lazily inside ``compute_*`` default loaders. ``--all-groups``
+# in CI does NOT install ``optional-dependencies.eval``, so mypy cannot
+# resolve them — mark the modules as ``ignore_missing_imports`` so the
+# strict src check stays green without forcing the heavy install.
+# m9-c-adopt PR-20 — ``langdetect.*`` を追加 (DPN20-0 wire-in、
+# qc_detectors.LangdetectAdapter が lazy import + factory pattern で使用、
+# [[feedback_pre_push_ci_parity]] 3 点セット = lazy import + mypy ignore_missing_imports
+# + pytest importorskip)。 langdetect は既に PR-18 で eval extras に追加済 (line 60)。
+[[tool.mypy.overrides]]
+module = ["transformers.*", "sentence_transformers.*", "empath.*", "ollama.*", "arch.*", "scipy.*", "sklearn.*", "langdetect.*"]
+ignore_missing_imports = true
+
+# m9-c-spike — SGLang serving + LoRA training stack live behind
+# ``[inference]`` / ``[training]`` extras and are imported lazily inside
+# function bodies (sglang only on real-server smoke; peft / accelerate /
+# bitsandbytes / datasets only inside ``train_kant_lora``). ``--all-groups``
+# in CI does NOT install these, so mypy cannot resolve them — mark the
+# modules as ``ignore_missing_imports`` to keep the strict src check green
+# without forcing the GPU-stack install.
+[[tool.mypy.overrides]]
+module = ["sglang.*", "peft.*", "accelerate.*", "bitsandbytes.*", "datasets.*", "torch", "torch.*"]
+ignore_missing_imports = true
+
+# m9-c-adopt PR-18 — TRL preference optimization trainer (DPOTrainer /
+# KTOTrainer / IPOTrainer) は ``[training-preference]`` extras 経由で lazy
+# import される。 CI default install (no extras) では trl が unresolved の
+# ため、 strict src check 維持のために module を ignore_missing_imports
+# 指定。 実 retrain は WSL2 + ``uv sync --extra training --extra
+# training-preference`` 環境でのみ走行。
+[[tool.mypy.overrides]]
+module = ["trl", "trl.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# =============================================================================
+# pytest
+# =============================================================================
+[tool.pytest.ini_options]
+minversion = "8.0"
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+]
+filterwarnings = [
+    "error",
+    "ignore::DeprecationWarning:websockets.*",
+    # T10 着手時に uvicorn.* / httpx.* / anyio.* の DeprecationWarning ignore を
+    # 必要に応じて追加する。過剰に厳しい場合は error を default に戻す判断もあり。
+    # pytest-asyncio 0.26.x は function-scope の event loop teardown 後に
+    # ループを close せず、GC タイミング次第で「次の test の setup」で
+    # ResourceWarning が発火する (上流 issue として報告済)。CI 緑化のため
+    # PytestUnraisableExceptionWarning だけ default 扱い (表示はするが fail
+    # しない) に下げる。pytest-asyncio >= 0.27 に上がったら本行は撤去。
+    "default::pytest.PytestUnraisableExceptionWarning",
+]
+markers = [
+    "godot: requires Godot binary on PATH or GODOT_BIN; deselected on CI via -m \"not godot\"",
+    "eval: requires the [eval] extras (sentence-transformers / transformers / empath); deselected by default",
+    "inference: requires the [inference] extras (sglang); deselected by default — reserved for real SGLang server smoke (Phase K-α G-GEAR side)",
+    "training: requires the [training] extras (peft / transformers / accelerate / bitsandbytes / datasets); deselected by default — reserved for Phase K β real Kant training (B-1/B-2 解消後)",
+    "spike: requires [training] + GPU + actual peft LoRA build; deselected by default — m9-c-spike Phase J mock-LoRA identity verification (CS-9)",
+]

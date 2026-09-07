@@ -1,0 +1,35 @@
+# --- 公開リポジトリ用 .gitignore ---
+# このリポジトリは公開される。**ERRE-Sandbox 本体の研究 scaffolding を持ち込まない。**
+
+# 持ち込み禁止 (本体側のローカル資産)
+.steering/
+.claude/
+.codex/
+.idea/
+loop/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+analysis/notebooks/_executed/
+
+# 大きい中間生成物 (derived は repro.sh で再生成できること)
+data/derived/*
+!data/derived/.gitkeep
+
+# 秘密情報
+.env
+*.key
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
