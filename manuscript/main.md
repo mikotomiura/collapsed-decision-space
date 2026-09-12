@@ -447,6 +447,28 @@ altering any condition.
 | **R3 — insufficient power** | `rho_hat >= 0.5` ∧ `power < 0.8` | `INCONCLUSIVE_UNDERPOWERED`. The result budget is not consumed. A re-run at larger *M*/*K* is sought separately. **No claim changes under this branch.** |
 | **R4 — invalid apparatus** | `rho_hat < 0.5` ∨ pooled `none_rate > 0.5` | This is **not** read as `NO_CHANNEL_CONFORMANCE`. In the primary family the substrate does not license two or more zones, so **this estimand is not measurable in that family**. The claim narrows to single-model scope. |
 
+### 8.1 Study design table
+
+PCI RR asks for a study design template linking the research question to the sampling plan, the
+analysis, and the interpretation fixed in advance for each outcome. The table below is that
+template. **It introduces nothing.** Every cell restates §4, §5.2, §6, §7 or §8, and no threshold,
+statistic, or claim appears here that is not already fixed there. Where the two could ever be read
+as differing, the numbered sections govern.
+
+**The hypothesis column is deliberately absent, not omitted by oversight.** PCI RR states that the
+hypothesis column *"can be omitted where the study is not hypothesis-driven"*, and §1.1 writes this
+study as an estimation problem under criterion 1B. No directional expectation is stated anywhere in
+this protocol, so a hypothesis column could only be filled with something the design does not
+contain.
+
+| Question | Sampling plan | Analysis plan | Rationale for the sensitivity of the design | Interpretation given different outcomes | What the outcome bears on |
+|---|---|---|---|---|---|
+| **Primary.** In a second model family (`llama3.1:8b`), what is the magnitude of the channel's downstream effect on the five-way zone decision — that is, what is `tv_bar` (§4.1)? | *M* = 300 draws per condition over the frozen bank of *K* = 8 contexts, both conditions, seed `20260708`: 4,800 model calls in the primary arm (§6.2). Read-out is the pre-bias destination zone. | Estimate `tv_bar` as the mean across contexts of the total-variation distance between the channel-on and channel-off five-way distributions (§4.1), then evaluate the decision function of §4.2 against the thresholds of §6.3 in the fixed order R5 → R4 → R1–R3 (§8). | The a-priori worksheet of §5.2 gives power `1.0000` at `delta_tv = 0.10` for a near-uniform base, and `0.9533` at `delta_tv = 0.01` for a degenerate base: what governs detection power is the size of the shift sought, not how concentrated the base distribution is. The power the realised design actually attains is not assumed — it is gated by R3. | **R1, R2, R3 and R4 exactly as written in §8.** All four are permissible Stage 2 outcomes; which occurs is not predicted, and the scope of claim each licenses is fixed there. Under R1 the confound of §12.1 is carried as a limitation rather than resolved. | Whether the channel shown in §3 to be causal, separable and ablatable propagates to a downstream discrete choice outside the model family in which it was measured. |
+| **R5 — control-arm concordance (evaluated first).** Does `qwen3:8b`, re-run under ollama 0.32.12, reproduce the five quantities of §5.1 inside the band declared in §8? | Same *M* = 300, *K* = 8, same frozen bank and seed: a further 4,800 model calls, with `think` disabled as in §5.1 (§6.1). 9,600 calls in total across both arms. | Evaluate the five R5 pass conditions of §8: `verdict == NO_CHANNEL_CONFORMANCE`, `rho_hat >= 0.75`, `power >= 0.8`, `tv_bar < 0.10` together with `\|tv_bar − 0.038065\| <= 0.03`, and `permutation_reject == False`. | The `rho_hat` bound of `0.75` is tighter than the `rho_min` of `0.5` inside the verdict logic and tolerates variation in at most two of the eight contexts. The `tv_bar` tolerance of `0.03` is set against the distance of `0.062` between the completed run's value and the materiality floor (§8). | **Pass** → proceed to interpret the primary arm. **Fail** → stop, and report which of the five quantities fell outside the band; the primary arm is not interpreted (§8). A pass states band membership and nothing further (§12.2). | Whether the backend version change between ollama 0.31.1 and 0.32.12 moved the measured quantities outside the declared band. Only a differing `verdict` licenses the stronger statement that the version change moved the verdict. |
+| **R4 — apparatus validity.** Is the estimand measurable at all in the primary family: does the substrate license at least two zones, and are draws parseable? | No additional collection. Evaluated on the same prospective draws as the primary row. | `rho_hat >= 0.5` and pooled `none_rate <= 0.5` (§7.2). Evaluated before R1–R3. | `rho_min = 0.5` and `none_rate_max = 0.5` are among the constants frozen before the completed run and checked mechanically (§6.3, §10.2). The Phase 0 pilot recorded parse and zone quantities only as three-level bands whose edges are deliberately not at `0.5`, so that pilot cannot anticipate this rule (§5.3). | **Fail** → R4: in the primary family the substrate does not license two or more zones, so the estimand is not measurable there and the claim narrows to single-model scope. This is **not** read as `NO_CHANNEL_CONFORMANCE` (§8). | Whether a floor effect, rather than an absent effect, accounts for a small estimate. |
+| **R3 — attained power.** Does the realised design attain the declared detection power? | No additional collection. Evaluated on the same prospective draws as the primary row. | `power >= 0.8` (§7.2). | `power_min = 0.8` is frozen with the other constants (§6.3). The completed run attained `power` of `1.0` at these same values of *M* and *K* (§5.1), which is why the prospective design is run at those values rather than smaller ones. | **Fail** → `INCONCLUSIVE_UNDERPOWERED`. No claim changes, the result budget is not consumed, and a re-run at larger *M*/*K* is sought separately (§8). | Nothing is licensed about the estimand when this check fails. The branch exists so that a small estimate cannot be read as an absent effect by default. |
+
+
 ---
 
 ## 9. Level declaration and eligibility self-audit
@@ -656,6 +678,56 @@ ancestry against a clone of the source repository.
 The lockfile shipped at `env/uv.lock` is the lockfile recorded in the completed run's manifest: its
 SHA-256 equals the `uv_lock_sha256` pinned in `data/raw/cproper-manifest.json`, and `repro.sh`
 checks that equality rather than asserting it.
+
+---
+
+## 14. AI usage disclosure
+
+This work was developed with substantial AI assistance, disclosed here in full under PCI RR §2.28.
+
+Claude (Anthropic; the Opus 4.8, Opus 5 and Sonnet 5 models, via Claude Code) was used for
+implementing the measurement apparatus and the analysis and verification scripts shipped here, for
+documentation, and for drafting the text of this manuscript. OpenAI Codex (`gpt-5.5`) was used for
+independent design and code review. **No AI system is an author**, and **no figure in this
+submission was generated by AI**: the manuscript contains no figures at all, so the prohibition is
+satisfied by construction rather than by assurance.
+
+The extent of that assistance is visible in the public record rather than asserted here, and the
+counting method is stated so that a reader can reproduce the figures:
+
+| Repository | Commits | Commits carrying at least one `Co-Authored-By` trailer naming the model |
+|---|---|---|
+| Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit `f23f179` | 301 | **201** |
+| This repository, at commit `02a40c0` | 7 | **6** |
+
+Trailers are counted **case-insensitively, as commits rather than as trailer lines**. The
+distinction is not pedantry: the upstream history carries 276 such lines across those 201 commits,
+because a single commit may carry more than one, and a count of lines reported as a count of commits
+would overstate the figure by a third.
+
+All AI-assisted output was reviewed, edited and validated by the human author, who made the
+decisions that determine what this protocol claims: the choice of estimand and of the materiality
+margin, the decision rules R1–R5 and the order in which they are evaluated, the level declaration
+of §9, the scope of every claim and of every limitation in §12, and the decision to submit this
+protocol before collecting the prospective data. Validation is not self-reported: the numerical,
+provenance and claim-boundary properties asserted in this manuscript are enforced by `repro.sh`
+(§13) and re-run by public continuous integration on two operating systems, and the claim-boundary
+guards are themselves checked against a fixture written to trip every one of them (§10.3), so a
+guard that silently stopped working fails the run.
+
+---
+
+## 15. Ethics, funding and competing interests
+
+This study involves no human or animal subjects. It measures the output distribution of
+locally-run language models on a frozen bank of synthetic contexts, so no ethics approval is
+required and none was sought.
+
+This work received no financial support. The compute is a single desktop machine belonging to the
+author, and the models are run locally; the projected cost of the full two-arm design is the 5.09 h
+of that machine's time recorded in §5.3.
+
+The author declares no competing interests.
 
 ---
 
