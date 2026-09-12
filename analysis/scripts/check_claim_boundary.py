@@ -154,16 +154,23 @@ def normalise_whitespace(text: str) -> str:
     return " ".join(text.split())
 
 
+def label_for(path: Path, repo_root: Path) -> str:
+    """Name a scanned file for reporting.
+
+    Targets passed with --extra-target need not live under the repository root: the submission PDF
+    is read back as text from wherever it was built. Fall back to the bare name rather than
+    refusing, so a derived artefact cannot escape the check on a path technicality.
+    """
+    try:
+        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
 def scan(guards: tuple[Guard, ...], path: Path, repo_root: Path) -> list[Hit]:
     """Scan one file with every guard, including phrases that straddle a line ending."""
     hits: list[Hit] = []
-    # Targets passed with --extra-target need not live under the repository root -- the submission
-    # PDF is read back as text from a build directory. Fall back to the name rather than refusing
-    # to scan, so a derived artefact cannot escape the check on a path technicality.
-    try:
-        rel = path.resolve().relative_to(repo_root.resolve()).as_posix()
-    except ValueError:
-        rel = path.name
+    rel = label_for(path, repo_root)
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
     flat = normalise_whitespace(text)
@@ -363,7 +370,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    scanned = ", ".join(path.relative_to(repo_root).as_posix() for path in targets)
+    scanned = ", ".join(label_for(path, repo_root) for path in targets)
     print(
         f"[claim-boundary] OK: no forbidden phrasing in {scanned} "
         "(patterns are English; against Japanese prose only language-independent "
