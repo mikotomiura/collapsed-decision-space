@@ -133,6 +133,10 @@ jobs:
         run: python3 analysis/scripts/check_claim_boundary.py --extra-target build/extracted.txt
 
       - name: Upload the PDF
+        # `always()` so that a failing check still hands over the PDF and the text it was read
+        # from. When a check reports that something is missing from the page, the next question is
+        # what the page actually says, and that question cannot be answered from the log alone.
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: powered-null-stage1-${{ github.sha }}
