@@ -38,8 +38,16 @@ jobs:
 
       - name: Install pandoc, XeTeX and a wide-coverage font
         # `texlive-latex-extra` carries pdflscape; `fonts-dejavu` carries the font chosen for its
-        # coverage of the logical connectives and accented letters the body needs. Both are
-        # verified here rather than at build time: finding out from a malformed PDF is too late.
+        # coverage of the logical connectives and accented letters the body needs.
+        #
+        # `lmodern` is named explicitly because pandoc's default LaTeX template loads it
+        # unconditionally -- including under xelatex with a `mainfont` set, where one might assume
+        # it is unused. Omitting it fails the build with `lmodern.sty not found`, which is exactly
+        # the failure this project's other paper pipeline already recorded and this one repeated.
+        #
+        # Every style file the template needs is checked at install time. A missing package should
+        # be reported by the step that installs packages, not by a LaTeX error in the middle of a
+        # build, where the message points at the template rather than at the cause.
         run: |
           set -eux
           sudo apt-get update -qq
@@ -49,9 +57,13 @@ jobs:
             texlive-fonts-recommended \
             texlive-latex-recommended \
             texlive-latex-extra \
+            lmodern \
             fonts-dejavu \
             poppler-utils
-          kpsewhich pdflscape.sty
+          for sty in lmodern pdflscape fontspec unicode-math microtype hyperref longtable \
+                     booktabs xcolor selnolig upquote parskip bookmark; do
+            kpsewhich "$sty.sty" || { echo "::error::missing style file: $sty.sty"; exit 1; }
+          done
           fc-list | grep -q 'DejaVu Serif'
           fc-list | grep -q 'DejaVu Sans Mono'
           pandoc --version | head -1
