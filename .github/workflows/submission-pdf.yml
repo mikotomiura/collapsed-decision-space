@@ -60,13 +60,27 @@ jobs:
             lmodern \
             fonts-dejavu \
             poppler-utils
-          for sty in lmodern pdflscape fontspec unicode-math microtype hyperref longtable \
-                     booktabs xcolor selnolig upquote parskip bookmark; do
-            kpsewhich "$sty.sty" || { echo "::error::missing style file: $sty.sty"; exit 1; }
-          done
+          # Only two style files are asserted, and each for a reason that is on the record rather
+          # than guessed:
+          #
+          #   lmodern   -- pandoc's default template loads it unconditionally. Its absence is what
+          #                failed the first run of this workflow.
+          #   pdflscape -- required by the preamble this repository generates in make_pdf_source.py.
+          #
+          # Nothing else is asserted. An earlier version of this step listed a dozen packages the
+          # template "probably" needs and failed on selnolig, which pandoc loads only under LuaTeX
+          # and which xelatex never wants. A check that invents requirements is worse than no check:
+          # it fails builds that would have worked. What the template actually needs is proven by
+          # the build step itself, which names any missing file.
+          kpsewhich lmodern.sty
+          kpsewhich pdflscape.sty
           fc-list | grep -q 'DejaVu Serif'
           fc-list | grep -q 'DejaVu Sans Mono'
           pandoc --version | head -1
+          # Diagnostics, not assertions: the packages the installed pandoc's template would load,
+          # so that a future failure can be read against the real list instead of a guessed one.
+          echo '--- packages referenced by the default LaTeX template ---'
+          pandoc -D latex | grep -E '^\s*\\\\usepackage' | sort -u || true
 
       - name: Pin the date to the manuscript's last change
         # `\today` would make the PDF differ on every build. The date of the commit that last
