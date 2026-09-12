@@ -181,7 +181,11 @@ def main(argv: list[str] | None = None) -> int:
         default_out = repo_root / "data" / "derived" / "power-curve.md"
         out_path = args.out if args.out is not None else default_out
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(table, encoding="utf-8")
+        # newline="\n" を明示する。既定の text mode は Windows で \n を \r\n へ
+        # 変換するため、同じ内容でも OS 間で出力ファイルの byte が一致しなくなる
+        # (2026-09-12 に Windows / WSL2 で実測。内容差は無く eol 差だけだった)。
+        with out_path.open("w", encoding="utf-8", newline="\n") as handle:
+            handle.write(table)
     else:
         sys.stderr.write(
             "[FAIL] 検査未通過のため data/derived/power-curve.md は書き換えない\n"

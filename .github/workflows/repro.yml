@@ -1,0 +1,81 @@
+name: repro
+
+# 査読者が打つのと同じ 1 コマンドを、両 OS の公開 CI で機械強制する。
+#
+# ここが緑であることの意味は限定的である。`repro.sh` が再現するのは**解析**であって
+# LLM の draw ではない (draw は再生成すると一致しないので、凍結済みの出力を入力として
+# 扱う)。CI が担保するのは次の 4 つ:
+#   - 凍結入力が data/data.md の記録と byte 一致していること
+#   - 閾値が凍結 commit の bytes と一致していること
+#   - 本文の数値が凍結入力から機械抽出できること
+#   - claim 境界の禁止句が本文・README・CITATION.cff に無く、陽性対照が 13/13 発火すること
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repro-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repro:
+    name: repro.sh (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Run repro.sh
+        shell: bash
+        run: bash repro.sh
+
+      # 派生物は両 OS で byte 一致するはずである (出力は newline="\n" 固定、
+      # 数値は 6 桁量子化済み)。一致を主張で終わらせず compare job で突き合わせる。
+      - name: Upload derived artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: derived-${{ matrix.os }}
+          path: data/derived/
+          if-no-files-found: error
+
+  compare:
+    name: derived artefacts byte-identical across OS
+    needs: repro
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download ubuntu artefacts
+        uses: actions/download-artifact@v4
+        with:
+          name: derived-ubuntu-latest
+          path: from-ubuntu
+
+      - name: Download windows artefacts
+        uses: actions/download-artifact@v4
+        with:
+          name: derived-windows-latest
+          path: from-windows
+
+      - name: Compare byte-for-byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "--- ubuntu ---"
+          (cd from-ubuntu && sha256sum ./*.md)
+          echo "--- windows ---"
+          (cd from-windows && sha256sum ./*.md)
+          diff -r from-ubuntu from-windows
+          echo "OK: 派生物は両 OS で byte 一致した"

@@ -1,8 +1,22 @@
 cff-version: 1.2.0
 message: "この論文および付随コードを引用する場合は以下を用いてください。"
 title: "A powered null on a verified channel: separating effect-absent from low power in embodied LLM agents"
-# abstract: 本文 (manuscript) が確定する Phase 1b で記入する。TODO literal は
-# GitHub の引用ウィジェットにそのまま出るため、値が無い間はキー自体をコメントアウトする。
+# abstract は manuscript/main.md の Abstract 節と同一でなければならない。
+# analysis/scripts/check_claim_boundary.py が毎回両者を比較するので、
+# 片方だけ直すと repro.sh が落ちる。
+abstract: >-
+  An exponential moving average over an embodied language-model agent's recent
+  movement modulates the temperature used for its next generation. A completed
+  forensic study establishes that this channel is causal, is separable from the
+  static location channel, and vanishes without residue under ablation, while a
+  positive control shows that the same estimator can return zero. A completed
+  measurement on a single model then found no shift in a five-way zone decision
+  exceeding the materiality margin fixed in advance: a mean total-variation
+  distance of 0.038065 against a margin of 0.10, obtained at full nominal power
+  over 4,800 draws. This Stage 1 protocol estimates the same quantity in a second model
+  family, with a control arm that re-runs the original model to absorb a backend
+  version change. Thresholds, decision rules and outcome-neutral checks are fixed
+  before any prospective draw exists, and no directional expectation is stated.
 type: software
 authors:
   - family-names: "Miura"
@@ -10,19 +24,26 @@ authors:
     alias: "mikotomiura"
     orcid: "https://orcid.org/0009-0000-4196-0508"
     affiliation: "Independent Researcher"
-# license: コード=Apache-2.0 OR MIT (本 repo 同梱の LICENSE / LICENSE-MIT のみ、CC-BY-4.0 本文は同梱していない)。
-# 本文 (manuscript) 用の CC-BY-4.0 は本文が存在する Phase 1b で LICENSE ファイルを追加した上で併記する。
-license: "Apache-2.0 OR MIT"
+# license は同梱している LICENSE ファイルと対応させる (DA-P1A-5)。
+#   コード (analysis/)      = Apache-2.0 OR MIT  -> LICENSE / LICENSE-MIT
+#   本文と図 (manuscript/)  = CC-BY-4.0          -> LICENSE-CC-BY-4.0.txt
+# CFF の license は SPDX 識別子の列挙しか表現できず、この「部分ごとに違う」
+# 対応は書けない。正確な対応は README.md §7 にある。
+license:
+  - Apache-2.0
+  - MIT
+  - CC-BY-4.0
 repository-code: "https://github.com/mikotomiura/powered-null"
-# doi: "TODO"          # Zenodo で DOI を切ったら記入
-# preferred-citation:  # arXiv / 雑誌に載ったら peer-reviewed 版をこちらへ
-#   type: article
-#   title: ""
-#   journal: ""
-#   year:
-#   doi: ""
+version: "0.1.0-stage1"
+date-released: "2026-09-13"
+# doi: Zenodo で DOI を切ったら記入する。切るまでキー自体を置かない
+#      (値の無いキーは GitHub の引用ウィジェットにそのまま出るため)。
+# preferred-citation: 査読版が出たらこちらへ (PCI RR の recommendation →
+#      Peer Community Journal)。出るまでキー自体を置かない。
 keywords:
   - measurement validity
   - LLM agents
   - preregistration
   - reproducibility
+  - registered report
+  - equivalence margin

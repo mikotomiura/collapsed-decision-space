@@ -1,0 +1,385 @@
+{
+  "schema_version": "powered-null-freeze-provenance-1",
+  "recorded_at_utc": "2026-09-12T00:00:00Z",
+  "purpose": "Evidence that the decision thresholds were fixed before the completed run, in a form a reader can check. See manuscript/main.md section 10.2 for the scope of what each half establishes.",
+  "scope_note": "The offline check (verify_threshold_freeze.py, no network and no git required) establishes that the apparatus files shipped in this repository are byte-identical to the blobs at the upstream commits named below. The commit TIMES are a property of the public upstream repository and are confirmed by following upstream.commit_url_template. The ordering claim is the conjunction of the two halves; neither half carries it alone.",
+  "upstream": {
+    "name": "ERRE-Sandbox",
+    "repository": "https://github.com/mikotomiura/ERRE-Sandbox",
+    "commit_url_template": "https://github.com/mikotomiura/ERRE-Sandbox/commit/{commit}",
+    "blob_url_template": "https://github.com/mikotomiura/ERRE-Sandbox/blob/{commit}/{upstream_path}"
+  },
+  "frozen_files": [
+    {
+      "shipped_path": "analysis/apparatus/erre_sandbox/integration/embodied/bank_power.py",
+      "upstream_path": "src/erre_sandbox/integration/embodied/bank_power.py",
+      "blob_sha1": "8e63664cf47d9aae91919b86de8224091d47d86b",
+      "freeze_commit": "2efe407cf7afd60e43f0a525a11a1739a8ca8d24",
+      "freeze_commit_utc": "2026-07-07T17:08:49Z",
+      "freeze_commit_subject": "feat(m13): I4 反復 bank の power apparatus + power worksheet",
+      "note": "This is the only commit in this file's history; the constants below have not changed since it landed.",
+      "module": "erre_sandbox.integration.embodied.bank_power",
+      "threshold_map": {
+        "alpha": "ALPHA_SIGNIFICANCE",
+        "delta_tv_min": "DELTA_TV_MIN",
+        "h_min_bits": "H_MIN_BITS",
+        "k_min": "K_MIN",
+        "m_min": "M_MIN",
+        "power_min": "POWER_MIN",
+        "rho_min": "RHO_MIN",
+        "seed": "POWER_SEED_DEFAULT"
+      }
+    },
+    {
+      "shipped_path": "analysis/apparatus/erre_sandbox/integration/embodied/bank_scorer.py",
+      "upstream_path": "src/erre_sandbox/integration/embodied/bank_scorer.py",
+      "blob_sha1": "409e8572bc84e815ac74362145f6d56429f53381",
+      "freeze_commit": "580b8aa8c884a35a761ed744b9f5a5f834a38137",
+      "freeze_commit_utc": "2026-07-10T09:25:18Z",
+      "freeze_commit_subject": "fix(m13): C-proper scorer — Codex review HIGH+MEDIUM 反映 (seal 前凍結)",
+      "note": "Last commit to touch this file. It precedes the run commit by just under three hours and is an ancestor of it.",
+      "module": "erre_sandbox.integration.embodied.bank_scorer",
+      "threshold_map": {
+        "none_rate_max": "NONE_RATE_MAX"
+      }
+    }
+  ],
+  "frozen_inputs_note": "data/raw/ の凍結入力についても、同梱 bytes が上流のどの commit の blob なのかを記録する。data/data.md の SHA-256 表と突き合わせるだけでは、記録と出荷物が一致することしか言えず、上流との同一性は言えない (自分の記録同士の照合で閉じてしまう)。blob SHA-1 は内容アドレスなので、この照合はネットワークも git も無しに成立する。",
+  "frozen_inputs": [
+    {
+      "shipped_path": "data/raw/cproper-verdict.json",
+      "upstream_path": "experiments/20260710-m13-c-proper/artifacts/verdict.json",
+      "blob_sha1": "1a7a83df6aafb4dd48f355e3a6647c5004c902d5",
+      "upstream_commit": "6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1",
+      "upstream_commit_utc": "2026-07-10T12:25:06Z",
+      "provenance_kind": "run_artifact",
+      "note": "完了済み実走そのものの commit。この 1 commit のみで、以後 amend されていない。"
+    },
+    {
+      "shipped_path": "data/raw/cproper-manifest.json",
+      "upstream_path": "experiments/20260710-m13-c-proper/artifacts/manifest.json",
+      "blob_sha1": "467e7137b71fc0ddcb7d423fe108be64a51c0e98",
+      "upstream_commit": "6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1",
+      "upstream_commit_utc": "2026-07-10T12:25:06Z",
+      "provenance_kind": "run_artifact",
+      "note": "同上。env_pins / run パラメータの正本。"
+    },
+    {
+      "shipped_path": "data/raw/bank_annotation.jsonl",
+      "upstream_path": "experiments/20260710-m13-c-proper/artifacts/bank_annotation.jsonl",
+      "blob_sha1": "988648e910f0db3e3567a0f69b6c0c286e5a2e31",
+      "upstream_commit": "6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1",
+      "upstream_commit_utc": "2026-07-10T12:25:06Z",
+      "provenance_kind": "run_artifact",
+      "note": "同上。manifest の artifacts pin とも交差照合している。"
+    },
+    {
+      "shipped_path": "data/raw/es3-verdict-forensic.json",
+      "upstream_path": "experiments/20260629-m13-es3-locomotion/data/raw/verdict-forensic.json",
+      "blob_sha1": "4f5789b1154d7b8463411991a0f28eee4c614ba8",
+      "upstream_commit": "44ca9c0b1e1c1277a2b3100f42f5e1401146d833",
+      "upstream_commit_utc": "2026-09-11T16:10:39Z",
+      "provenance_kind": "relocation",
+      "note": "★ 他の 3 件と性質が違う。この commit は ES-3 の実走 (2026-06-29) ではなく、追跡外のディレクトリに置かれていた記録を追跡下の experiments/ へ byte 無改変で移した commit である。したがって git 履歴はこの記録の産出時刻を証言しない。示せるのは『同梱 bytes = 上流に登録された bytes』までで、日付の witness にはならない。manuscript/main.md §12.5 に limitation として書いてある。"
+    }
+  ],
+  "run_commit": {
+    "commit": "6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1",
+    "commit_utc": "2026-07-10T12:25:06Z",
+    "commit_subject": "feat(m13): C-proper powered sealed run — verdict = NO_CHANNEL_CONFORMANCE (valid FAIL)",
+    "upstream_artifact_path": "experiments/20260710-m13-c-proper/artifacts/verdict.json",
+    "shipped_as": "data/raw/cproper-verdict.json",
+    "note": "This is the only commit in the artifact's history; the recorded verdict has not been amended."
+  },
+  "run_parameter_map": {
+    "k_contexts": "k_contexts",
+    "m_draws": "m_draws"
+  },
+  "run_parameter_note": "k_contexts and m_draws are run parameters rather than frozen module constants. They are checked against data/raw/cproper-manifest.json -> run, and they coincide in value with k_min and m_min.",
+  "apparatus_closure": {
+    "note": "同梱 apparatus は上流 src/erre_sandbox/** の import 推移閉包である。『byte-for-byte で複製した』は主張ではなく検査にしてある: 下の blob SHA-1 を再計算すれば、同梱物が上流 commit の bytes そのものであることがネットワーク無しで確かめられる。",
+    "upstream_commit": "589e881558f713b05312643cb842d0d924d1ce87",
+    "upstream_commit_utc": "2026-09-12T12:04:20Z",
+    "shipped_prefix": "analysis/apparatus/",
+    "upstream_prefix": "src/",
+    "file_count": 69,
+    "files": [
+      {
+        "path": "erre_sandbox/__init__.py",
+        "blob_sha1": "4225e24e84062b55460d3c32fb881c4ad76209d4"
+      },
+      {
+        "path": "erre_sandbox/cognition/__init__.py",
+        "blob_sha1": "53dc871d42072d5d8c1b93fa610e8b24cfb466b1"
+      },
+      {
+        "path": "erre_sandbox/cognition/_trait_antagonism.py",
+        "blob_sha1": "1246d7185c8b7d27cf8952cb81abd1b9fd3cf06a"
+      },
+      {
+        "path": "erre_sandbox/cognition/belief_ids.py",
+        "blob_sha1": "75ed9bf04daade36b1b7a0e09812e6da5703e9ca"
+      },
+      {
+        "path": "erre_sandbox/cognition/cycle.py",
+        "blob_sha1": "8a3c93b7432ad7c0134a3e302157c5db4599187d"
+      },
+      {
+        "path": "erre_sandbox/cognition/development.py",
+        "blob_sha1": "bad15f68398ac7a620dd139fad889845edad0266"
+      },
+      {
+        "path": "erre_sandbox/cognition/embodiment.py",
+        "blob_sha1": "41b93d019cf3f1d9a4fceeaae97f9c89eaaff378"
+      },
+      {
+        "path": "erre_sandbox/cognition/hint_engagement.py",
+        "blob_sha1": "b4062fe3726978df3c617b9b4620e284aa7d7809"
+      },
+      {
+        "path": "erre_sandbox/cognition/importance.py",
+        "blob_sha1": "f3f88fe4fa4e615568f60fcec32b2784dab7b4a6"
+      },
+      {
+        "path": "erre_sandbox/cognition/narrative.py",
+        "blob_sha1": "dd136739dcb36291eccdfac36bf45a891347da39"
+      },
+      {
+        "path": "erre_sandbox/cognition/parse.py",
+        "blob_sha1": "647bb0212bb1cb7bc1fc7e6d5eaa3fe6eb7d7bfb"
+      },
+      {
+        "path": "erre_sandbox/cognition/prompting.py",
+        "blob_sha1": "bfad7f6911835a1b2a1ab1c6053fd4000cf293db"
+      },
+      {
+        "path": "erre_sandbox/cognition/reflection.py",
+        "blob_sha1": "f837613b1ca2bc2dea306a14627e3b99d36eb492"
+      },
+      {
+        "path": "erre_sandbox/cognition/relational.py",
+        "blob_sha1": "435ebd72407848a5f1a172d3741122c51710333c"
+      },
+      {
+        "path": "erre_sandbox/cognition/state.py",
+        "blob_sha1": "3344ef1aa18bd4298d305a23d64c0f019887327e"
+      },
+      {
+        "path": "erre_sandbox/cognition/world_model.py",
+        "blob_sha1": "cfe46678470068ea5af2184397098f9c6c234cc5"
+      },
+      {
+        "path": "erre_sandbox/contracts/__init__.py",
+        "blob_sha1": "3ebd360b3e1062107d0912eb7cbfd33d2a39e084"
+      },
+      {
+        "path": "erre_sandbox/contracts/cognition_layers.py",
+        "blob_sha1": "ef8b752f5e35504e5f31b56ad2a08df222fde106"
+      },
+      {
+        "path": "erre_sandbox/contracts/geometry.py",
+        "blob_sha1": "856bc5c97c673b21715f85974bafac8170ddd37d"
+      },
+      {
+        "path": "erre_sandbox/contracts/thresholds.py",
+        "blob_sha1": "fedce46b8329393a77df0ad8e64124c3659b2c20"
+      },
+      {
+        "path": "erre_sandbox/erre/__init__.py",
+        "blob_sha1": "b7c9cd5b39880597bf19dacc6cdedcbff6ac61c4"
+      },
+      {
+        "path": "erre_sandbox/erre/fsm.py",
+        "blob_sha1": "2a1caa7228a135d82c652ad04e5d3882a22a67c4"
+      },
+      {
+        "path": "erre_sandbox/erre/locomotion_sampling.py",
+        "blob_sha1": "ca539cd957c2905bafcdd1c34a9665445a476c0f"
+      },
+      {
+        "path": "erre_sandbox/erre/sampling_table.py",
+        "blob_sha1": "97a95775918e970c3d71a4ccc6fcb32839ace02c"
+      },
+      {
+        "path": "erre_sandbox/erre/two_phase.py",
+        "blob_sha1": "a3681780cb43c2aefc8b9746b27ab310a048f163"
+      },
+      {
+        "path": "erre_sandbox/evidence/__init__.py",
+        "blob_sha1": "9796e42a1a14b60cf2a8de7d938d5bd53cd24685"
+      },
+      {
+        "path": "erre_sandbox/evidence/bootstrap_ci.py",
+        "blob_sha1": "98d9cca7c48a5de0e3ae9c43cdc7f35c20bdcb59"
+      },
+      {
+        "path": "erre_sandbox/evidence/es3_locomotion/__init__.py",
+        "blob_sha1": "2208478230dd880341d8cfe9a73e34e6450b3c52"
+      },
+      {
+        "path": "erre_sandbox/evidence/es3_locomotion/constants.py",
+        "blob_sha1": "e5aa16b0ee7cff3aab848298beb969c9085ed465"
+      },
+      {
+        "path": "erre_sandbox/evidence/es3_locomotion/controls.py",
+        "blob_sha1": "b4ba4579026ebe58746c8d5668d85ff7b21d9fed"
+      },
+      {
+        "path": "erre_sandbox/evidence/es3_locomotion/decomposition.py",
+        "blob_sha1": "0add3bc349f222d3cd9f23de2f7cdd6db173017f"
+      },
+      {
+        "path": "erre_sandbox/evidence/es3_locomotion/scenario.py",
+        "blob_sha1": "a1abadee605a16500dd2eecb945b8b3c8859f0aa"
+      },
+      {
+        "path": "erre_sandbox/evidence/es3_locomotion/verdict_report.py",
+        "blob_sha1": "37f645deb34cd1ac80f419bb151234d965ec2ab4"
+      },
+      {
+        "path": "erre_sandbox/evidence/live_carry/__init__.py",
+        "blob_sha1": "fa7050b6d1bae38ceca5ccffd9a82c29383c4382"
+      },
+      {
+        "path": "erre_sandbox/evidence/live_carry/constants.py",
+        "blob_sha1": "a6128eff5964f6907459a9f9312c2a6917618c46"
+      },
+      {
+        "path": "erre_sandbox/evidence/metrics.py",
+        "blob_sha1": "f9bee85c6be1255a1418e02156030583e29a60bf"
+      },
+      {
+        "path": "erre_sandbox/evidence/saturation/__init__.py",
+        "blob_sha1": "9b0bf693f2f55a14fc7ec5024165f208c4b95730"
+      },
+      {
+        "path": "erre_sandbox/evidence/saturation/constants.py",
+        "blob_sha1": "580379c64070d688511bf5506b61661313e48b47"
+      },
+      {
+        "path": "erre_sandbox/evidence/scaling_metrics.py",
+        "blob_sha1": "72b7ccdbd98aeb07d116ef0785f59fcf3e605aec"
+      },
+      {
+        "path": "erre_sandbox/evidence/spdm/__init__.py",
+        "blob_sha1": "6ff7bf08caec526c999cce551e9a24015a46782c"
+      },
+      {
+        "path": "erre_sandbox/evidence/spdm/constants.py",
+        "blob_sha1": "e6f45ffa3f711740284ca80b04fd88afa4828e7e"
+      },
+      {
+        "path": "erre_sandbox/evidence/spdm/probe.py",
+        "blob_sha1": "cae6101aac2a8a9786562259f82ea853e53e5d5b"
+      },
+      {
+        "path": "erre_sandbox/evidence/spdm/scenario.py",
+        "blob_sha1": "adf93d60c4d20dba4743c971b706429ca4c1a488"
+      },
+      {
+        "path": "erre_sandbox/evidence/spdm/verdict_report.py",
+        "blob_sha1": "8a275a0dce678ce1d12682dec589374d023ab17b"
+      },
+      {
+        "path": "erre_sandbox/inference/__init__.py",
+        "blob_sha1": "f2919cf5f2a99826ec33a88f4a788c737bff0db5"
+      },
+      {
+        "path": "erre_sandbox/inference/ollama_adapter.py",
+        "blob_sha1": "da807564704ba64f31b0b0aeea0015053d57330c"
+      },
+      {
+        "path": "erre_sandbox/inference/sampling.py",
+        "blob_sha1": "f569d90705b51e5deb5233c7c2bd19302e6f2bf6"
+      },
+      {
+        "path": "erre_sandbox/inference/sglang_adapter.py",
+        "blob_sha1": "07fb6d7c73e46f092c33a633cf548e63e356b059"
+      },
+      {
+        "path": "erre_sandbox/integration/__init__.py",
+        "blob_sha1": "5b15a5a9bda89c76ad023c183cdd5ee0a4aab2cd"
+      },
+      {
+        "path": "erre_sandbox/integration/acceptance.py",
+        "blob_sha1": "5f81cd47d67012a9b23ea641b6322b33114abc24"
+      },
+      {
+        "path": "erre_sandbox/integration/dialog.py",
+        "blob_sha1": "7e94e0ec26932ababc070d0c01f30ce00608bc00"
+      },
+      {
+        "path": "erre_sandbox/integration/embodied/__init__.py",
+        "blob_sha1": "6b1241f37ee7dbcc17d5ba310f12abfe8ca34025"
+      },
+      {
+        "path": "erre_sandbox/integration/embodied/bank_power.py",
+        "blob_sha1": "8e63664cf47d9aae91919b86de8224091d47d86b"
+      },
+      {
+        "path": "erre_sandbox/integration/embodied/bank_scorer.py",
+        "blob_sha1": "409e8572bc84e815ac74362145f6d56429f53381"
+      },
+      {
+        "path": "erre_sandbox/integration/embodied/loop.py",
+        "blob_sha1": "86c223a1b8de9c78a02dca1ae6177e5891ad314a"
+      },
+      {
+        "path": "erre_sandbox/integration/gateway.py",
+        "blob_sha1": "9459ce117756688e02ce74e19f379ecc224e16ef"
+      },
+      {
+        "path": "erre_sandbox/integration/inbound.py",
+        "blob_sha1": "ad23f1e6e9a887300c6408d49bbc7814657849ad"
+      },
+      {
+        "path": "erre_sandbox/integration/metrics.py",
+        "blob_sha1": "84c5e38068e3ea0c823ba503f0553827320bef7c"
+      },
+      {
+        "path": "erre_sandbox/integration/protocol.py",
+        "blob_sha1": "826a7676740fda5826653c798d5004f38e5d737b"
+      },
+      {
+        "path": "erre_sandbox/integration/scenarios.py",
+        "blob_sha1": "e2a62c4b5cbb63dc55367e9dc916b849aa324237"
+      },
+      {
+        "path": "erre_sandbox/memory/__init__.py",
+        "blob_sha1": "c3f25b44474988260a716b060f49cc6c87eae1dd"
+      },
+      {
+        "path": "erre_sandbox/memory/embedding.py",
+        "blob_sha1": "3606e14e14041ef0a81c19755f8140a29000c034"
+      },
+      {
+        "path": "erre_sandbox/memory/retrieval.py",
+        "blob_sha1": "9790d2578e053ba41cc5ecf807bcb9047b739344"
+      },
+      {
+        "path": "erre_sandbox/memory/store.py",
+        "blob_sha1": "04b16308d77530cd3e6530cd4c4ca73b227eacca"
+      },
+      {
+        "path": "erre_sandbox/schemas.py",
+        "blob_sha1": "482c886d8580d6a5eb6564fa9653512eee2f633b"
+      },
+      {
+        "path": "erre_sandbox/world/__init__.py",
+        "blob_sha1": "af7bd3fa400ad98ebcbcc7df1effb2e3b9d0e934"
+      },
+      {
+        "path": "erre_sandbox/world/physics.py",
+        "blob_sha1": "a350b5edcb667eb15967a0ab87a0077f333192a9"
+      },
+      {
+        "path": "erre_sandbox/world/tick.py",
+        "blob_sha1": "e45db60090f8e54b232abb9f07a58206c64288ae"
+      },
+      {
+        "path": "erre_sandbox/world/zones.py",
+        "blob_sha1": "6369ac10d1a70680ea8c5c6ae6eb8cd9d1f3e3ba"
+      }
+    ]
+  }
+}

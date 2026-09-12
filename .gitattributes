@@ -1,4 +1,35 @@
-# 凍結された生の証拠ファイルは git に一切正規化させない。
+# 本 repo は **checkout された bytes そのもの**を検査対象にしている。
+#
+# `analysis/scripts/verify_threshold_freeze.py` と `verify_data_hashes.py` は、
+# 作業ツリーのファイルから git blob 識別子 (`sha1("blob <size>\0" + content)`) を
+# 再計算して上流 commit の blob と突き合わせる。したがって **checkout 時に eol が
+# 変換されると、内容が同じでも識別子が変わり、検査が落ちる**。
+#
+# GitHub の `windows-latest` runner は `core.autocrlf = true` が既定である。
+# 著者機は `core.autocrlf = input` (= checkout では変換しない) なので、
+# **著者機だけで試しても検出できない**。上流 ERRE-Sandbox では 2026-09-11 に
+# `uv.lock` が未被覆だったせいで windows leg が実際に落ちている。
+# 教訓は memory `feedback_gitattributes_sha_pin_eol`。
+#
+# 規則は**後勝ち**なので、順序は「一般規則 → 凍結生データの例外」にしてある。
+
+# --- 一般規則: 追跡するテキストは LF に固定する ---
+*.py        text eol=lf
+*.sh        text eol=lf
+*.md        text eol=lf
+*.json      text eol=lf
+*.toml      text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.cff       text eol=lf
+*.txt       text eol=lf
+
+# 拡張子が無いために上の規則に当たらないもの。
+SEED        text eol=lf
+LICENSE     text eol=lf
+LICENSE-MIT text eol=lf
+
+# --- 例外: 凍結された生の証拠には git を一切触らせない ---
 #
 # 経緯 (2026-09-12): global の `core.autocrlf = input` により、初回 import 時点で
 # `data/raw/es3-verdict-forensic.json` の CR が剥がされ、**commit された内容が
