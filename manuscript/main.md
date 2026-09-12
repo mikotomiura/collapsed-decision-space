@@ -9,7 +9,7 @@
 | Affiliation | Independent Researcher |
 | Correspondence | via the PCI RR submission system |
 | Level declaration | Prospective draws: **Level 6**. Completed preliminary studies: **outside the level scheme** (§9) |
-| Code and data | <https://github.com/mikotomiura/powered-null> (this repository) |
+| Code and data | <https://github.com/mikotomiura/powered-null>, at the tag <https://github.com/mikotomiura/powered-null/tree/stage1-submitted>, which is the state this manuscript was produced from. Development continues on the default branch, so the tag rather than the branch is what this manuscript refers to (§13) |
 | Licence | Code: Apache-2.0 OR MIT. Manuscript and figures: CC BY 4.0 |
 | Protocol status | No prospective draw has been collected. Data collection begins after in-principle acceptance (§11) |
 
@@ -648,6 +648,18 @@ All three gaps are stated rather than worked around.
 ---
 
 ## 13. Data, code and reproducibility
+
+**Everything this manuscript refers to is reachable from one place, pinned to one version.** The
+repository is <https://github.com/mikotomiura/powered-null>, and the state this manuscript was
+produced from is the tag `stage1-submitted`:
+
+> <https://github.com/mikotomiura/powered-null/tree/stage1-submitted>
+
+Work continues on the default branch after submission, so every path named below should be read at
+that tag rather than on the branch. The upstream source repository the apparatus and the provenance
+records come from is <https://github.com/mikotomiura/ERRE-Sandbox>, and §10.2 gives the commit
+identifiers within it. There is no separate supplementary archive: the data, the analysis scripts,
+the apparatus and the reproduction command are all in the repository named here.
 
 This repository contains the frozen inputs of the completed studies (`data/raw/`, each pinned by
 SHA-256 and size in `data/data.md`), the analysis scripts (`analysis/scripts/`), and the measurement
