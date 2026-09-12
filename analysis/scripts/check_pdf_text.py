@@ -19,6 +19,21 @@ inputs by key. One SSOT, checked in two places.
 Whitespace is normalised before matching, because TeX decides its own line breaks and a quantity
 broken across two lines is still present.
 
+**What this check deliberately does not do, and why nobody should add it.** It does not look for
+contiguous sentences from inside table cells. ``pdftotext`` emits a multi-column table one *line* at
+a time across all columns, so the prose of two adjacent cells arrives interleaved: a sentence that
+reads continuously on the page is split by fragments of its neighbour in the extracted text.
+Searching for a phrase from a cell therefore reports it missing even when the page carries it
+perfectly, and three such false alarms were raised against this document before the cause was
+understood. Column *headers* are short enough to survive on one line, which is why they are checked
+and cell bodies are not. To verify cell contents, compare the set of words on the page, not their
+order.
+
+``pdftotext`` also joins a word that TeX hyphenated at a line break, dropping the hyphen: this
+document renders ``sample-complexity`` as ``samplecomplexity`` in the extracted text while its other
+sixty-three hyphenated words are unaffected. That is an artefact of reading the PDF back, not of the
+PDF.
+
 Usage:  python analysis/scripts/check_pdf_text.py extracted.txt
 """
 
