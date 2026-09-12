@@ -28,6 +28,7 @@ Usage:  python analysis/scripts/make_pdf_source.py --out build/paper-source.md -
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -51,10 +52,20 @@ AUTHOR = "Mikoto Miura, Independent Researcher (ORCID 0009-0000-4196-0508)"
 #: idiom for rotating a pandoc-generated table.
 HEADER_INCLUDES = (
     r"\usepackage{pdflscape}",
+    r"\usepackage{seqsplit}",
     r"\newcommand{\blandscape}{\begin{landscape}}",
     r"\newcommand{\elandscape}{\end{landscape}}",
     r"\setlength{\emergencystretch}{3em}",
 )
+
+#: A code span longer than this, with no space in it, is rewritten so that it can break.
+#:
+#: TeX will not break a typewriter token that offers no breakpoint. It sets it past the column edge
+#: instead, and the overflow is simply not on the page: the first build of this document put 47 of
+#: the 64 characters of each SHA-256 model digest on the page and lost the rest, while the 40-
+#: character commit identifiers in the same document survived intact. 48 is therefore the measured
+#: boundary rather than a guess -- above it, content was being dropped.
+LONG_TOKEN_THRESHOLD = 48
 
 #: Typesetting variables, declared here rather than on the pandoc command line so that a font name
 #: containing a space cannot be split into separate arguments by the shell -- a mistake already
@@ -127,6 +138,27 @@ def wrap_design_table(body: str) -> str:
     return "\n".join(lines[:start] + opening + lines[start:end] + closing + lines[end:])
 
 
+def split_long_tokens(body: str) -> tuple[str, int]:
+    """Let over-long typewriter tokens break, so they cannot run off the page.
+
+    Only code spans with no whitespace in them are touched, which is what confines this to
+    identifiers and digests: a run of prose between two unrelated code spans on the same line
+    always contains a space and is left alone. The characters are unchanged -- ``\\seqsplit`` only
+    adds permission to break between them -- so the page still carries the token exactly.
+
+    Returns the rewritten body and how many tokens were rewritten.
+    """
+    pattern = re.compile(r"`([^\s`]{" + str(LONG_TOKEN_THRESHOLD) + r",})`")
+    count = 0
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal count
+        count += 1
+        return r"\texttt{\seqsplit{" + match.group(1) + "}}"
+
+    return pattern.sub(replace, body), count
+
+
 def check_no_raw_environment(body: str) -> None:
     """Refuse to emit a body containing a literal LaTeX environment.
 
@@ -151,7 +183,9 @@ def build(manuscript: Path, date: str) -> str:
     text = manuscript.read_text(encoding="utf-8")
     title, body = split_title(text)
     body = wrap_design_table(body)
+    body, split_count = split_long_tokens(body)
     check_no_raw_environment(body)
+    print(f"[pdf-source] {split_count} over-long token(s) made breakable")
 
     header = "\n".join(f"  - {item}" for item in HEADER_INCLUDES)
     variables = "\n".join(f'{name}: "{value}"' for name, value in DOCUMENT_VARIABLES)

@@ -85,6 +85,18 @@ def normalise(text: str) -> str:
     return " ".join(text.split())
 
 
+def despace(text: str) -> str:
+    """Remove whitespace entirely.
+
+    A token too long to fit its column is given permission to break between characters, so a
+    64-character digest can arrive from ``pdftotext`` with a newline in the middle of it. Collapsing
+    runs of whitespace to a single space is not enough to reassemble that; the space has to go. This
+    is used only as a fallback for quantities, where the alternative is a false failure on a value
+    that is present and correct on the page.
+    """
+    return "".join(text.split())
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("extracted", type=Path, help="text extracted from the PDF by pdftotext")
@@ -102,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
 
     raw = args.extracted.read_text(encoding="utf-8", errors="replace")
     flat = normalise(raw)
+    tight = despace(raw)
 
     if len(flat) < 20_000:
         print(
@@ -142,7 +155,9 @@ def main(argv: list[str] | None = None) -> int:
         for key in key_path:
             value = value[key]
         literal = literal_of(value, how)
-        if literal not in flat:
+        # A long token may have been broken across lines to keep it on the page, so a quantity
+        # missing from the whitespace-collapsed text is looked for again with whitespace removed.
+        if literal not in flat and despace(literal) not in tight:
             problems.append(f"the quantity {label} = {literal} does not appear in the PDF")
 
     if problems:

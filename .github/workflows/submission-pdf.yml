@@ -66,6 +66,8 @@ jobs:
           #   lmodern   -- pandoc's default template loads it unconditionally. Its absence is what
           #                failed the first run of this workflow.
           #   pdflscape -- required by the preamble this repository generates in make_pdf_source.py.
+          #   seqsplit  -- likewise; it is what lets a 64-character digest break instead of running
+          #                off the page, which is how 17 characters of one went missing.
           #
           # Nothing else is asserted. An earlier version of this step listed a dozen packages the
           # template "probably" needs and failed on selnolig, which pandoc loads only under LuaTeX
@@ -74,6 +76,7 @@ jobs:
           # the build step itself, which names any missing file.
           kpsewhich lmodern.sty
           kpsewhich pdflscape.sty
+          kpsewhich seqsplit.sty
           fc-list | grep -q 'DejaVu Serif'
           fc-list | grep -q 'DejaVu Sans Mono'
           pandoc --version | head -1
