@@ -41,8 +41,18 @@ AUTHOR = "Mikoto Miura, Independent Researcher (ORCID 0009-0000-4196-0508)"
 
 #: Preamble. ``pdflscape`` supplies the landscape environment; ``emergencystretch`` lets TeX
 #: relieve overfull lines inside narrow table columns rather than letting them run into the margin.
+#:
+#: ``\blandscape`` and ``\elandscape`` exist because pandoc must not be given a complete LaTeX
+#: environment to look at. Writing ``\begin{landscape}`` directly in the body makes pandoc treat
+#: everything up to ``\end{landscape}`` as one raw block and pass it through untouched -- the
+#: markdown table inside is then never parsed, and its underscores reach LaTeX bare, which fails
+#: with ``Missing $ inserted``. Wrapping the environment in two macros gives pandoc two ordinary
+#: raw commands instead, and the markdown between them is parsed normally. This is the documented
+#: idiom for rotating a pandoc-generated table.
 HEADER_INCLUDES = (
     r"\usepackage{pdflscape}",
+    r"\newcommand{\blandscape}{\begin{landscape}}",
+    r"\newcommand{\elandscape}{\end{landscape}}",
     r"\setlength{\emergencystretch}{3em}",
 )
 
@@ -110,15 +120,38 @@ def wrap_design_table(body: str) -> str:
     if end - start < 3:
         _die(f"the study design table has only {end - start} lines; it should have at least 3")
 
-    opening = ["", r"\begin{landscape}", r"\footnotesize", r"\setlength{\tabcolsep}{3pt}", ""]
-    closing = ["", r"\normalsize", r"\end{landscape}", ""]
+    # `\blandscape` / `\elandscape` rather than the environment itself -- see HEADER_INCLUDES for
+    # why giving pandoc a complete environment silently disables markdown parsing inside it.
+    opening = ["", r"\blandscape", r"\footnotesize", r"\setlength{\tabcolsep}{3pt}", ""]
+    closing = ["", r"\normalsize", r"\elandscape", ""]
     return "\n".join(lines[:start] + opening + lines[start:end] + closing + lines[end:])
+
+
+def check_no_raw_environment(body: str) -> None:
+    """Refuse to emit a body containing a literal LaTeX environment.
+
+    pandoc treats ``\\begin{X}`` ... ``\\end{X}`` as a single raw block and passes everything
+    between them through without parsing it. A markdown table caught inside one is therefore never
+    converted, and its underscores arrive at LaTeX bare -- the build fails with ``Missing $
+    inserted`` pointing at a line of the manuscript, which reads like a problem with the prose
+    rather than with this script. That already happened once. Environments must be reached through
+    a macro instead, as ``HEADER_INCLUDES`` does for ``landscape``.
+    """
+    offenders = [
+        line for line in body.splitlines() if line.lstrip().startswith((r"\begin{", r"\end{"))
+    ]
+    if offenders:
+        _die(
+            "the generated body contains a literal LaTeX environment, which would make pandoc "
+            "skip parsing everything inside it: " + "; ".join(offenders[:3])
+        )
 
 
 def build(manuscript: Path, date: str) -> str:
     text = manuscript.read_text(encoding="utf-8")
     title, body = split_title(text)
     body = wrap_design_table(body)
+    check_no_raw_environment(body)
 
     header = "\n".join(f"  - {item}" for item in HEADER_INCLUDES)
     variables = "\n".join(f'{name}: "{value}"' for name, value in DOCUMENT_VARIABLES)
