@@ -77,7 +77,7 @@ docstring より (要点):
 | `src/erre_sandbox/evidence/es3_locomotion/` | `analysis/apparatus/erre_sandbox/evidence/es3_locomotion/` | 凍結 apparatus。閉包の一部として commit hash 込みで `data/data.md` に記録済 |
 | `src/erre_sandbox/evidence/spdm/` | `analysis/apparatus/erre_sandbox/evidence/spdm/` | 同上 |
 | `src/erre_sandbox/integration/embodied/bank_power.py` | `analysis/scripts/bank_power.py` | 検出力計算。**これは閉包コピーでなく別枠のまま存在**(現状維持、移動しない) |
-| C-proper scorer (`scorer_schema_version = "ecl-cproper-scorer-1"`) | — | **確認済: 閉包に含まれない (未解決)**。`grep -rn "ecl-cproper-scorer-1" analysis/apparatus/` はヒット 0 件、`grep -rl "scorer" analysis/apparatus/` も scorer 実体ファイルなし (`world_model.py` 等の無関係な部分一致のみ)。所在は本タスクでは特定できなかった |
+| `src/erre_sandbox/integration/embodied/bank_scorer.py` (`scorer_schema_version = "ecl-cproper-scorer-1"`) | `analysis/apparatus/erre_sandbox/integration/embodied/bank_scorer.py` | **2026-09-12 訂正**: 「所在を特定できなかった」は誤り。原因は `paper/_closure.py` の `ENTRIES["02"]` に本モジュールの seed が無かったこと (前タスクの `grep -rn ... analysis/apparatus/` はコピー先しか見ておらず、原本 `src/erre_sandbox/integration/embodied/bank_scorer.py` の存在を見落としていた)。ENTRIES["02"] に seed を追加し (2026-09-12)、本ファイルを閉包へ同梱した。閉包は 68 → **69 ファイル**、`pwsh paper/gather.ps1 -Verify` は 02 分について **176 件中 175 MATCH / DRIFT 1 (`data/raw/es3-verdict-forensic.json`、apparatus コードでなく生データの CRLF/LF 差分、本件とは無関係) / MISSING 0**。`data/raw/cproper-verdict.json` が `scorer_schema_version="ecl-cproper-scorer-1"` を宣言しているのに scorer 本体が閉包に無いと、中核 verdict (`NO_CHANNEL_CONFORMANCE` を産んだ計算) を論文 repo 単体で再導出できなかった。それがこれで閉じた |
 
 ### 新規に書くもの
 

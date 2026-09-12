@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""verdict.json / manifest.json / es3-verdict-forensic.json から数値を機械抽出する。
+"""verdict.json / manifest.json / es3-verdict-forensic.json から数値を機械抽出する.
 
 手写しを禁止するための装置: 本文に載せる数値は必ずこのスクリプトの出力から
 取ること。抽出は `d["key"]` の直接添字のみを使う (`.get(..., default)` は
@@ -30,15 +30,11 @@ def load_json(path: Path) -> dict[str, Any]:
     return data
 
 
-def render_table(
-    verdict: dict[str, Any],
-    manifest: dict[str, Any],
-    es3: dict[str, Any],
-) -> str:
-    lines: list[str] = []
-
-    # --- C-proper verdict (data/raw/cproper-verdict.json) ---
+def _render_cproper_section(verdict: dict[str, Any]) -> list[str]:
+    """data/raw/cproper-verdict.json を Markdown 行列へ抽出する."""
     v_verdict = verdict["verdict"]
+    v_reason = verdict["reason"]
+    v_reason_text = "; ".join(str(item) for item in v_reason)
     v_rho_hat = verdict["rho_hat"]
     v_power = verdict["power"]
     v_tv_bar = verdict["tv_bar"]
@@ -49,21 +45,21 @@ def render_table(
     v_n_contexts = verdict["n_contexts"]
     v_thresholds = verdict["thresholds"]
 
-    per_context_h = verdict["per_context_h"]
-    per_context_h_values = [per_context_h[k] for k in per_context_h]
+    per_context_h_values = list(verdict["per_context_h"].values())
     per_context_h_min = min(per_context_h_values)
     per_context_h_max = max(per_context_h_values)
 
-    tv_per_context = verdict["tv_per_context"]
-    tv_per_context_values = [tv_per_context[k] for k in tv_per_context]
+    tv_per_context_values = list(verdict["tv_per_context"].values())
     tv_per_context_min = min(tv_per_context_values)
     tv_per_context_max = max(tv_per_context_values)
 
+    lines: list[str] = []
     lines.append("# C-proper verdict (data/raw/cproper-verdict.json)")
     lines.append("")
     lines.append("| 量 | 値 |")
     lines.append("|---|---|")
     lines.append(f"| verdict | `{v_verdict}` |")
+    lines.append(f"| reason | {v_reason_text} |")
     lines.append(f"| rho_hat | {v_rho_hat} |")
     lines.append(f"| power | {v_power} |")
     lines.append(f"| tv_bar | {v_tv_bar} |")
@@ -81,11 +77,13 @@ def render_table(
     lines.append("")
     lines.append("| キー | 値 |")
     lines.append("|---|---|")
-    for key in v_thresholds:
-        lines.append(f"| {key} | {v_thresholds[key]} |")
+    lines.extend(f"| {key} | {value} |" for key, value in v_thresholds.items())
     lines.append("")
+    return lines
 
-    # --- run manifest (data/raw/cproper-manifest.json) ---
+
+def _render_manifest_section(manifest: dict[str, Any]) -> list[str]:
+    """data/raw/cproper-manifest.json を Markdown 行列へ抽出する."""
     env_pins = manifest["env_pins"]
     m_model = env_pins["model"]
     m_ollama_version = env_pins["ollama_version"]
@@ -98,9 +96,9 @@ def render_table(
     r_k_contexts = run["k_contexts"]
     r_m_draws = run["m_draws"]
 
-    cost_ceiling = manifest["cost_ceiling"]
-    c_max_llm_calls = cost_ceiling["max_llm_calls"]
+    c_max_llm_calls = manifest["cost_ceiling"]["max_llm_calls"]
 
+    lines: list[str] = []
     lines.append("# run manifest (data/raw/cproper-manifest.json)")
     lines.append("")
     lines.append("| 量 | 値 |")
@@ -115,8 +113,48 @@ def render_table(
     lines.append(f"| run.m_draws | {r_m_draws} |")
     lines.append(f"| cost_ceiling.max_llm_calls | {c_max_llm_calls} |")
     lines.append("")
+    return lines
 
-    # --- ES-3 locomotion verdict forensic (data/raw/es3-verdict-forensic.json) ---
+
+def _render_es3_hist_notes(
+    e_d_loco: float, hist_fields: tuple[tuple[str, float], ...]
+) -> list[str]:
+    """n_hist_*_shuffle_d_loco が主推定 d_loco とどちらが大きいかを機械判定する."""
+    lines: list[str] = []
+    for hist_label, hist_value in hist_fields:
+        if hist_value > e_d_loco:
+            relation_text = "より大きい (>)"
+        elif hist_value < e_d_loco:
+            relation_text = "より小さい (<)"
+        else:
+            relation_text = "と等しい (==)"
+        lines.append(
+            f"> 注: {hist_label}={hist_value} は主推定 "
+            f"d_loco={e_d_loco} {relation_text}。"
+        )
+    return lines
+
+
+def _render_es3_ci_footnote(
+    e_d_loco: float, e_ci_lower: float, e_ci_upper: float
+) -> list[str]:
+    """点推定が自身の bootstrap CI の外にある場合、集計単位の違いを機械的に注記する."""
+    if not (e_d_loco > e_ci_upper or e_d_loco < e_ci_lower):
+        return []
+    excess = e_d_loco - e_ci_upper if e_d_loco > e_ci_upper else e_d_loco - e_ci_lower
+    note = (
+        f"> 注: 点推定 d_loco={e_d_loco} は自身の CI [{e_ci_lower}, {e_ci_upper}] "
+        f"の外にある (差分 {excess:.6e})。CI は CI_ALPHA=0.10 (90% percentile "
+        "bootstrap) を per-walk-seed 集計に対して取ったものである一方、点推定 "
+        "d_loco は headroom-valid cell に対する cell-equal-weighted median で"
+        "あり、両者は集計単位が異なる (caveats の estimand 定義を参照)。点推定は "
+        "cell 中央値のため、自身の区間内に入る保証はない。"
+    )
+    return [note, ""]
+
+
+def _render_es3_section(es3: dict[str, Any]) -> list[str]:
+    """data/raw/es3-verdict-forensic.json を Markdown 行列へ抽出する."""
     e_verdict = es3["verdict"]
     e_d_loco = es3["d_loco"]
     e_ci_lower = es3["ci_lower"]
@@ -125,21 +163,58 @@ def render_table(
     e_zone_function_d_loco = es3["zone_function_d_loco"]
     e_ablation_bit_equal = es3["ablation_bit_equal"]
     e_ablation_max_abs_diff = es3["ablation_max_abs_diff"]
+    e_n_hist_history_shuffle = es3["n_hist_history_shuffle_d_loco"]
+    e_n_hist_lambda_shuffle = es3["n_hist_lambda_shuffle_d_loco"]
+    e_caveats = es3["caveats"]
 
-    lines.append("# ES-3 locomotion verdict forensic (data/raw/es3-verdict-forensic.json)")
+    zone_label = (
+        "zone_function_d_loco (positive control。**d_loco とは別物の参照値**: "
+        "λ=h(z) を強制し estimand が 0 を取りうることの実証)"
+    )
+
+    header = "# ES-3 locomotion verdict forensic (data/raw/es3-verdict-forensic.json)"
+    lines: list[str] = []
+    lines.append(header)
     lines.append("")
     lines.append("| 量 | 値 |")
     lines.append("|---|---|")
     lines.append(f"| verdict | `{e_verdict}` |")
-    lines.append(f"| d_loco (D_loco) | {e_d_loco} |")
+    lines.append(f"| **d_loco (D_loco, 主推定)** | **{e_d_loco}** |")
     lines.append(f"| ci_lower | {e_ci_lower} |")
     lines.append(f"| ci_upper | {e_ci_upper} |")
     lines.append(f"| amp_floor | {e_amp_floor} |")
-    lines.append(f"| zone_function_d_loco (zone-function positive control) | {e_zone_function_d_loco} |")
+    lines.append(f"| {zone_label} | {e_zone_function_d_loco} |")
     lines.append(f"| ablation_bit_equal | {e_ablation_bit_equal} |")
     lines.append(f"| ablation_max_abs_diff | {e_ablation_max_abs_diff} |")
+    lines.append(f"| n_hist_history_shuffle_d_loco | {e_n_hist_history_shuffle} |")
+    lines.append(f"| n_hist_lambda_shuffle_d_loco | {e_n_hist_lambda_shuffle} |")
     lines.append("")
 
+    hist_fields = (
+        ("n_hist_history_shuffle_d_loco", e_n_hist_history_shuffle),
+        ("n_hist_lambda_shuffle_d_loco", e_n_hist_lambda_shuffle),
+    )
+    lines.extend(_render_es3_hist_notes(e_d_loco, hist_fields))
+    lines.append("")
+
+    lines.extend(_render_es3_ci_footnote(e_d_loco, e_ci_lower, e_ci_upper))
+
+    lines.append("## caveats (es3-verdict-forensic.json、全文)")
+    lines.append("")
+    lines.extend(f"{i}. {caveat}" for i, caveat in enumerate(e_caveats, start=1))
+    lines.append("")
+    return lines
+
+
+def render_table(
+    verdict: dict[str, Any],
+    manifest: dict[str, Any],
+    es3: dict[str, Any],
+) -> str:
+    lines: list[str] = []
+    lines.extend(_render_cproper_section(verdict))
+    lines.extend(_render_manifest_section(manifest))
+    lines.extend(_render_es3_section(es3))
     return "\n".join(lines) + "\n"
 
 
@@ -172,7 +247,8 @@ def main(argv: list[str] | None = None) -> int:
 
     sys.stdout.write(table)
 
-    out_path = args.out if args.out is not None else repo_root / "data" / "derived" / "verdict-table.md"
+    default_out = repo_root / "data" / "derived" / "verdict-table.md"
+    out_path = args.out if args.out is not None else default_out
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(table, encoding="utf-8")
 

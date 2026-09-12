@@ -35,18 +35,18 @@
 
 | 量 | 値 | 出典 |
 |---|---|---|
-| `D_loco` | 0.0468 | `.steering/20260629-m13-es3-impl/verdict-result.md` |
+| `D_loco` | 0.0468 | `data/raw/es3-verdict-forensic.json` (→ `data/derived/verdict-table.md`) |
 | `CI_lower(D_loco)` (90% bootstrap) | 0.0453 ≥ AMP_FLOOR 0.02 (2.3×) | 同上 |
 | zone-function positive control | `D_loco = 7.40e-17` (**estimand が 0 を取りうることの実証**) | 同上 |
 | ablation (None vs gain=0) | bit-equal、`max|Δ| = 0.0` | 同上 |
-| ES-1 `median(D_obs)` | 0.6667 (bootstrap 90%CI lower 0.6189) | `.steering/20260624-m13-es1-spdm/verdict-result.md` |
-| **verdict** | `NO_CHANNEL_CONFORMANCE` | `experiments/20260710-m13-c-proper/artifacts/verdict.json` |
+| ES-1 `median(D_obs)` | 0.6667 (bootstrap 90%CI lower 0.6189) | **未収録** (`data/raw/` に ES-1 SPDM の生値 (verdict json) が無い。apparatus コード `analysis/apparatus/erre_sandbox/evidence/spdm/` は同梱済みだが出力 verdict データは未取得 — フォローアップ課題) |
+| **verdict** | `NO_CHANNEL_CONFORMANCE` | `data/raw/cproper-verdict.json` (→ `data/derived/verdict-table.md`) |
 | `rho_hat` | 1.0 (8/8 context PASS) | 同上 |
 | `power` | 1.0 | 同上 |
 | `tv_bar` | **0.038065** < `delta_tv_min` 0.10 | 同上 |
 | `permutation_p_value` | 0.057986 (reject=False) | 同上 |
-| 設計 | M=300 × K=8 (4800 draws)、real qwen3:8b | 同上 (`thresholds`) |
-| power worksheet | near-uniform `[0.2]×5` で power=1.0 / collapse demo で power≈0.18 | `.steering/20260708-m13-c-design-bank/design-final.md` (`bank_power.py`) |
+| 設計 | M=300 × K=8 (4800 draws)、real qwen3:8b | `data/raw/cproper-verdict.json` (`thresholds`) / `data/raw/cproper-manifest.json` (`run`, `env_pins.model`) |
+| power worksheet | near-uniform `[0.2]×5` (delta_tv=0.10) で power=1.0 / **near-uniform base + delta_tv=0.01** で power≈0.18 | `analysis/scripts/power_curve.py` → `data/derived/power-curve.md` |
 
 ## 3. 生き残っている新規性 (先行研究つぶし後、2026-09-07)
 
@@ -66,7 +66,7 @@
 ## 5. ゲート
 
 - [ ] 2 個目のモデルでの再現 (または「単一モデル限定」への正直な縮退)
-- [ ] `verdict.json` から数値を機械抽出するスクリプト (手写ししない)
+- [x] `verdict.json` から数値を機械抽出するスクリプト (手写ししない)
 - [ ] 図の `repro.sh` (seed 固定)
 - [ ] Codex (gpt-5.5 / xhigh) independent review、HIGH 全反映
 - [ ] 「書かないこと」(§1) に抵触する文が本文に無いことを全文検索で確認

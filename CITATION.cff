@@ -1,7 +1,8 @@
 cff-version: 1.2.0
 message: "この論文および付随コードを引用する場合は以下を用いてください。"
 title: "A powered null on a verified channel: separating effect-absent from low power in embodied LLM agents"
-abstract: "TODO: 150 語程度の要旨。数値を 2 つ入れる。"
+# abstract: 本文 (manuscript) が確定する Phase 1b で記入する。TODO literal は
+# GitHub の引用ウィジェットにそのまま出るため、値が無い間はキー自体をコメントアウトする。
 type: software
 authors:
   - family-names: "Miura"
