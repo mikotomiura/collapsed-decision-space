@@ -1,86 +1,89 @@
-# 実行環境
+# Execution environment
 
-`reproducibility-discipline` ルール2: **環境は lockfile で固定する**。
+The environment is pinned by a lockfile.
 
-## lockfile
+## Lockfile
 
-| ファイル | 置き場所 | 由来 | 状態 |
+| File | Location | Origin | State |
 |---|---|---|---|
-| `uv.lock` | `env/uv.lock` | ERRE-Sandbox 本体からコピー | **配置済** |
-| `pyproject.toml` | `env/pyproject.toml` | ERRE-Sandbox 本体のプロジェクト定義 | **配置済 (削っていない。理由は下)** |
+| `uv.lock` | `env/uv.lock` | Copied from the upstream source repository | Present, unmodified |
+| `pyproject.toml` | `env/pyproject.toml` | The upstream project definition | Present, **not trimmed** — see below |
 
-### なぜ `pyproject.toml` を削らなかったか
+### Why the project definition was not trimmed
 
-当初の方針は「この論文の解析に要る依存だけに削り、`uv lock` を打ち直す」だった。
-**採らなかった。** `env/uv.lock` の SHA-256 は完了済み実走の manifest が pin している
-`env_pins.uv_lock_sha256` (`9cc70f9dc5d6…`) と**一致している**。削って lock を打ち直すと
-この一致が壊れ、「解析環境が実走環境と同じ lockfile に由来する」ことを言う手段を失う。
-lockfile は証拠であって便宜物ではないので、byte 無改変で保存する側を採った。
-`verify_data_hashes.py` がこの一致を毎回照合する (主張ではなく検査にしてある)。
+The obvious move would have been to cut the dependency list down to what the analyses here need and
+to regenerate the lockfile. **That was not done.** The SHA-256 of `env/uv.lock` equals the
+`uv_lock_sha256` pinned in the completed run's manifest, and regenerating the lockfile would break
+that equality — and with it the only means of stating that the analysis environment derives from the
+same lockfile the measurement ran under. A lockfile here is evidence, not a convenience, so it is
+kept byte for byte. `analysis/scripts/verify_data_hashes.py` checks the equality on every run rather
+than asserting it.
 
-代償は、依存が論文の解析に必要な範囲より広いこと。実害は `uv sync` の時間だけである
-(既定の install に重い ML スタックは入らない。それらは extras の下にある)。
+The cost is a dependency set wider than the analyses strictly require. The only practical effect is
+the time `uv sync` takes; the heavy machine-learning stacks sit behind optional extras and are not
+installed by default.
 
-### 実行方法 (`--no-install-project` が要る)
+### Running it (`--no-install-project` is required)
 
 ```bash
 uv sync --frozen --no-install-project --project env
 ```
 
-`env/pyproject.toml` は `[tool.uv.build-backend] module-root = "src"` を宣言しているが、
-本 repo に `src/erre_sandbox` は無い。`--no-install-project` を付けないと
-**`Expected a Python module at: env\src\erre_sandbox\__init__.py` で落ちる** (2026-09-12 実測)。
-解析スクリプトは `PYTHONPATH=analysis/apparatus` 経由で apparatus を読むので、
-プロジェクト自体を install する必要がない。`repro.sh` はこの形で呼んでいる。
+`env/pyproject.toml` declares `module-root = "src"`, and this repository has no `src/`. Without the
+flag the command fails with `Expected a Python module at: env/src/erre_sandbox/__init__.py`. The
+analysis scripts read the apparatus through `PYTHONPATH=analysis/apparatus`, so the project itself
+never needs to be installed. `repro.sh` invokes it in exactly this form.
 
-## 完了済み実走の環境 (`data/raw/cproper-manifest.json` の `env_pins`)
+## Environment of the completed measurement
 
-この論文の中核 verdict を産んだ実行環境。**機械可読な正本は manifest 側**であり、
-下表はその読み下しである。
+Taken from `env_pins` in `data/raw/cproper-manifest.json`, which is the machine-readable original;
+the table below is a reading of it.
 
-| 項目 | 値 |
+| Item | Value |
 |---|---|
-| model | `qwen3:8b` |
-| model digest | `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41` |
-| ollama | 0.31.1 |
+| Model | `qwen3:8b` |
+| Model digest | `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41` |
+| Backend | ollama 0.31.1 |
 | `think` | `false` |
 | Python | 3.11.15 |
 | httpx / pydantic | 0.28.1 / 2.13.2 |
 | VRAM | 16.0 GB |
-| `ERRE_ZONE_BIAS_P` | 0.2 |
+| Zone-bias environment pin | 0.2 (the zone is read before any bias is applied) |
 | `uv.lock` SHA-256 | `9cc70f9dc5d61f6c74c08dee4dd73815993861022a80781a75ef5d873860c0f7` |
-| 規模 | M=300 × K=8 = 4,800 draws |
+| Scale | *M* = 300 × *K* = 8 = 4,800 draws |
 
-## 前向き実走の環境 (Stage 1 で事前登録した条件)
+## Environment registered for the prospective run
 
-実走は in-principle acceptance の後に行う。条件は `manuscript/main.md` §6 で凍結してある。
+The prospective run happens after in-principle acceptance. Its conditions are frozen in
+`manuscript/main.md` §6.
 
-| 項目 | 値 |
+| Item | Value |
 |---|---|
-| primary モデル | `llama3.1:8b`、digest `46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e` |
-| control モデル | `qwen3:8b` (再走) |
-| ollama | 0.32.12 |
+| Primary model | `llama3.1:8b`, digest `46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e` |
+| Control model | `qwen3:8b`, re-run |
+| Backend | ollama 0.32.12 |
 | GPU | NVIDIA GeForce RTX 5060 Ti (16,311 MiB) |
-| OS | Windows-10-10.0.26200-SP0 |
-| 規模 | 2 アーム × 4,800 = 9,600 draws (≈ 5.09 h の見積り) |
+| Operating system | Windows 11 |
+| Scale | two arms × 4,800 = 9,600 draws, projected at roughly 5.09 h |
 
-> モデル / ollama version / 閾値 / seed / M / K / context bank の変更は
-> **軽微な逸脱として扱わない** (`manuscript/main.md` §11)。
+> Substituting the model, changing the backend version, altering any threshold, the seed, *M*, *K*,
+> or the frozen context bank are **not** treated as minor deviations (`manuscript/main.md` §11).
 
-## 解析環境 (`repro.sh` を通した環境)
+## Environment the reproduction script was run under
 
-| 項目 | 値 |
+| Item | Value |
 |---|---|
-| OS | Windows 11 (10.0.26200) |
-| Python | 3.11.15 (lockfile 由来。`uv` が取得する) |
+| Operating system | Windows 11; also verified on Linux (WSL2) and in the public CI on Ubuntu and Windows |
+| Python | 3.11.15, obtained by `uv` from the lockfile |
 | uv | 0.11.7 |
-| 実行日 | 2026-09-12 |
+| Date | 2026-09-13 |
 
-> `repro.sh` は解析の再現であって、LLM の draw の再現ではない。LLM の draw は
-> 再生成すると一致しないので、`data/raw/` に凍結した出力を入力として扱う。
+> `repro.sh` reproduces the **analysis**, not the language-model draws. Draws do not recur when
+> regenerated, so the frozen output in `data/raw/` is treated as an input.
 
-## 決定性に関する注意
+## A note on determinism
 
-ERRE-Sandbox 本体由来のデータを扱う場合、**浮動小数は 6 桁量子化されている前提**
-(`CANONICAL_FLOAT_DECIMALS = 6`)。生の float を再量子化せずに hash すると
-Windows/Linux 間で 1 ULP の差が出る。詳細は論文 03 を参照。
+Data originating upstream assumes floating-point values quantised to six decimal places. Hashing a
+raw float without re-quantising it produces a one-ULP difference between Windows and Linux. The
+scripts here write their output with LF endings and quantised values, which is what lets the CI
+require byte-identical artefacts from both platforms.

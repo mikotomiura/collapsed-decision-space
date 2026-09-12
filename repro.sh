@@ -1,70 +1,74 @@
 #!/usr/bin/env bash
-# 1 コマンド再現 (reproducibility-discipline ルール3)。
-# これが exit 0 で通らないうちは「再現できる」と書かない。
+# One-command reproduction.
 #
-# 使い方:  bash repro.sh
+# Until this exits 0, nothing in this repository claims to be reproducible.
 #
-# 前提:
-#   - uv がインストール済み (https://docs.astral.sh/uv/)
-#   - ネットワーク (初回の `uv sync` で依存を取得するため)
+# Usage:  bash repro.sh
 #
-# 走らせるもの (順に、1 つでも落ちたら即座に非ゼロで終わる):
-#   1. lockfile による環境固定
+# Requires:
+#   - uv (https://docs.astral.sh/uv/)
+#   - network access, for the first dependency installation
+#
+# Optional:
+#   ERRE_SANDBOX_REPO=/path/to/upstream/clone
+#     Additionally checks upstream commit dates and ancestry against that clone. Without it the
+#     provenance checks run offline and establish content rather than chronology; manuscript/main.md
+#     section 10.2 states which half establishes what.
+#
+# Steps, in order. Any failure ends the run immediately with a non-zero status:
+#   1. pin the environment from the lockfile
 #   2. lint
-#   3. 凍結入力の SHA-256 + 上流 blob 照合 analysis/scripts/verify_data_hashes.py
-#   4. 閾値の凍結検査 (値 + bytes)        analysis/scripts/verify_threshold_freeze.py
-#   5. verdict の再計算と記録との突合     analysis/scripts/recompute_verdict.py
-#   6. 本文に載る数値の機械抽出           analysis/scripts/extract_verdict_table.py
-#   7. power 表の再生成                   analysis/scripts/power_curve.py
-#   8. 本文の数値と凍結入力の照合         analysis/scripts/check_manuscript_numbers.py
-#   9. claim 境界の禁止句検査 + 陽性対照  analysis/scripts/check_claim_boundary.py
+#   3. frozen inputs: SHA-256 and upstream blobs   analysis/scripts/verify_data_hashes.py
+#   4. threshold freeze: values and bytes          analysis/scripts/verify_threshold_freeze.py
+#   5. recompute the recorded verdict              analysis/scripts/recompute_verdict.py
+#   6. extract the quantities the paper quotes     analysis/scripts/extract_verdict_table.py
+#   7. regenerate the power table                  analysis/scripts/power_curve.py
+#   8. compare quoted numbers with the inputs      analysis/scripts/check_manuscript_numbers.py
+#   9. claim-boundary check and positive control   analysis/scripts/check_claim_boundary.py
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$REPO_ROOT"
 
-# --- seed 固定 (reproducibility-discipline ルール2) ---
+# --- Fix the seed ---
+# This is the repository-wide convention value. The measurement seed is 20260708, frozen in
+# manuscript/main.md section 6.3; determinism of the generated artefacts comes from that one.
 SEED_VALUE="$(cat SEED)"
 export PYTHONHASHSEED="$SEED_VALUE"
 export ERRE_SEED="$SEED_VALUE"
-echo "[repro] SEED=$SEED_VALUE (repo 全体の seed)"
-# 測定側の seed は 20260708 で、manuscript/main.md §6.3 に凍結してある。
-# この SEED は repo 全体の慣習値であり、派生物の決定性は POWER_SEED_DEFAULT が担う。
+echo "[repro] SEED=$SEED_VALUE (repository-wide seed)"
 
-# 日本語の診断メッセージが Windows コンソール (cp932) で落ちないようにする。
+# Keep diagnostics readable on a Windows console.
 export PYTHONUTF8=1
 
-# 同梱 apparatus を import させる。これが本 repo 内のパスへ解決することが
-# self-contained であることの条件である (data/data.md の「apparatus の由来」参照)。
+# Import the vendored apparatus. That these modules resolve to paths inside this repository is the
+# condition for it being self-contained; see "Provenance of the apparatus" in data/data.md.
 export PYTHONPATH="$REPO_ROOT/analysis/apparatus"
 
-# --- 1. 環境を lockfile で固定 ---
-# `--no-install-project` が要る: env/pyproject.toml は上流 ERRE-Sandbox の
-# プロジェクト定義そのもの (env/uv.lock と対にして、実走時の lockfile を byte 無改変で
-# 保存するために置いてある) であり、本 repo に src/erre_sandbox は無い。解析スクリプトは
-# PYTHONPATH=analysis/apparatus 経由で apparatus を読むので、プロジェクト自体を
-# install する必要がない。
+# --- 1. Pin the environment from the lockfile ---
+# `--no-install-project` is required. env/pyproject.toml is the upstream project definition, kept
+# verbatim beside env/uv.lock so the lockfile the measurement ran under is preserved unmodified. It
+# declares a source root this repository does not have. The analysis scripts read the apparatus
+# through PYTHONPATH, so the project itself never needs installing.
 echo "[repro] 1/9 uv sync"
 uv sync --frozen --no-install-project --project env
 
 RUN=(uv run --project env --no-sync)
 
-# --- 2. lint ---
+# --- 2. Lint ---
 echo "[repro] 2/9 ruff check"
 "${RUN[@]}" ruff check analysis/scripts
 
-# --- 3. データの完全性検証 (data/data.md の hash と照合) ---
+# --- 3. Integrity of the frozen inputs ---
 echo "[repro] 3/9 verify_data_hashes"
 if [ -n "${ERRE_SANDBOX_REPO:-}" ]; then
-  "${RUN[@]}" python analysis/scripts/verify_data_hashes.py \n    --upstream-repo "$ERRE_SANDBOX_REPO"
+  "${RUN[@]}" python analysis/scripts/verify_data_hashes.py \
+    --upstream-repo "$ERRE_SANDBOX_REPO"
 else
   "${RUN[@]}" python analysis/scripts/verify_data_hashes.py
 fi
 
-# --- 4. 閾値の凍結検査 ---
-# 上流 ERRE-Sandbox の clone があれば ERRE_SANDBOX_REPO に渡すと、commit 日時と
-# ancestor 関係まで機械検査される。無ければオフライン検査のみ (manuscript/main.md
-# §10.2 に、それぞれが何を示して何を示さないかを書いてある)。
+# --- 4. The threshold freeze ---
 echo "[repro] 4/9 verify_threshold_freeze"
 if [ -n "${ERRE_SANDBOX_REPO:-}" ]; then
   "${RUN[@]}" python analysis/scripts/verify_threshold_freeze.py \
@@ -73,29 +77,29 @@ else
   "${RUN[@]}" python analysis/scripts/verify_threshold_freeze.py
 fi
 
-# --- 5. 記録された verdict を同梱データから再計算して突き合わせる ---
-# 本 repo で最も強い再現検査。他のステップは「記録と出荷物が一致する」ことしか
-# 言わないが、ここは中核 verdict が同梱データから導けることを実際に確かめる。
+# --- 5. Recompute the recorded verdict from the shipped data ---
+# The strongest check here. Every other step compares a record against a shipped file; this one
+# establishes that the central verdict follows from the shipped data and the shipped apparatus.
 echo "[repro] 5/9 recompute_verdict"
 "${RUN[@]}" python analysis/scripts/recompute_verdict.py
 
-# --- 6. 本文に載る数値の機械抽出 ---
+# --- 6. Extract the quantities the paper quotes ---
 echo "[repro] 6/9 extract_verdict_table -> data/derived/verdict-table.md"
 "${RUN[@]}" python analysis/scripts/extract_verdict_table.py \
   --out data/derived/verdict-table.md > /dev/null
 
-# --- 7. power 表の再生成 ---
+# --- 7. Regenerate the power table ---
 echo "[repro] 7/9 power_curve -> data/derived/power-curve.md"
 "${RUN[@]}" python analysis/scripts/power_curve.py \
   --out data/derived/power-curve.md > /dev/null
 
-# --- 8. 本文の数値が凍結入力の値そのものであることの照合 ---
-# 「手写ししない」は方針であって検査ではない。ここで literal を突き合わせる。
+# --- 8. Compare the quoted numbers with the frozen inputs ---
+# "Not transcribed by hand" is a policy, not a check. This is the check.
 echo "[repro] 8/9 check_manuscript_numbers"
 "${RUN[@]}" python analysis/scripts/check_manuscript_numbers.py
 
-# --- 9. claim 境界の検査 ---
+# --- 9. Claim boundary ---
 echo "[repro] 9/9 check_claim_boundary"
 "${RUN[@]}" python analysis/scripts/check_claim_boundary.py
 
-echo "[repro] DONE: 9 ステップすべて通過した"
+echo "[repro] DONE: all nine steps passed"

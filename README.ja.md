@@ -1,0 +1,157 @@
+# 検出力を確保した null — 配線が確認済みのチャネルについて
+
+*Separating effect-absent from low power in embodied LLM agents*
+
+> **これは [`README.md`](README.md) の日本語版です。正典は英語版であり、食い違いがあれば
+> 英語版が正しい**（本文・投稿・査読がすべて英語のため）。
+
+本リポジトリは、[PCI Registered Reports](https://rr.peercommunityin.org/) へ提出する
+**Stage 1 Registered Report** の研究コンペンディウムです。protocol 本文
+(`manuscript/main.md`)、その土台となる凍結済みの証拠、測定 apparatus、そして protocol が引く
+数値をすべて導出し直す 1 コマンドが入っています。
+
+**前向きのデータはまだ 1 つも取得していません。** データ収集は in-principle acceptance の
+後にのみ始まります。
+
+---
+
+## 何を調べているのか
+
+身体化された言語モデルエージェントは、直近の移動から得たスカラ（移動の指数移動平均）を、
+次の生成に使う temperature へ持ち込みます。この配線は実在します — 完了済みの forensic
+study が、チャネルが因果的であること、静的な位置チャネルから分離できること、ablation で
+残差なく消えることを示し、同時に positive control が「同じ推定器が 0 を返しうる」ことを
+示しています。
+
+開いている問いは、そのチャネルが**伝播するか**です。1 モデルでの完了済み測定は、事前に
+宣言した materiality margin を超える偏りを 5 値のゾーン選択に見出さず、しかも公称検出力を
+保っていました。本 protocol は同じ量を **2 つ目のモデル族**で推定します。control アームが
+元のモデルを再走させるので、モデル族の変化とバックエンド版の変化が一緒に読まれることは
+ありません。
+
+**本稿のあらゆる主張の主語はチャネルです。** 歩行ではなく、創造性でもありません。
+
+## 書いてよいこと / 書いてはならないこと
+
+全 13 件のガードと、それを強制する検索パターンは
+[`manuscript/CLAIM-BOUNDARY.md`](manuscript/CLAIM-BOUNDARY.md) にあります。要約すると:
+
+**証拠が支えること**
+
+- チャネルが非退化に配線されていること（positive control が 0 を返せることを含む）
+- そのチャネルの下流効果が、データが存在する前に固定した margin の下で検出されなかったこと
+- near-uniform なカテゴリ基質が低検出力を意味しないこと
+- effect-absent / low-power / apparatus-invalid を**三者別々**に保つこと
+- envelope が限定されていること（単一 apparatus・単一サンプリング regime・凍結 8 context）
+
+**この設計の射程外**（13 件のうち 3 件を例示）
+
+- 人間の歩行について、あるいは創造的産出についての言明
+- 身体性一般が重要かどうかについての言明
+- margin の事前宣言そのものが新規だという主張 — これは既存の実践であり、本研究はそれに従う側
+
+`analysis/scripts/check_claim_boundary.py` が、本文・README・引用メタデータに対して全件を
+毎回強制し、ガードのパターンが fixture に当たらなくなった時点で落ちます。
+
+## 何が入っているか
+
+| パス | 内容 |
+|---|---|
+| `manuscript/main.md` | Stage 1 protocol 本文 |
+| `manuscript/CLAIM-BOUNDARY.md` | claim ガードと検索パターン |
+| `data/raw/` | 完了済み研究の凍結証拠（各ファイルを SHA-256 とサイズで pin） |
+| `data/data.md` | 凍結入力すべての由来と、その検証方法 |
+| `analysis/apparatus/` | 測定 apparatus 69 モジュール（上流と byte 一致） |
+| `analysis/scripts/` | 検証・抽出スクリプト |
+| `analysis/freeze-provenance.json` | 証拠を担う同梱ファイルの上流 commit と blob 識別子 |
+| `env/` | 完了済み実走が使った lockfile |
+| `repro.sh` | 上記すべてを走らせる 1 コマンド |
+
+## 再現
+
+```bash
+bash repro.sh
+```
+
+[uv](https://docs.astral.sh/uv/) と、初回の依存取得のためのネットワークが要ります。
+9 ステップを走らせ、1 つでも落ちれば非ゼロで終わります。
+
+1. lockfile から環境を固定
+2. lint
+3. 凍結入力を `data/data.md` **および**上流 blob と照合
+4. 閾値の凍結と apparatus 閉包全体を検証
+5. **完了済み実走の verdict を、同梱の per-draw annotation から再計算**
+6. protocol が引く量を抽出
+7. power 表を再生成
+8. protocol の数値と凍結入力を**文字単位**で比較
+9. claim 境界の検査を陽性対照つきで実行
+
+公開 CI は Ubuntu と Windows の両方でまったく同じものを走らせ、さらに 3 つ目のジョブが
+生成物の両 OS での byte 一致を要求します。
+
+上流ソースリポジトリの clone があれば、commit の日付と ancestor 関係まで検査されます:
+
+```bash
+ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
+```
+
+## 検査が示すこと / 示さないこと
+
+緑のバッジより、この区別のほうが重要です。
+
+**示すこと**
+
+- 凍結入力が、公開されている上流リポジトリに登録された blob と byte 一致すること
+- 同梱されている決定閾値が、それを凍結した上流 commit の bytes そのものであり、
+  それらの commit が完了済み実走の commit の ancestor であること
+- 完了済み実走の verdict が、同梱 annotation と同梱 apparatus から**再導出できる**こと
+  （verdict 文字列・9 つの gate 読み出し・4 つの per-context マップをすべて突合）
+- protocol が凍結入力から引く量が、1 文字たがわず一致すること
+
+**示さないこと**
+
+- draw そのものの再生成。言語モデルの draw は再生成しても一致しないので、per-draw 記録は
+  スクリプトが作り直すものではなく凍結入力として扱っています
+- 上流 commit の**日付**（clone を渡さない限り）。オフラインで示せるのは内容であって
+  時系列ではありません。順序の主張は両者の連言であり、`manuscript/main.md` §10.2 は
+  どちらか一方で言えるかのようには書いていません
+- ある 1 件の記録の**年代**。チャネル研究の forensic 記録はバージョン管理へ「移設」commit で
+  入ったため、履歴はその内容を証言しますが、いつ産出されたかは証言しません。
+  `analysis/freeze-provenance.json` に記録し、protocol でも開示しています
+
+## 主要な数値
+
+以下はすべて `analysis/scripts/extract_verdict_table.py` が生成したものです。手写しは
+しておらず、`repro.sh` の 8 ステップ目がそれを強制します。数値そのものは英語版と同一なので、
+表は [`README.md`](README.md#key-quantities) を参照してください。要点だけ再掲します。
+
+- チャネル研究: 点推定 `d_loco` は事前登録 floor の 2.3 倍、ablation は bit-equal、
+  そして **zone-function positive control は別フィールドとして 0 相当の値を返す**
+  （推定器が 0 を読みうることの実証）
+- 完了済み測定: `verdict = NO_CHANNEL_CONFORMANCE`、`tv_bar` は宣言 margin 0.10 を下回り、
+  `rho_hat` と `power` はともに 1.0
+- power: **検出力を左右するのは探している偏りの大きさであって、基底分布がどれだけ
+  集中しているかではありません**。degenerate な基底でも collapse 規模の偏りに対して
+  power は高いままです
+
+## 現在の状態
+
+Stage 1 protocol は書き上がり、その土台となる証拠は凍結され検証可能です。投稿前に残って
+いるのは投稿手続きの文面そのものです。前向き実走（2 アーム・9,600 draws・約 5 時間）は
+in-principle acceptance の後に、1 回だけ、チューニングなしで行います。
+
+予備研究のうち 1 件は protocol で報告していますが、機械可読な記録が残っていないため、
+そこからの数値はどこにも引いていません。この欠落は回避せず開示しています。
+
+## 引用
+
+[`CITATION.cff`](CITATION.cff) を参照してください。本文中の参考文献番号は著者の書誌に
+おける恒久 ID で、論文をまたいで振り直さないため連番になっていません。
+
+## ライセンス
+
+| 部分 | ライセンス |
+|---|---|
+| コード (`analysis/`, `repro.sh`) | Apache-2.0 OR MIT — `LICENSE` / `LICENSE-MIT` |
+| 本文と図 (`manuscript/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
+| 凍結データ (`data/raw/`) | 著者が生成した研究データ。由来は `data/data.md` |

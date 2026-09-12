@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
-"""本文に載る数値が凍結入力の値そのものであることを照合する.
+"""Compare the numbers the manuscript quotes with the frozen inputs they come from.
 
-``manuscript/main.md`` は「本文の数値は抽出スクリプトの出力から取る、手写ししない」と
-書いている。**書いただけでは検査していない。** 表を生成するスクリプトがあることと、
-本文がその値と一致していることは別の事実であり、前者だけを根拠に後者を主張するのは
-``feedback_checker_handed_target_is_not_checked`` と同型である。本スクリプトがその差を埋める。
+The manuscript states that its numbers are taken from the extraction script rather than copied by
+hand. **Stating it is not checking it.** That an extraction script exists, and that the prose agrees
+with what it produces, are two different facts; asserting the second on the strength of the first is
+the error this script removes.
 
-やり方は単純である。凍結入力の JSON から**キーを指定して**値を読み、その literal が
-本文に出現することを確かめる。値の側は ``d["key"]`` の直接添字で取るので、キーが実
-ファイルに無ければ ``KeyError`` で落ちる (既定値で黙って通らない)。
+The method is plain. Each quantity is read from the frozen JSON **by key** -- direct subscripting,
+never a default -- so a key absent from the file raises rather than returning something plausible.
+The resulting literal must then appear in the manuscript.
 
-この検査が示すこと / 示さないこと:
+What this establishes: for the quantities listed below, the literal in the manuscript matches the
+frozen record character for character, and a single altered digit fails the run.
 
-* 示す — 下表の量について、本文の literal が**凍結 JSON の値と文字単位で一致する**。
-  1 桁でも違えば落ちる。
-* 示さない — 本文に現れる**すべての**数値の正しさ。下表に無い数値は対象外である。
-  対象は「凍結 JSON から機械的に取れる量」に限られる。
+What it does not: the correctness of every number in the manuscript. Its scope is the quantities
+obtainable mechanically from the frozen inputs; anything outside that list is not covered.
 
-使い方:  python analysis/scripts/check_manuscript_numbers.py
+Usage:  python analysis/scripts/check_manuscript_numbers.py
 """
 
 from __future__ import annotations
@@ -31,8 +30,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _provenance import load_json  # noqa: E402
 
-#: (表示名, 入力ファイル, キー経路, literal 化の仕方) の対応表。
-#: キー経路は dict を辿る。list は使わない。
+#: (label, input file, key path, how to render the literal).
+#: The key path walks dictionaries only.
 REQUIRED: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
     ("verdict", "cproper-verdict.json", ("verdict",), "str"),
     ("rho_hat", "cproper-verdict.json", ("rho_hat",), "repr"),
@@ -105,15 +104,15 @@ REQUIRED: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
     ),
 )
 
-#: 本文に**出てはならない**取り違え (G10 の数値版)。
-#: 位置推定 `d_loco` の値が positive control のラベルで書かれていないかを見る。
+#: Mix-ups that must not appear -- the numeric counterpart of guard G10: the point estimate
+#: carrying the positive control's value, or the other way round.
 MISLABEL_CHECKS: tuple[tuple[str, str], ...] = (
     (
-        "zone_function_d_loco の値が d_loco の値として書かれている",
+        "the positive control's value written as the point estimate",
         "d_loco = 7.401486830834377e-17",
     ),
     (
-        "d_loco の値が zone_function_d_loco の値として書かれている",
+        "the point estimate written as the positive control's value",
         "zone_function_d_loco = 0.04682681825722385",
     ),
 )
@@ -125,7 +124,7 @@ def literal_of(value: Any, how: str) -> str:
     if how == "int":
         return str(int(value))
     if how == "two_dp":
-        # `0.1` ではなく `0.10` と書く量 (事前宣言された margin / floor)。
+        # Quantities written as `0.10` rather than `0.1` (declared margins and floors).
         return f"{float(value):.2f}"
     return repr(value)
 
@@ -136,14 +135,14 @@ def main(argv: list[str] | None = None) -> int:
         "--repo-root",
         type=Path,
         default=Path(__file__).resolve().parents[2],
-        help="repo root",
+        help="repository root",
     )
     args = parser.parse_args(argv)
     repo_root: Path = args.repo_root
 
     main_md = repo_root / "manuscript" / "main.md"
     if not main_md.is_file():
-        print(f"[numbers] FAIL: 本文が無い: {main_md}", file=sys.stderr)
+        print(f"[numbers] FAIL: the manuscript is missing: {main_md}", file=sys.stderr)
         return 1
     text = main_md.read_text(encoding="utf-8")
 
@@ -155,19 +154,19 @@ def main(argv: list[str] | None = None) -> int:
             sources[filename] = load_json(repo_root / "data" / "raw" / filename)
         node: Any = sources[filename]
         for key in keys:
-            node = node[key]  # KeyError で落ちるのが正しい (既定値で通さない)
+            node = node[key]  # Raising on a missing key is correct; no default
         literal = literal_of(node, how)
         if literal in text:
             print(f"[numbers] OK {label:<28} = {literal}")
         else:
             problems.append(
-                f"{label}: 凍結入力の値 {literal!r} ({filename}) が main.md に無い。"
-                "本文を抽出スクリプトの出力に合わせること"
+                f"{label}: the frozen value {literal!r} from {filename} does not appear "
+                "in main.md. Bring the prose in line with the extraction output"
             )
 
     for label, forbidden in MISLABEL_CHECKS:
         if forbidden in text:
-            problems.append(f"取り違え: {label} — {forbidden!r} が main.md にある")
+            problems.append(f"mix-up: {label} -- {forbidden!r} appears in main.md")
 
     if problems:
         print("[numbers] FAIL", file=sys.stderr)
@@ -176,8 +175,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(
-        f"[numbers] OK: {len(REQUIRED)} 件の量が凍結入力の値と文字単位で一致する "
-        "(この表に無い数値は検査対象外)"
+        f"[numbers] OK: {len(REQUIRED)} quantities match the frozen inputs character for "
+        "character (numbers outside this list are not covered)"
     )
     return 0
 

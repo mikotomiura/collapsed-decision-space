@@ -1,10 +1,12 @@
-"""来歴検査の共有部品 (`verify_data_hashes.py` / `verify_threshold_freeze.py`).
+"""Shared helpers for the provenance checks.
 
-同梱ファイルが上流の公開リポジトリの **どの commit の bytes なのか**を、
-ネットワークも git の実行も無しで確かめるための道具を置く。git の blob 識別子は
-内容アドレスなので、**bytes が同じなら識別子も同じ**という性質だけに依っている。
+Used by `verify_data_hashes.py` and `verify_threshold_freeze.py` to establish which upstream
+commit a shipped file's bytes came from, without network access and without running git. A git
+blob identifier is content-addressed, so the whole argument rests on one property: identical
+bytes produce an identical identifier.
 
-`--upstream-repo` を渡したときにだけ使う git 補助もここに置く (既定はオフライン)。
+The git helpers below are used only when `--upstream-repo` is supplied; the default path is
+offline.
 """
 
 from __future__ import annotations
@@ -18,7 +20,7 @@ from typing import Any
 
 
 def git_blob_sha1(data: bytes) -> str:
-    """git が同じ内容に付ける blob 識別子を、git 無しで計算する."""
+    """Compute the blob identifier git would assign to this content, without invoking git."""
     header = f"blob {len(data)}\0".encode()
     return hashlib.sha1(header + data, usedforsecurity=False).hexdigest()
 
@@ -38,7 +40,7 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def to_utc(iso: str) -> str:
-    """git の ``%cI`` (offset 付き ISO) を、記録側と同じ Z 表記へ正規化する."""
+    """Normalise git's ``%cI`` (ISO with offset) to the same Z notation the records use."""
     return (
         datetime.fromisoformat(iso)
         .astimezone(timezone.utc)
@@ -47,7 +49,7 @@ def to_utc(iso: str) -> str:
 
 
 def git(repo: Path, *args: str) -> tuple[int, str]:
-    """上流 clone に対して読み取り専用の git を呼ぶ."""
+    """Invoke git read-only against an upstream clone."""
     proc = subprocess.run(  # noqa: S603
         ["git", "-C", str(repo), *args],
         capture_output=True,
@@ -60,13 +62,13 @@ def git(repo: Path, *args: str) -> tuple[int, str]:
 def check_upstream_blob(
     upstream: Path, commit: str, upstream_path: str, expected_blob: str
 ) -> list[str]:
-    """上流の当該 commit で、そのパスの blob が記録どおりであることを確かめる."""
+    """Check that the blob at that path and commit upstream is the one recorded."""
     code, blob = git(upstream, "rev-parse", f"{commit}:{upstream_path}")
     if code != 0:
-        return [f"--upstream-repo: {commit[:7]}:{upstream_path} を解決できない"]
+        return [f"--upstream-repo: cannot resolve {commit[:7]}:{upstream_path}"]
     if blob != expected_blob:
         return [
-            f"上流 {commit[:7]}:{upstream_path} の blob が記録と違う "
+            f"upstream blob at {commit[:7]}:{upstream_path} differs from the record "
             f"(recorded={expected_blob} upstream={blob})"
         ]
     return []
@@ -75,13 +77,13 @@ def check_upstream_blob(
 def check_upstream_commit_time(
     upstream: Path, commit: str, expected_utc: str
 ) -> list[str]:
-    """上流 commit の時刻が記録どおりであることを確かめる."""
+    """Check that the upstream commit time is the one recorded."""
     code, committed_at = git(upstream, "log", "-1", "--format=%cI", commit)
     if code != 0:
-        return [f"--upstream-repo: commit {commit[:7]} の日時を取得できない"]
+        return [f"--upstream-repo: cannot read the commit time of {commit[:7]}"]
     if to_utc(committed_at) != expected_utc:
         return [
-            f"commit {commit[:7]} の日時が記録と違う "
+            f"commit time of {commit[:7]} differs from the record "
             f"(recorded={expected_utc} upstream={to_utc(committed_at)})"
         ]
     return []

@@ -17,7 +17,7 @@
       "freeze_commit": "2efe407cf7afd60e43f0a525a11a1739a8ca8d24",
       "freeze_commit_utc": "2026-07-07T17:08:49Z",
       "freeze_commit_subject": "feat(m13): I4 反復 bank の power apparatus + power worksheet",
-      "note": "This is the only commit in this file's history; the constants below have not changed since it landed.",
+      "note": "The only commit in this file's history; the constants below have not changed since it landed.",
       "module": "erre_sandbox.integration.embodied.bank_power",
       "threshold_map": {
         "alpha": "ALPHA_SIGNIFICANCE",
@@ -37,14 +37,14 @@
       "freeze_commit": "580b8aa8c884a35a761ed744b9f5a5f834a38137",
       "freeze_commit_utc": "2026-07-10T09:25:18Z",
       "freeze_commit_subject": "fix(m13): C-proper scorer — Codex review HIGH+MEDIUM 反映 (seal 前凍結)",
-      "note": "Last commit to touch this file. It precedes the run commit by just under three hours and is an ancestor of it.",
+      "note": "The last commit to touch this file. It precedes the run commit by just under three hours and is an ancestor of it.",
       "module": "erre_sandbox.integration.embodied.bank_scorer",
       "threshold_map": {
         "none_rate_max": "NONE_RATE_MAX"
       }
     }
   ],
-  "frozen_inputs_note": "data/raw/ の凍結入力についても、同梱 bytes が上流のどの commit の blob なのかを記録する。data/data.md の SHA-256 表と突き合わせるだけでは、記録と出荷物が一致することしか言えず、上流との同一性は言えない (自分の記録同士の照合で閉じてしまう)。blob SHA-1 は内容アドレスなので、この照合はネットワークも git も無しに成立する。",
+  "frozen_inputs_note": "Records which upstream commit's blob each frozen input is. Comparing the digests in data/data.md with the shipped files establishes only that the record and the shipped bytes agree with each other, which is an integrity check closed inside this repository. A blob identifier is content-addressed, so this comparison needs neither network access nor git.",
   "frozen_inputs": [
     {
       "shipped_path": "data/raw/cproper-verdict.json",
@@ -53,7 +53,7 @@
       "upstream_commit": "6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1",
       "upstream_commit_utc": "2026-07-10T12:25:06Z",
       "provenance_kind": "run_artifact",
-      "note": "完了済み実走そのものの commit。この 1 commit のみで、以後 amend されていない。"
+      "note": "The commit of the completed run itself. The only commit in this artefact's history; it has not been amended since."
     },
     {
       "shipped_path": "data/raw/cproper-manifest.json",
@@ -62,7 +62,7 @@
       "upstream_commit": "6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1",
       "upstream_commit_utc": "2026-07-10T12:25:06Z",
       "provenance_kind": "run_artifact",
-      "note": "同上。env_pins / run パラメータの正本。"
+      "note": "The same commit. This file is the record of the environment pins and run parameters."
     },
     {
       "shipped_path": "data/raw/bank_annotation.jsonl",
@@ -71,7 +71,7 @@
       "upstream_commit": "6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1",
       "upstream_commit_utc": "2026-07-10T12:25:06Z",
       "provenance_kind": "run_artifact",
-      "note": "同上。manifest の artifacts pin とも交差照合している。"
+      "note": "The same commit. Also cross-checked against the artifacts pin inside the manifest."
     },
     {
       "shipped_path": "data/raw/es3-verdict-forensic.json",
@@ -80,7 +80,7 @@
       "upstream_commit": "44ca9c0b1e1c1277a2b3100f42f5e1401146d833",
       "upstream_commit_utc": "2026-09-11T16:10:39Z",
       "provenance_kind": "relocation",
-      "note": "★ 他の 3 件と性質が違う。この commit は ES-3 の実走 (2026-06-29) ではなく、追跡外のディレクトリに置かれていた記録を追跡下の experiments/ へ byte 無改変で移した commit である。したがって git 履歴はこの記録の産出時刻を証言しない。示せるのは『同梱 bytes = 上流に登録された bytes』までで、日付の witness にはならない。manuscript/main.md §12.5 に limitation として書いてある。"
+      "note": "Different in kind from the other three. This commit is not the run that produced the record (June 2026); it is the commit that moved the record, byte for byte, out of an untracked working directory and into a tracked path. History therefore witnesses the record's content but not its age. Stated as a limitation in manuscript/main.md, section 12.5."
     }
   ],
   "run_commit": {
@@ -95,9 +95,9 @@
     "k_contexts": "k_contexts",
     "m_draws": "m_draws"
   },
-  "run_parameter_note": "k_contexts and m_draws are run parameters rather than frozen module constants. They are checked against data/raw/cproper-manifest.json -> run, and they coincide in value with k_min and m_min.",
+  "run_parameter_note": "k_contexts and m_draws are run parameters rather than frozen module constants. They are checked against the run section of data/raw/cproper-manifest.json, and they happen to coincide in value with k_min and m_min.",
   "apparatus_closure": {
-    "note": "同梱 apparatus は上流 src/erre_sandbox/** の import 推移閉包である。『byte-for-byte で複製した』は主張ではなく検査にしてある: 下の blob SHA-1 を再計算すれば、同梱物が上流 commit の bytes そのものであることがネットワーク無しで確かめられる。",
+    "note": "The vendored apparatus is the import closure of the upstream source tree. 'Reproduced byte for byte' is a check rather than an assurance: recomputing the blob identifiers below establishes, without network access, that each shipped file is the blob of the upstream commit.",
     "upstream_commit": "589e881558f713b05312643cb842d0d924d1ce87",
     "upstream_commit_utc": "2026-09-12T12:04:20Z",
     "shipped_prefix": "analysis/apparatus/",

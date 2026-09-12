@@ -11,11 +11,10 @@
 >
 > Each sentence below is written as an author might carelessly write it — in natural prose, not as
 > a copy of the regular expression. Copying the patterns into the fixture would make the test
-> self-referential and therefore vacuous
-> (`feedback_negative_fixture_must_not_be_self_referential`).
+> self-referential, and therefore vacuous.
 >
-> **The correct statements are in `main.md`. Every sentence in this file is the opposite of what
-> the evidence supports, or an overreach beyond it.**
+> **The correct statements are in `main.md`. Every sentence in this file is either the opposite of
+> what the evidence supports, or an overreach beyond it.**
 
 ---
 

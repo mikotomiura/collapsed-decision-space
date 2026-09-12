@@ -1,29 +1,22 @@
 #!/usr/bin/env python3
-"""a-priori categorical-multinomial power の 4 ケース比較表を作る.
+"""Build the four-case comparison of a-priori categorical-multinomial power.
 
-`erre_sandbox.integration.embodied.bank_power.categorical_multinomial_power`
-(実行には ``PYTHONPATH=analysis/apparatus`` が要る) を、ERRE-Sandbox
-``experiments/20260708-m13-b-bank/power_worksheet.md`` (由来 commit
-``589e881558f713b05312643cb842d0d924d1ce87``) の 3 ケースと同じ入力で
-呼び出し、power を計算する。
+Calls ``categorical_multinomial_power`` from the vendored apparatus (which needs
+``PYTHONPATH=analysis/apparatus``) with the same inputs as the upstream power worksheet.
 
-★ 用語の精度 (重要、docstring と出力ヘッダの両方に必ず書く):
-    power を殺すのは **base 分布が collapse していること自体ではない**。
-    3 行目 (degenerate base + collapse-scale delta) が power≈0.95 と高いままに
-    なることが示す通り、power を殺すのは **達成可能な delta_tv が小さいこと**
-    である。base 分布が近-uniform でも degenerate でも、delta_tv が十分あれば
-    power は高い。「collapse した分布では power が落ちる」という言い方は誤り
-    (実測はむしろ逆: degenerate base の方が同じ delta_tv に対して敏感に反応し
-    power が高くなる)。
+**A point of wording that matters, and is repeated in the output header.** What reduces power is
+**not a collapsed base distribution**. The third case below -- a degenerate base with a
+collapse-scale shift -- still reaches a power of roughly 0.95. What reduces power is a **small
+attainable delta_tv**. Whether the base distribution is near-uniform or degenerate, ample delta_tv
+gives high power; saying "a collapsed distribution loses power" has it backwards, since a degenerate
+base in fact responds more sharply to the same delta_tv.
 
-自己検証: 4 ケースの power が期待帯に入らなければ exit 1 で落ちる
-(帯: >=0.99 / 0.10<=p<=0.30 / >=0.85 / >=0.99)。加えて、4 ケースとも
-seed・n_replicates 固定で出力は完全決定的なので、実測値そのものを
-±1e-4 で厳密 pin する (`EXPECTED_POWER_PINS`)。期待帯は科学的主張の
-番人として残し、pin は「この commit で数値が動いていないこと」の
-回帰検知として別に効かせる。乱数は seed 固定 (POWER_SEED_DEFAULT
-= 20260708)。n_replicates は勝手に下げない (既定 N_REPLICATES_DEFAULT=4000
-のまま)。
+Self-verification: the run fails if any of the four powers falls outside its expected band
+(>=0.99 / 0.10-0.30 / >=0.85 / >=0.99). Because all four are deterministic under a fixed seed and a
+fixed replicate count, the measured values are additionally pinned to within 1e-4
+(``EXPECTED_POWER_PINS``). The bands guard the scientific statement; the pins are a separate
+regression check that the numbers have not moved. The replicate count is not lowered to make the
+run faster.
 """
 
 from __future__ import annotations
@@ -42,10 +35,10 @@ from erre_sandbox.integration.embodied.bank_power import (
 )
 
 HEADER_NOTE = (
-    "# power を殺すのは base 分布の collapse ではなく、\n"
-    "# 達成可能な delta_tv が小さいことである\n"
-    "# (ケース3: degenerate base + delta_tv=0.01 (事前登録 0.10 の 1/10) の\n"
-    "#  shift でも power は高いままになる実測を参照)\n"
+    "# What reduces power is a small attainable delta_tv,\n"
+    "# not a collapsed base distribution\n"
+    "# (see case 3: a degenerate base with delta_tv=0.01, one tenth of the\n"
+    "#  pre-registered 0.10, still reaches high power)\n"
 )
 
 
@@ -60,14 +53,14 @@ class Case:
 
 CASES: tuple[Case, ...] = (
     Case(
-        label="事前登録設計 (near-uniform)",
+        label="pre-registered design (near-uniform)",
         base_dist=(0.2, 0.2, 0.2, 0.2, 0.2),
         delta_tv=0.10,
         expected_low=0.99,
         expected_high=1.0,
     ),
     Case(
-        label="collapse-scale delta (proposal の 1/10)",
+        label="collapse-scale delta (one tenth of the proposal)",
         base_dist=(0.2, 0.2, 0.2, 0.2, 0.2),
         delta_tv=0.01,
         expected_low=0.10,
@@ -81,7 +74,7 @@ CASES: tuple[Case, ...] = (
         expected_high=1.0,
     ),
     Case(
-        label="degenerate base + 事前登録設計 delta",
+        label="degenerate base + pre-registered delta",
         base_dist=(0.96, 0.01, 0.01, 0.01, 0.01),
         delta_tv=0.10,
         expected_low=0.99,
@@ -89,17 +82,16 @@ CASES: tuple[Case, ...] = (
     ),
 )
 
-# 実測値の厳密 pin (±PIN_TOLERANCE)。CASES は seed・n_replicates を固定しており
-# 出力は完全決定的なので、実測できる値を推測せずに pin できる。期待帯
-# (Case.expected_low/high) は「科学的主張が生きているか」の番人として別に残し、
-# こちらは「この commit で数値そのものが動いていないか」の回帰検知に使う。
-# 値は analysis/scripts/power_curve.py をこの pin ブロック追加時点で実行し、
-# categorical_multinomial_power の戻り値をそのまま転記したもの (推測禁止)。
+# Exact pins on the measured values (within PIN_TOLERANCE). The cases fix both the seed and
+# the replicate count, so the output is fully deterministic and the measured values can be pinned
+# without guessing any of them. The expected bands above guard the scientific statement; these
+# pins are a separate regression check that the numbers have not moved in this commit. Each value
+# was transcribed from an actual run of this script at the time the pins were added.
 EXPECTED_POWER_PINS: tuple[float, ...] = (
-    1.0,  # 事前登録設計 (near-uniform)
-    0.18425,  # collapse-scale delta (proposal の 1/10)
+    1.0,  # pre-registered design (near-uniform)
+    0.18425,  # collapse-scale delta (one tenth of the proposal)
     0.95325,  # degenerate base + collapse-scale delta
-    1.0,  # degenerate base + 事前登録設計 delta
+    1.0,  # degenerate base + pre-registered delta
 )
 PIN_TOLERANCE = 1e-4
 
@@ -107,18 +99,18 @@ M_DRAWS = M_MIN  # 300
 K_CONTEXTS = K_MIN  # 8
 POOLING = True
 SEED = POWER_SEED_DEFAULT  # 20260708
-N_REPLICATES = N_REPLICATES_DEFAULT  # 4000 (下げない)
+N_REPLICATES = N_REPLICATES_DEFAULT  # 4000; not lowered to make the run faster
 
 
 def render_table() -> tuple[str, list[float]]:
     lines: list[str] = []
     lines.append(HEADER_NOTE)
     lines.append(
-        f"共通パラメータ: m_draws={M_DRAWS}, k_contexts={K_CONTEXTS}, "
+        f"Common parameters: m_draws={M_DRAWS}, k_contexts={K_CONTEXTS}, "
         f"pooling={POOLING}, seed={SEED}, n_replicates={N_REPLICATES}"
     )
     lines.append("")
-    lines.append("| ケース | base_dist | delta_tv | power (実測) | 期待帯 |")
+    lines.append("| Case | base_dist | delta_tv | power (measured) | expected band |")
     lines.append("|---|---|---|---|---|")
 
     powers: list[float] = []
@@ -150,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
         "--out",
         type=Path,
         default=None,
-        help="出力先ファイル (既定: <repo-root>/data/derived/power-curve.md)",
+        help="output file (default: <repo-root>/data/derived/power-curve.md)",
     )
     args = parser.parse_args(argv)
 
@@ -161,34 +153,34 @@ def main(argv: list[str] | None = None) -> int:
     for case, power in zip(CASES, powers, strict=True):
         if not (case.expected_low <= power <= case.expected_high):
             sys.stderr.write(
-                f"[FAIL] {case.label}: power={power:.4f} は期待帯 "
-                f"[{case.expected_low}, {case.expected_high}] の外\n"
+                f"[FAIL] {case.label}: power={power:.4f} is outside the expected band "
+                f"[{case.expected_low}, {case.expected_high}]\n"
             )
             ok = False
 
     for case, power, pin in zip(CASES, powers, EXPECTED_POWER_PINS, strict=True):
         if abs(power - pin) > PIN_TOLERANCE:
             sys.stderr.write(
-                f"[FAIL] {case.label}: power={power!r} は pin {pin!r} から "
-                f"±{PIN_TOLERANCE} を超えて乖離\n"
+                f"[FAIL] {case.label}: power={power!r} departs from the pin {pin!r} by "
+                f"more than {PIN_TOLERANCE}\n"
             )
             ok = False
 
-    # 検査を通過した場合にのみ data/derived/ へ書き出す。検査より前に書くと、
-    # FAIL 時にも古い (あるいは誤った) 表が data/derived/ に残ってしまう。
+    # Write only after the checks pass; writing first would leave a stale or wrong table
+    # behind on failure.
     if ok:
         repo_root = Path(__file__).resolve().parents[2]
         default_out = repo_root / "data" / "derived" / "power-curve.md"
         out_path = args.out if args.out is not None else default_out
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        # newline="\n" を明示する。既定の text mode は Windows で \n を \r\n へ
-        # 変換するため、同じ内容でも OS 間で出力ファイルの byte が一致しなくなる
-        # (2026-09-12 に Windows / WSL2 で実測。内容差は無く eol 差だけだった)。
+        # newline is set explicitly: the default text mode rewrites line endings on Windows,
+        # so identical content would produce different bytes across platforms. Measured on
+        # Windows and Linux -- the content agreed and only the line endings differed.
         with out_path.open("w", encoding="utf-8", newline="\n") as handle:
             handle.write(table)
     else:
         sys.stderr.write(
-            "[FAIL] 検査未通過のため data/derived/power-curve.md は書き換えない\n"
+            "[FAIL] checks did not pass; data/derived/power-curve.md is left unchanged\n"
         )
         return 1
 

@@ -1,77 +1,92 @@
-# CLAIM BOUNDARY — 本文に書いてよいこと / 絶対に書かないこと
+# Claim boundary — what the manuscript may say, and what it may not
 
-> **本文 (`main.md`) とは別ファイルで保持する。** 本文を書く人が本文だけ読んで済ませられないようにするため。
-> 由来 = 著者の内部 ADR (Level 境界、2026-09-12 凍結)。**同梱していない**ので、
-> 公開物としての正典は**本ファイル**である。
-> 由来 = 本 repo の `README.md` §1 + 正典 ADR §4.1 + Codex independent review (2026-09-12)。
+> Kept in a separate file from the manuscript **on purpose**, so that whoever writes the manuscript
+> cannot satisfy themselves by reading the manuscript alone.
 >
-> **本文は英語で書く** (PCI RR は書式自由だが投稿言語は英語)。
-> したがって下の検査パターンは**英語の正規表現**である。
+> The manuscript is written in English, which is the submission language, so the search patterns
+> below are English regular expressions.
+>
+> `analysis/scripts/check_claim_boundary.py` reads the table in §2 from this file and enforces it.
+> This file is the single source of the patterns: the checker never takes them from the text it is
+> checking, because a text that carries its own forbidden-phrase list would trivially agree with
+> itself.
 
 ---
 
-## 1. 書いてよいこと
+## 1. What the evidence supports
 
-- チャネルが非退化に配線されていること (ES-1 / ES-3。**positive control が 0 を返せることを含む**)
-- そのチャネルの下流効果が、事前登録された margin の下で検出されなかったこと
-- near-uniform 基質でも検出力が確保できること (直感の反証)
-- effect-absent / low-power / apparatus-invalid の**三分離**
-- 単一 apparatus・単一 regime (`think=False`) という **bounded envelope** の明示
+- The channel is wired non-degenerately (from the channel study and the determinism study),
+  **including that the positive control is able to return zero**.
+- The channel's downstream effect was not detected under a materiality margin declared in advance.
+- A near-uniform categorical substrate does not imply low detection power — which runs against a
+  common intuition.
+- Effect-absent, low-power and apparatus-invalid are kept apart as **three distinct outcomes**.
+- The envelope is bounded and stated: one apparatus, one sampling regime, one model in the
+  completed measurement.
 
 ---
 
-## 2. 絶対に書かないこと (G1-G13)
+## 2. What must not be written (G1–G13)
 
-各行の **検査パターン** は `main.md` に対する機械検査で使う。
-ヒットしたら **本文を直す。検査を緩めない。**
+The **search pattern** in each row is what the checker applies to the manuscript, this repository's
+README and the citation metadata. If a pattern matches, **the prose is fixed; the pattern is not
+relaxed.**
 
-| # | 書かない主張 | 理由 | 検査パターン (case-insensitive) |
+| # | Claim that must not appear | Why it is out of reach | Search pattern (case-insensitive) |
 |---|---|---|---|
-| G1 | 歩行 / 移動それ自体が創造的発散を生まない | **測っていない**。主語はチャネルであって歩行でも創造性でもない | `locomotion (does not\|doesn't) (produce\|generate\|cause)`, `walking (does not\|doesn't)`, `no creative divergence` |
-| G2 | 身体性は無意味である | bounded envelope 限定の結果を一般命題に拡大している | `embodiment is (meaningless\|useless\|irrelevant)`, `embodiment does not matter` |
-| G3 | 事前宣言 margin の導入が新規である | **[28] が既出**。good practice の遵守として書く | `(we\|this paper) (introduce\|propose)[a-z ]*(declared\|pre-declared\|pre-registered) margin`, `novel(ty)? (of\|is)[a-z ]*equivalence` |
-| G4 | family effect と think-regime effect を分離した | 正典 ADR §4.1 の**閉じない gate** | `(separat\|disentangl\|decoupl)[a-z]* (the )?(family\|model family)[a-z ]*(from )?[a-z ]*think`, `isolates? the (family\|think)[a-z ]*effect` |
-| G5 | `think=False` が死点の原因だと示した / 否定した | 同上 | `think=false (is\|was) the cause`, `(shows?\|demonstrates?\|proves?) that think=false` |
-| G6 | byte 一致で control した | control は**統計量の許容帯比較**。byte 一致は replay-verify の性質 (DA-P02R-6) | `byte-(identical\|exact)[a-z ]*control`, `control[a-z ]*byte-(identical\|exact)` |
-| G7 | collapse した分布では検出力が落ちる | **実測は逆**。degenerate base + collapse-scale delta では `power = 0.9533`。検出力を殺すのは **達成可能な `delta_tv` が小さいこと** | `collapsed? (base )?distribution[a-z ]*(low\|reduced\|kills?) power`, `degenerate[a-z ]*(low\|reduced) power` |
-| G8 | C-proper の結果を `llama3.1` の予測として書く | §2.6 (eligibility) に当たる。C は planned analysis の焦点でない | `we (expect\|predict\|anticipate)[a-z ]*llama`, `llama[a-z0-9.: ]*will (also )?(show\|reproduce\|replicate)` |
-| G9 | Level 6 が保証されている | **defensible な読み**であって PCI RR の明文の保証ではない | `level 6 is (guaranteed\|assured\|preserved)`, `guarantees? level 6` |
-| G10 | `D_loco = 7.40e-17` と書く | **キーの取り違え**。`7.401486830834377e-17` は **`zone_function_d_loco`** (zone-function positive control)。**主推定は `d_loco = 0.04682681825722385`** | `D_loco *= *7\.4`, `D_loco[^\n]{0,20}e-17` |
-| G11 | R5 PASS は版ドリフトが無かったことの証明である | PASS は**帯の中にあること**しか言わない | `(proves?\|demonstrates?\|establishes?)[a-z ]*no (version )?drift`, `rules? out[a-z ]*version drift` |
-| G12 | R5 FAIL 時に primary の潜在結果を論じる | 停止条件の趣旨を壊す | `(had\|if)[a-z ]*r5[a-z ]*(failed\|fails)[^.]*primary[^.]*would` |
-| G13 | 2 族で再現したので family / think-regime が分離できた | R1 経由で G4 に戻る**言い換え穴** | `(two\|both) (model )?famil(y\|ies)[a-z ,]*(therefore\|thus\|hence)[a-z ]*(separat\|disentangl\|isolat)` |
+| G1 | Walking, or movement itself, does not produce creative divergence | **Not measured.** The subject is the channel, not walking and not creativity | `locomotion (does not\|doesn't) (produce\|generate\|cause)`, `walking (does not\|doesn't)`, `no creative divergence` |
+| G2 | Embodiment is meaningless | Extends a result obtained inside a bounded envelope into a general proposition | `embodiment is (meaningless\|useless\|irrelevant)`, `embodiment does not matter` |
+| G3 | Introducing a pre-declared margin is novel | **Already established** in prior work; this study follows the practice rather than originating it | `(we\|this paper) (introduce\|propose)[a-z ]*(declared\|pre-declared\|pre-registered) margin`, `novel(ty)? (of\|is)[a-z ]*equivalence` |
+| G4 | The design separates a model-family effect from a think-regime effect | A gate the design **cannot close**: the two factors move together and the protocol says so | `(separat\|disentangl\|decoupl)[a-z]* (the )?(family\|model family)[a-z ]*(from )?[a-z ]*think`, `isolates? the (family\|think)[a-z ]*effect` |
+| G5 | The disabled think regime was shown — or ruled out — as the cause | Same gate as G4, reached from the other side | `think=false (is\|was) the cause`, `(shows?\|demonstrates?\|proves?) that think=false` |
+| G6 | The control arm was a bitwise comparison | The control compares **statistics inside a declared band**. Bitwise agreement is a property of replaying recorded output, not of regenerating it | `byte-(identical\|exact)[a-z ]*control`, `control[a-z ]*byte-(identical\|exact)` |
+| G7 | A collapsed distribution reduces detection power | **The measurement says otherwise**: a degenerate base with a collapse-scale shift still reaches `power = 0.9533`. What reduces power is a **small attainable `delta_tv`**, not concentration | `collapsed? (base )?distribution[a-z ]*(low\|reduced\|kills?) power`, `degenerate[a-z ]*(low\|reduced) power` |
+| G8 | The completed run's result is a prediction for the second model | Would make a realised outcome of a planned analysis known in advance; the completed run is not the focus of the planned analyses | `we (expect\|predict\|anticipate)[a-z ]*llama`, `llama[a-z0-9.: ]*will (also )?(show\|reproduce\|replicate)` |
+| G9 | Level 6 is guaranteed | A **defensible reading** of two clauses read together, not a guarantee stated by the venue | `level 6 is (guaranteed\|assured\|preserved)`, `guarantees? level 6` |
+| G10 | The point estimate is `7.40e-17` | **A field mix-up.** `7.401486830834377e-17` belongs to `zone_function_d_loco`, the zone-function positive control. The point estimate is `d_loco = 0.04682681825722385` | `D_loco *= *7\.4`, `D_loco[^\n]{0,20}e-17` |
+| G11 | A control-arm pass proves that no version drift occurred | A pass states only that the quantities fall **inside the declared band** | `(proves?\|demonstrates?\|establishes?)[a-z ]*no (version )?drift`, `rules? out[a-z ]*version drift` |
+| G12 | Speculation about the primary arm after a control-arm failure | Defeats the purpose of a stopping rule | `(had\|if)[a-z ]*r5[a-z ]*(failed\|fails)[^.]*primary[^.]*would` |
+| G13 | Replication across two families therefore separated family from regime | A paraphrase that returns to G4 through the replication branch | `(two\|both) (model )?famil(y\|ies)[a-z ,]*(therefore\|thus\|hence)[a-z ]*(separat\|disentangl\|isolat)` |
 
 ---
 
-## 3. 検査の作り方 (Phase 1b で実装する。**恒真にしない**)
+## 3. How the check is built so that it cannot pass vacuously
 
-「負例の集合を検査対象から取らない」「『空が正解』の検査には陽性対照を添える」という
-要求により、次の 2 条件を**両方**満たすこと。
+A check of the form "none of these patterns appears" passes trivially if the patterns are broken,
+misparsed, or empty. **Being green and having been checked are different facts.** Four properties
+are therefore required, and each was confirmed by breaking it deliberately and observing the
+failure.
 
-1. **禁止句リストを、検査対象の本文から取らない。**
-   パターンの SSOT は**このファイル**であり、検査器は `main.md` を検査する。
-   `main.md` 自身にパターンを書いて「自分と一致しないこと」を確かめる形にしない
-   (自己言及で恒真になる)
+1. **The patterns are not taken from the text being checked.** Their single source is §2 of this
+   file. A manuscript that listed its own forbidden phrases and confirmed it did not match itself
+   would be checking nothing.
 
-2. **「ヒット 0 が正解」の検査には陽性対照を添える。**
-   検査器は次の 2 つを**両方**言えなければならない:
-   - `manuscript/main.md` に禁止句が**無い**
-   - `manuscript/_claim_boundary_positive_control.md` (故意に G1-G13 を全部書いた fixture) に
-     禁止句が**ある** (G1-G13 の**すべて**を検出する)
+2. **Exactly thirteen guards, in order, must parse.** A parser that silently yields zero guards
+   reports "no hits" against any text whatsoever, so the count and the identifiers are pinned.
 
-   陽性対照が全件ヒットしなければ、検査器が壊れているか
-   パターンが本文の言い回しを捕まえられていない。**その場合は exit != 0 で落とす。**
+3. **A positive control accompanies the "zero hits is correct" check.** The checker must be able to
+   say both of the following:
+   - no pattern matches `main.md`, this README or the citation metadata;
+   - **every individual pattern** matches `_claim_boundary_positive_control.md`, a fixture whose
+     every sentence is deliberately false and written in ordinary prose.
 
-> **なぜここまでやるか**: 2026-09-07 に「negative fixture だけの検査が恒真だった」件、
-> 2026-09-12 に「空の宛先を渡して比較経路が消えていた」件を実際に踏んでいる。
-> **緑であることは、検査が走ったことを意味しない。**
+   Requiring it per *guard* is not enough: a guard with two patterns would still pass with one of
+   them broken. That case was observed in testing, which is why the requirement is per *pattern*.
+
+4. **Matching ignores line breaks.** The prose is hard-wrapped, so a forbidden phrase can straddle a
+   line ending. Scanning line by line misses those; the checker normalises whitespace first. This
+   too was found by a phrase that split across a wrap and went undetected.
 
 ---
 
-## 4. 出典を書くときの注意
+## 4. Conventions for sourcing
 
-- 本文の数値は **`analysis/scripts/extract_verdict_table.py` の出力から取る。手写ししない**
-- **`.steering/` を出典に書かない** — `.gitignore` で公開 repo に入らないため、
-  読者から辿れない出典になる
-- `power ≈ 0.18` を引くときは **必ず「near-uniform base + `delta_tv = 0.01`」まで書く** (G7)
-- `d_loco` (主推定) と `zone_function_d_loco` (positive control) を**並べて書く** (G10)
+- Numbers in the manuscript come from `analysis/scripts/extract_verdict_table.py`. They are not
+  transcribed by hand, and `analysis/scripts/check_manuscript_numbers.py` compares them against the
+  frozen inputs character for character.
+- Sources cited in published files must be reachable by a reader of this repository. Working
+  directories that are not shipped here are not citable sources.
+- When `power ≈ 0.18` is quoted, the base distribution and the `delta_tv` it belongs to are quoted
+  with it (G7).
+- The point estimate and the zone-function positive control are presented together, so that neither
+  can be read as the other (G10).

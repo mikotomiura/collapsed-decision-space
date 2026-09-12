@@ -1,9 +1,9 @@
 cff-version: 1.2.0
-message: "この論文および付随コードを引用する場合は以下を用いてください。"
+message: "If you cite this protocol or the accompanying code, please use the metadata below."
 title: "A powered null on a verified channel: separating effect-absent from low power in embodied LLM agents"
-# abstract は manuscript/main.md の Abstract 節と同一でなければならない。
-# analysis/scripts/check_claim_boundary.py が毎回両者を比較するので、
-# 片方だけ直すと repro.sh が落ちる。
+# This abstract must match the Abstract section of manuscript/main.md verbatim.
+# analysis/scripts/check_claim_boundary.py compares them on every run, so editing
+# one without the other fails repro.sh.
 abstract: >-
   An exponential moving average over an embodied language-model agent's recent
   movement modulates the temperature used for its next generation. A completed
@@ -24,11 +24,11 @@ authors:
     alias: "mikotomiura"
     orcid: "https://orcid.org/0009-0000-4196-0508"
     affiliation: "Independent Researcher"
-# license は同梱している LICENSE ファイルと対応させる (DA-P1A-5)。
-#   コード (analysis/)      = Apache-2.0 OR MIT  -> LICENSE / LICENSE-MIT
-#   本文と図 (manuscript/)  = CC-BY-4.0          -> LICENSE-CC-BY-4.0.txt
-# CFF の license は SPDX 識別子の列挙しか表現できず、この「部分ごとに違う」
-# 対応は書けない。正確な対応は README.md §7 にある。
+# `license` mirrors the LICENSE files actually shipped in this repository.
+#   Code (analysis/)         = Apache-2.0 OR MIT -> LICENSE / LICENSE-MIT
+#   Manuscript (manuscript/) = CC-BY-4.0         -> LICENSE-CC-BY-4.0.txt
+# CFF can only express a list of SPDX identifiers, not a per-part mapping.
+# The exact mapping is in README.md, under Licence.
 license:
   - Apache-2.0
   - MIT
@@ -36,10 +36,10 @@ license:
 repository-code: "https://github.com/mikotomiura/powered-null"
 version: "0.1.0-stage1"
 date-released: "2026-09-13"
-# doi: Zenodo で DOI を切ったら記入する。切るまでキー自体を置かない
-#      (値の無いキーは GitHub の引用ウィジェットにそのまま出るため)。
-# preferred-citation: 査読版が出たらこちらへ (PCI RR の recommendation →
-#      Peer Community Journal)。出るまでキー自体を置かない。
+# doi: to be filled in once a DOI is minted. The key is omitted until then, because an
+#      empty value would be rendered as-is by the GitHub citation widget.
+# preferred-citation: to point at the peer-reviewed version once it exists. Omitted
+#      until then, for the same reason.
 keywords:
   - measurement validity
   - LLM agents

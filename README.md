@@ -1,112 +1,184 @@
-# 02 — Powered null: 身体化チャネルは配線するが伝播しない
+# A powered null on a verified channel
 
-> **タイトル (確定 2026-09-07)**: A powered null on a verified channel: separating
-> effect-absent from low power in embodied LLM agents
-> **repo (PUBLIC)**: <https://github.com/mikotomiura/powered-null>
+*Separating effect-absent from low power in embodied LLM agents*
 
-> **status (2026-09-13)**: Stage 1 Registered Report protocol の**初稿が
-> `manuscript/main.md` にある**。前向きの draw は 1 つも取得していない。
-> データ収集は in-principle acceptance の後に始まる (`manuscript/main.md` §11)。
-> 投稿先 = **PCI Registered Reports → Peer Community Journal**。
+[![repro](https://github.com/mikotomiura/powered-null/actions/workflows/repro.yml/badge.svg)](https://github.com/mikotomiura/powered-null/actions/workflows/repro.yml)
 
-## 0. この論文の一文
+This repository is the research compendium for a **Stage 1 Registered Report** submitted to
+[PCI Registered Reports](https://rr.peercommunityin.org/). It contains the protocol
+(`manuscript/main.md`), the frozen evidence the protocol builds on, the measurement apparatus, and
+a single command that re-derives every number the protocol quotes.
 
-> エージェントの空間移動履歴が decode サンプリングを駆動する因果チャネルは、ablation で
-> bit-identical に消える形で実在する。しかし検出力を確保した M-sample 設計の下で、その
-> チャネルは下流の離散ゾーン選択を偏らせない。かつ、near-uniform なカテゴリ分布は
-> 低検出力を意味しない。
+**No prospective data has been collected.** Data collection begins only after in-principle
+acceptance.
 
-**主語は「チャネル」であって「歩行」でも「創造性」でもない。**
+---
 
-## 1. claim 境界
+## What the study is about
 
-**正典は `manuscript/CLAIM-BOUNDARY.md`** (禁止句 G1-G13 + 検査パターン)。
-`analysis/scripts/check_claim_boundary.py` がそれを読み、`manuscript/main.md` と
-**この README** を検査する。検査は `repro.sh` から呼ばれる。
+An embodied language-model agent carries a scalar derived from its recent movement — an
+exponential moving average over its moves — into the temperature used for its next generation.
+That wiring is real: a completed forensic study shows the channel is causal, is separable from the
+static location channel, and disappears without residue under ablation, while a positive control
+shows that the same estimator is able to return zero.
 
-### 書いてよいこと
+The open question is whether the channel *propagates*. A completed measurement on one model found
+no shift in the agent's five-way zone decision exceeding a materiality margin declared in advance,
+while retaining full nominal power. This protocol estimates the same quantity in a second model
+family, with a control arm that re-runs the original model so that a change of model family is not
+read together with a change of backend version.
 
-- チャネルが非退化に配線されていること (ES-1/ES-3、positive control が 0 を返せることを含む)
-- そのチャネルの下流効果が、事前登録された margin の下で検出されなかったこと
-- near-uniform 基質でも検出力が確保できること (直感の反証)
-- effect-absent / low-power / apparatus-invalid の三分離
+**The subject of every claim here is the channel.** It is not walking, and it is not creativity.
 
-### 絶対に書かないこと (要約。全 13 件は `manuscript/CLAIM-BOUNDARY.md`)
+## What may and may not be claimed
 
-- 「歩行は創造的発散を生まない」 — **測っていない**
-- 「身体性は無意味である」 — bounded envelope (real qwen3:8b / think=False / 単一 apparatus) 限定
-- 「事前宣言 margin を導入したのが新規」 — **[28] が既にやっている**。good practice の遵守として書く
+The full guard list, with the search patterns used to enforce it, is in
+[`manuscript/CLAIM-BOUNDARY.md`](manuscript/CLAIM-BOUNDARY.md). In summary:
 
-## 2. 中核の数値 (全て取得済・追加実験不要)
+**Supported by the evidence**
 
-**本文に載せる数値は `analysis/scripts/extract_verdict_table.py` の出力から取る。手写ししない。**
+- the channel is wired non-degenerately, including that the positive control is able to read zero
+- the channel's downstream effect was not detected under a margin fixed before the data existed
+- a near-uniform categorical substrate does not imply low detection power
+- effect-absent, low-power and apparatus-invalid are kept apart as three distinct outcomes
+- the envelope is bounded: one apparatus, one sampling regime, eight frozen contexts
 
-| 量 | 値 | 出典 |
-|---|---|---|
-| `d_loco` (**主推定**) | 0.04682681825722385 | `data/raw/es3-verdict-forensic.json` (→ `data/derived/verdict-table.md`) |
-| `ci_lower` (90% bootstrap) | 0.04529199663455194 ≥ `amp_floor` 0.02 (2.3×) | 同上 |
-| `zone_function_d_loco` — **positive control。上の主推定とは別のフィールド**であり、λ=h(z) を強制したときに estimand が 0 を取りうることの実証 | 7.401486830834377e-17 | 同上 |
-| ablation (None vs gain=0) | bit-equal、`ablation_max_abs_diff = 0.0` | 同上 |
-| ES-1 `median(D_obs)` | **未収録**。`data/raw/` に ES-1 SPDM の機械可読 verdict が無い (apparatus コード `analysis/apparatus/erre_sandbox/evidence/spdm/` は同梱済みだが出力 verdict は未取得)。抽出スクリプトが出せない数値は本文にも書かない — フォローアップ課題 | — |
-| **verdict** | `NO_CHANNEL_CONFORMANCE` | `data/raw/cproper-verdict.json` (→ `data/derived/verdict-table.md`) |
-| `rho_hat` | 1.0 (8/8 context PASS) | 同上 |
-| `power` | 1.0 | 同上 |
-| `tv_bar` | **0.038065** < `delta_tv_min` 0.10 | 同上 |
-| `permutation_p_value` | 0.057986 (reject=False) | 同上 |
-| 設計 | M=300 × K=8 (4800 draws)、real qwen3:8b | `data/raw/cproper-verdict.json` (`thresholds`) / `data/raw/cproper-manifest.json` (`run`, `env_pins.model`) |
-| power worksheet | near-uniform `[0.2]×5` (delta_tv=0.10) で power=1.0 / **near-uniform base + delta_tv=0.01** で power≈0.18 / **degenerate base + delta_tv=0.01 で power=0.9533** | `analysis/scripts/power_curve.py` → `data/derived/power-curve.md` |
+**Out of reach of this design** (three of thirteen guards, quoted for orientation)
 
-> power を殺すのは base 分布の collapse ではなく、**達成可能な `delta_tv` が小さいこと**である
-> (3 行目を参照)。`power≈0.18` を引くときは必ず「near-uniform base + `delta_tv=0.01`」まで書く。
+- any statement about human ambulation, or about creative production
+- any general statement about whether embodiment matters
+- any claim that declaring a margin in advance is itself new — that practice is established, and
+  this work follows it
 
-## 3. 生き残っている新規性 (先行研究つぶし後、2026-09-07)
+`analysis/scripts/check_claim_boundary.py` enforces the full list against the manuscript, this
+README and the citation metadata on every run, and fails if a guard pattern stops firing against
+its fixture.
 
-1. **estimand が「エージェント内部変調 → 下流カテゴリ選択」であること**。[28] の estimand は
-   圧縮モデル同士の同等性であって、内部 knob の因果効果ではない
-2. **near-uniform 基質での検出力直感の反証**
+## What is in here
 
-この 2 点**以外**を新規性として書かない。特に「LLM 評価に equivalence testing を持ち込む」は [28] で既出。
+| Path | Contents |
+|---|---|
+| `manuscript/main.md` | The Stage 1 protocol |
+| `manuscript/CLAIM-BOUNDARY.md` | The claim guards and their search patterns |
+| `data/raw/` | Frozen evidence from the completed studies, each pinned by SHA-256 and size |
+| `data/data.md` | Provenance of every frozen input, and how it is verified |
+| `analysis/apparatus/` | The measurement apparatus, 69 modules, byte-identical to the upstream source |
+| `analysis/scripts/` | Verification and extraction scripts |
+| `analysis/freeze-provenance.json` | Upstream commit and blob identifier of every shipped file that carries evidence |
+| `env/` | The lockfile the completed run was executed under |
+| `repro.sh` | One command that runs all of the above |
 
-## 4. 先回りすべき査読リスク
-
-- **[29] 由来**: 「logit access なら O(n/ε²) で済むのに、なぜ sample access で 4800 draws を引いたのか」
-  → Ollama 経由で logit を取得していない制約を **Limitations に自分から書く** (`main.md` §12.3)
-- **外的妥当性**: 単一モデル。**qwen3:8b 以外で同じ null が出るか**が最大の穴。
-  → 2 個目のモデル (`llama3.1:8b`) の実走を Stage 1 として事前登録する (`main.md` §6)
-
-## 5. ゲート
-
-- [x] Stage 1 protocol 本文 (`manuscript/main.md`)
-- [x] `verdict.json` から数値を機械抽出するスクリプト (手写ししない)
-- [x] `repro.sh` (seed 固定・exit 0)
-- [x] 凍結入力の SHA-256 照合 (`analysis/scripts/verify_data_hashes.py`)
-- [x] 閾値の凍結が実走より前であることの検査 (`analysis/scripts/verify_threshold_freeze.py`)
-- [x] 「書かないこと」に抵触する文が無いことの機械検査 + 陽性対照
-      (`analysis/scripts/check_claim_boundary.py`)
-- [x] 中核 verdict を同梱データから**再計算**して記録と突き合わせる
-      (`analysis/scripts/recompute_verdict.py`、全 14 項目一致)
-- [x] 本文の数値が凍結入力の値と文字単位で一致することの機械照合
-      (`analysis/scripts/check_manuscript_numbers.py`)
-- [x] 独立レビュー 2 者 (Opus code review + Codex gpt-5.5/xhigh)、HIGH 全反映
-- [ ] **2 個目のモデルでの実走** — in-principle acceptance の後 (`main.md` §11)
-
-## 6. 再現
+## Reproducing
 
 ```bash
 bash repro.sh
 ```
 
-9 ステップ (環境固定 / lint / 入力 hash + 上流 blob / 閾値凍結 + apparatus 閉包 /
-**verdict の再計算** / 数値抽出 / power 表 / **本文数値の照合** / claim 境界) を順に走らせ、
-1 つでも落ちれば非ゼロで終わる。両 OS の公開 CI (`.github/workflows/repro.yml`) が同じものを強制し、
-派生物が両 OS で byte 一致することも突き合わせている。
+Requires [uv](https://docs.astral.sh/uv/) and network access for the first dependency
+installation. The script runs nine steps and exits non-zero if any of them fails:
 
-上流 ERRE-Sandbox の clone があれば
-`ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh` で、commit 日時と ancestor 関係まで
-機械検査される。
+1. install the environment from the lockfile
+2. lint
+3. verify the frozen inputs against `data/data.md` **and** against their upstream blobs
+4. verify the threshold freeze and the whole apparatus closure
+5. **recompute the completed run's verdict** from the shipped per-draw annotation
+6. extract the quantities the protocol quotes
+7. regenerate the power table
+8. compare the numbers quoted in the protocol against the frozen inputs, character for character
+9. run the claim-boundary check together with its positive control
 
-## 7. ライセンス
+Both legs of the public CI run exactly this, on Ubuntu and on Windows, and a third job requires the
+generated artefacts to be byte-identical across the two.
 
-- コード (`analysis/`) = **Apache-2.0 OR MIT** (`LICENSE` / `LICENSE-MIT`)
-- 本文と図 (`manuscript/`) = **CC BY 4.0** (`LICENSE-CC-BY-4.0.txt`)
-- `data/raw/` = 著者自身が生成した研究データ。由来と hash は `data/data.md`
+If you have a clone of the upstream source repository, pointing at it also checks the upstream
+commit dates and ancestry:
+
+```bash
+ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
+```
+
+## What the checks establish, and what they do not
+
+The distinction matters more than the green badge, so it is stated here rather than left implicit.
+
+**Established**
+
+- The frozen inputs are byte-identical to the blobs registered in the public upstream repository.
+- The decision thresholds shipped here are the exact bytes of the upstream commits that froze them,
+  and those commits are ancestors of the commit carrying the completed run.
+- The verdict of the completed run is **re-derivable** from the shipped annotation and the shipped
+  apparatus: the verdict string, all nine gate read-outs and all four per-context maps are
+  recomputed and required to match.
+- Every quantity the protocol quotes from the frozen inputs matches it character for character.
+
+**Not established**
+
+- Regeneration of the draws themselves. Language-model draws do not recur when regenerated, so the
+  per-draw record is treated as a frozen input rather than as something the script recreates.
+- The upstream commit *dates*, unless you point the script at a clone of that repository. Offline,
+  the checks establish content, not chronology; the two together are what supports the ordering
+  claim, and `manuscript/main.md` §10.2 states this rather than implying either half carries it.
+- The age of one record. The forensic record of the channel study entered version control through a
+  relocation commit, so history witnesses its content but not when it was produced. This is
+  recorded in `analysis/freeze-provenance.json` and disclosed in the protocol.
+
+## Key quantities
+
+Every value below is produced by `analysis/scripts/extract_verdict_table.py`; none is transcribed
+by hand, and step 8 of `repro.sh` enforces that.
+
+**The channel study** (`data/raw/es3-verdict-forensic.json`)
+
+| Quantity | Value |
+|---|---|
+| `d_loco`, the point estimate | 0.04682681825722385 |
+| `ci_lower`, 90% percentile bootstrap | 0.04529199663455194, against a pre-registered floor of 0.02 |
+| ablation, `loco_delta=None` against `gain=0` | bit-equal; `ablation_max_abs_diff` = 0.0 |
+| `zone_function_d_loco` — the zone-function positive control, a **different field** from the point estimate above, showing that the estimator is able to read zero | 7.401486830834377e-17 |
+
+**The completed measurement** (`data/raw/cproper-verdict.json`, `qwen3:8b`, 4,800 draws)
+
+| Quantity | Value |
+|---|---|
+| `verdict` | `NO_CHANNEL_CONFORMANCE` |
+| `tv_bar` | 0.038065, against a declared margin of 0.10 |
+| `rho_hat` | 1.0 (8 of 8 contexts) |
+| `power` | 1.0 |
+| `permutation_p_value` | 0.057986 (`permutation_reject` = `False`) |
+
+**Power** (`analysis/scripts/power_curve.py`)
+
+| Base distribution | `delta_tv` | Power |
+|---|---|---|
+| near-uniform | 0.10 | 1.0000 |
+| near-uniform | 0.01 | 0.1842 |
+| degenerate | 0.01 | 0.9533 |
+| degenerate | 0.10 | 1.0000 |
+
+Detection power here is governed by the size of the shift being looked for, not by how concentrated
+the base distribution is — the third row is the one that carries that point. The 0.1842 figure
+belongs specifically to a near-uniform base at `delta_tv` = 0.01, one tenth of the declared margin,
+and is only meaningful when quoted in that full form.
+
+## Status
+
+The Stage 1 protocol is written and the evidence it rests on is frozen and verifiable. What remains
+before submission is the submission paperwork itself. The prospective run — two arms, 9,600 draws,
+roughly five hours of compute — happens after in-principle acceptance, once and without tuning.
+
+One preliminary study is reported in the protocol but its machine-readable record was not retained,
+so no quantity from it is quoted anywhere. That gap is disclosed rather than worked around.
+
+## Citation
+
+See [`CITATION.cff`](CITATION.cff). Reference numbers in the manuscript are permanent identifiers
+from the author's bibliography and are not renumbered between manuscripts, which is why they are not
+consecutive.
+
+## Licence
+
+| Part | Licence |
+|---|---|
+| Code (`analysis/`, `repro.sh`) | Apache-2.0 OR MIT — see `LICENSE` and `LICENSE-MIT` |
+| Manuscript and figures (`manuscript/`) | CC BY 4.0 — see `LICENSE-CC-BY-4.0.txt` |
+| Frozen data (`data/raw/`) | Research data generated by the author; provenance in `data/data.md` |

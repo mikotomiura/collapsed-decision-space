@@ -1,38 +1,36 @@
 #!/usr/bin/env python3
-"""凍結入力が ``data/data.md`` に記録された同一性を保っていることを検査する.
+"""Check that the frozen inputs still hold the identity recorded for them.
 
-**hash の SSOT は ``data/data.md`` である。** 機械可読な複製ファイルを別に置くと、
-人が読む provenance と機械が読む pin のどちらが正かが曖昧になるので、二重管理しない。
-本スクリプトはその表を**パースして**照合する。
+**The source for these digests is ``data/data.md``.** Keeping a second, machine-readable copy
+elsewhere would leave it ambiguous which one is authoritative, so this script parses that table
+directly rather than duplicating it.
 
-``data/data.md`` は 2026-09-12 時点で hash を**記録しただけ**で、照合はしていなかった
-(``B-P1A-4``)。記録と照合は別の行為であり、記録だけで「検証した」と書くのは
-``feedback_checker_handed_target_is_not_checked`` と同型である。本スクリプトが
-その差を埋める。
+Until 2026-09-12 the digests were recorded but never verified. Recording and verifying are
+different acts, and the first does not license the language of the second; this script closes that
+gap.
 
-検査する 5 つ:
+Five checks:
 
-1. ``data/data.md`` の ``## raw/`` 表が**想定どおりパースできる** (行数・64 桁 hex・
-   サイズ整数)。表が壊れたら黙って 0 件で通る経路を塞ぐ。
-2. ``data/raw/`` の各ファイルの SHA-256 とサイズが表と一致する。
-3. ``data/raw/`` に**表に無いファイルが無い** (記録漏れの検出)。
-4. **実走 manifest が持つ独立 pin との交差照合** — 自分の記録同士の照合で閉じないために、
-   ``data/raw/cproper-manifest.json`` が持つ pin と突き合わせる:
-     - ``bank_annotation.jsonl`` の SHA-256 ⇔ ``artifacts[...].sha256``
-     - ``env/uv.lock`` の SHA-256 ⇔ ``env_pins.uv_lock_sha256``
-5. **上流 blob との content-addressed 照合** — 1〜3 は「``data/data.md`` の記録と出荷物が
-   一致する」ことしか言わない (repo 内で閉じた integrity check)。``analysis/freeze-provenance.json``
-   の ``frozen_inputs`` が記録する **上流 commit の blob SHA-1** と突き合わせることで、
-   同梱されている凍結入力が**上流に登録された bytes そのもの**であることまで言える。
-   ``--upstream-repo`` を渡すと、上流の clone に対して blob と commit 日時も検査する。
+1. ``data/data.md`` parses as expected -- **exactly four rows**, 64 hex digits, integer sizes.
+   A parser that silently yields nothing would pass against any repository at all.
+2. Each file in ``data/raw/`` matches its recorded SHA-256 and byte size.
+3. ``data/raw/`` holds **no file absent from the table**, so an input cannot be added unrecorded.
+4. **Cross-checks against pins written by the completed run itself**, which are independent of
+   ``data/data.md``: ``bank_annotation.jsonl`` against ``artifacts[...].sha256`` in the run
+   manifest, and ``env/uv.lock`` against ``env_pins.uv_lock_sha256``.
+5. **Content-addressed comparison with the upstream blobs.** Checks 1-3 establish only that the
+   record and the shipped bytes agree with each other -- an integrity check closed inside this
+   repository. Comparing against the blob identifiers in ``analysis/freeze-provenance.json`` is
+   what establishes that the shipped bytes are the bytes registered upstream. With
+   ``--upstream-repo`` the blobs and commit times are checked against a clone as well.
 
-   ★ ``es3-verdict-forensic.json`` だけは上流 commit が **実走ではなく移設**の commit である
-   (``provenance_kind = "relocation"``)。この 1 件について git 履歴は記録の産出時刻を証言しない。
-   検査はその区別を出力に明示する。
+   One input differs in kind: the forensic record's upstream commit is a **relocation**, not the
+   run that produced it. For that file, history witnesses content but not age, and the output
+   marks the distinction rather than leaving it to be discovered.
 
-使い方:
+Usage:
     python analysis/scripts/verify_data_hashes.py
-    python analysis/scripts/verify_data_hashes.py --upstream-repo /path/to/ERRE-Sandbox
+    python analysis/scripts/verify_data_hashes.py --upstream-repo /path/to/upstream/clone
 """
 
 from __future__ import annotations
@@ -54,11 +52,11 @@ from _provenance import (  # noqa: E402
     sha256_of,
 )
 
-#: `## raw/` 節の開始と、次の `## ` 見出し。
+#: Start of the `## raw/` section, and the next `## ` heading.
 RAW_SECTION_START_RE = re.compile(r"^##\s+raw/")
 NEXT_SECTION_RE = re.compile(r"^##\s+")
 
-#: 表の行: | `<file>` | `<origin>` | `<sha256>` | <n> bytes | <date> | <licence> |
+#: A table row: | `<file>` | `<origin>` | `<sha256>` | <n> bytes | <date> | <licence> |
 RAW_ROW_RE = re.compile(
     r"^\|\s*`(?P<name>[^`]+)`\s*\|"
     r"[^|]*\|"
@@ -66,16 +64,16 @@ RAW_ROW_RE = re.compile(
     r"\s*(?P<size>[\d,]+)\s*bytes\s*\|"
 )
 
-#: この repo が凍結入力として抱えているファイル数。増減したら気づけるように pin する。
+#: How many frozen inputs this repository carries. Pinned so a change is noticed.
 EXPECTED_RAW_ROWS = 4
 
-#: `data/raw/` に置くことを許す非データファイル。
+#: Non-data files permitted inside `data/raw/`.
 RAW_DIR_ALLOWLIST = frozenset({".gitkeep"})
 
 
 @dataclass(frozen=True)
 class RawEntry:
-    """`data/data.md` の raw 表 1 行."""
+    """One row of the raw table in `data/data.md`."""
 
     name: str
     sha256: str
@@ -83,10 +81,11 @@ class RawEntry:
 
 
 def parse_raw_table(data_md: Path) -> tuple[RawEntry, ...]:
-    """`data/data.md` の `## raw/` 節の表をパースする.
+    """Parse the table in the `## raw/` section of `data/data.md`.
 
     Raises:
-        SystemExit: 行数が想定と違うとき (パース失敗で空になった検査器は恒真になる)。
+        SystemExit: if the row count differs from what is expected. A parser that silently
+            yields nothing would pass against any repository.
     """
     entries: list[RawEntry] = []
     in_section = False
@@ -111,32 +110,32 @@ def parse_raw_table(data_md: Path) -> tuple[RawEntry, ...]:
 
     if len(entries) != EXPECTED_RAW_ROWS:
         _die(
-            f"{data_md}: `## raw/` 表からパースできた行が {len(entries)} 件で、"
-            f"想定の {EXPECTED_RAW_ROWS} 件と違う。"
-            "表の書式が変わったか、凍結入力が増減している"
+            f"{data_md}: parsed {len(entries)} rows from the `## raw/` table, expected "
+            f"{EXPECTED_RAW_ROWS}. Either the table format changed, or the set of frozen "
+            "inputs did"
         )
     return tuple(entries)
 
 
 def check_raw_files(repo_root: Path, entries: tuple[RawEntry, ...]) -> list[str]:
-    """各凍結入力の SHA-256 とサイズを照合する."""
+    """Compare each frozen input against its recorded SHA-256 and size."""
     problems: list[str] = []
     raw_dir = repo_root / "data" / "raw"
     for entry in entries:
         path = raw_dir / entry.name
         if not path.is_file():
-            problems.append(f"data/raw/{entry.name}: ファイルが無い")
+            problems.append(f"data/raw/{entry.name}: file is missing")
             continue
         actual_size = path.stat().st_size
         actual_sha = sha256_of(path)
         if actual_size != entry.size:
             problems.append(
-                f"data/raw/{entry.name}: サイズ不一致 "
+                f"data/raw/{entry.name}: size mismatch "
                 f"(recorded={entry.size} actual={actual_size})"
             )
         if actual_sha != entry.sha256:
             problems.append(
-                f"data/raw/{entry.name}: SHA-256 不一致 "
+                f"data/raw/{entry.name}: SHA-256 mismatch "
                 f"(recorded={entry.sha256} actual={actual_sha})"
             )
         if actual_size == entry.size and actual_sha == entry.sha256:
@@ -150,7 +149,7 @@ def check_raw_files(repo_root: Path, entries: tuple[RawEntry, ...]) -> list[str]
 def check_no_unrecorded_files(
     repo_root: Path, entries: tuple[RawEntry, ...]
 ) -> list[str]:
-    """`data/raw/` に表へ載っていないファイルが無いことを確かめる."""
+    """Check that `data/raw/` holds no file absent from the table."""
     recorded = {entry.name for entry in entries} | set(RAW_DIR_ALLOWLIST)
     raw_dir = repo_root / "data" / "raw"
     unrecorded = sorted(
@@ -158,8 +157,7 @@ def check_no_unrecorded_files(
     )
     if unrecorded:
         return [
-            f"data/raw/ に data/data.md へ記録されていないファイルがある: "
-            f"{unrecorded}"
+            f"data/raw/ holds files not recorded in data/data.md: {unrecorded}"
         ]
     return []
 
@@ -167,7 +165,7 @@ def check_no_unrecorded_files(
 def check_upstream_pins(
     repo_root: Path, entries: tuple[RawEntry, ...]
 ) -> list[str]:
-    """完了済み実走の manifest が持つ独立 pin と交差照合する."""
+    """Cross-check against the independent pins written by the run manifest."""
     problems: list[str] = []
     manifest: dict[str, Any] = load_json(
         repo_root / "data" / "raw" / "cproper-manifest.json"
@@ -177,34 +175,34 @@ def check_upstream_pins(
 
     annotation = by_name.get("bank_annotation.jsonl")
     if annotation is None:
-        problems.append("data/data.md に bank_annotation.jsonl の行が無い")
+        problems.append("data/data.md has no row for bank_annotation.jsonl")
     else:
         pinned = manifest["artifacts"]["bank_annotation.jsonl"]["sha256"]
         if pinned != annotation.sha256:
             problems.append(
-                "bank_annotation.jsonl: data/data.md と manifest の pin が食い違う "
+                "bank_annotation.jsonl: data/data.md and the manifest pin disagree "
                 f"(data.md={annotation.sha256} manifest={pinned})"
             )
         else:
             print(
-                "[data-hash] OK bank_annotation.jsonl は実走 manifest の "
-                "artifacts pin と一致"
+                "[data-hash] OK bank_annotation.jsonl matches the artifacts pin in "
+                "the run manifest"
             )
 
     lock_path = repo_root / "env" / "uv.lock"
     if not lock_path.is_file():
-        problems.append("env/uv.lock が無い")
+        problems.append("env/uv.lock is missing")
     else:
         actual = sha256_of(lock_path)
         pinned = manifest["env_pins"]["uv_lock_sha256"]
         if actual != pinned:
             problems.append(
-                "env/uv.lock: 実走 manifest の env_pins.uv_lock_sha256 と違う "
+                "env/uv.lock: differs from env_pins.uv_lock_sha256 in the run manifest "
                 f"(manifest={pinned} actual={actual})"
             )
         else:
             print(
-                f"[data-hash] OK env/uv.lock は実走時の lockfile と同一 "
+                f"[data-hash] OK env/uv.lock is the lockfile the run used "
                 f"({actual[:12]}…)"
             )
     return problems
@@ -213,12 +211,12 @@ def check_upstream_pins(
 def check_frozen_input_provenance(
     repo_root: Path, upstream: Path | None
 ) -> list[str]:
-    """凍結入力が**上流 commit の blob そのもの**であることを確かめる.
+    """Establish that each frozen input is **the blob of its upstream commit**.
 
-    1〜4 の検査は ``data/data.md`` という自分の記録との照合であり、
-    「記録と出荷物が一致する」ことしか言わない。ここで上流の blob 識別子と突き合わせて
-    初めて「同梱物が上流に登録された bytes である」と言える。blob 識別子は内容アドレスなので
-    ネットワークも git も要らない。
+    The checks above compare this repository against its own record, which establishes only that
+    the record and the shipped bytes agree. Comparing blob identifiers is what establishes that
+    the shipped bytes are the bytes registered upstream. The identifier is content-addressed, so
+    this needs neither network access nor git.
     """
     problems: list[str] = []
     provenance = load_json(repo_root / "analysis" / "freeze-provenance.json")
@@ -228,21 +226,25 @@ def check_frozen_input_provenance(
         shipped = repo_root / entry["shipped_path"]
         recorded_paths.add(Path(entry["shipped_path"]).name)
         if not shipped.is_file():
-            problems.append(f"凍結入力が無い: {entry['shipped_path']}")
+            problems.append(f"frozen input is missing: {entry['shipped_path']}")
             continue
         actual = git_blob_sha1(shipped.read_bytes())
         if actual != entry["blob_sha1"]:
             problems.append(
-                f"{entry['shipped_path']}: blob SHA-1 が上流 "
-                f"{entry['upstream_commit'][:7]} の記録と違う "
+                f"{entry['shipped_path']}: blob identifier differs from the record for "
+                f"upstream {entry['upstream_commit'][:7]} "
                 f"(expected={entry['blob_sha1']} actual={actual})"
             )
             continue
         kind = entry["provenance_kind"]
-        marker = "run artifact" if kind == "run_artifact" else "★ relocation のみ"
+        marker = (
+            "run artifact"
+            if kind == "run_artifact"
+            else "relocation only: content, not age"
+        )
         print(
             f"[data-hash] OK {Path(entry['shipped_path']).name:<28} "
-            f"= 上流 {entry['upstream_commit'][:7]} の blob ({marker})"
+            f"= blob at upstream {entry['upstream_commit'][:7]} ({marker})"
         )
         if upstream is not None:
             problems.extend(
@@ -259,7 +261,7 @@ def check_frozen_input_provenance(
                 )
             )
 
-    # data/data.md に載っている凍結入力は、来歴側にも 1 件残らず載っていること。
+    # Every frozen input on disk must also carry a provenance entry.
     raw_dir = repo_root / "data" / "raw"
     shipped_names = {
         path.name
@@ -269,14 +271,14 @@ def check_frozen_input_provenance(
     missing = sorted(shipped_names - recorded_paths)
     if missing:
         problems.append(
-            f"freeze-provenance.json の frozen_inputs に来歴が無い凍結入力: {missing}"
+            f"frozen inputs with no entry in freeze-provenance.json: {missing}"
         )
 
     if upstream is None:
         print(
-            "[data-hash] note: 上流 blob との照合はオフラインで済むが、commit の日付は "
-            f"{provenance['upstream']['repository']} を辿って確認する "
-            "(--upstream-repo で機械検査できる)"
+            "[data-hash] note: the blob comparison runs offline, but commit dates are "
+            f"confirmed by following {provenance['upstream']['repository']} "
+            "(--upstream-repo turns that into a machine check)"
         )
     return problems
 
@@ -292,15 +294,15 @@ def main(argv: list[str] | None = None) -> int:
         "--repo-root",
         type=Path,
         default=Path(__file__).resolve().parents[2],
-        help="repo root",
+        help="repository root",
     )
     parser.add_argument(
         "--upstream-repo",
         type=Path,
         default=None,
         help=(
-            "上流 ERRE-Sandbox の clone。渡すと凍結入力の blob と commit 日時を"
-            "上流に対しても検査する (既定はオフライン検査のみ)"
+            "a clone of the upstream repository; when given, the blobs and commit times of "
+            "the frozen inputs are checked against it too (the default path is offline)"
         ),
     )
     args = parser.parse_args(argv)
@@ -308,7 +310,7 @@ def main(argv: list[str] | None = None) -> int:
 
     data_md = repo_root / "data" / "data.md"
     if not data_md.is_file():
-        _die(f"hash の SSOT が無い: {data_md}")
+        _die(f"the source of the digests is missing: {data_md}")
 
     entries = parse_raw_table(data_md)
     print(f"[data-hash] {len(entries)} rows parsed from data/data.md (## raw/)")
@@ -325,7 +327,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 1
 
-    print("[data-hash] OK: 凍結入力は data/data.md の記録と一致する")
+    print("[data-hash] OK: the frozen inputs match the record in data/data.md")
     return 0
 
 

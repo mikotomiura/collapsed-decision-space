@@ -1,31 +1,32 @@
-# 引用マニフェスト — 02 powered null
+# Notes on the reference list
 
-`[n]` は著者の中央書誌 (ERRE-Sandbox `docs/references.md`、append-only) で採番された**恒久 ID** で、
-論文をまたいで振り直さない。**本ファイルには `[n]` と本稿での役割だけを書く。**
+Reference numbers such as `[28]` are **permanent identifiers** drawn from the author's central,
+append-only bibliography. They are not renumbered between manuscripts, which is why the numbers in
+`main.md` are not consecutive. The full bibliographic entries a reader needs are in the References
+section of `main.md`; this file records what each reference is doing in the argument.
 
-書誌そのもの (著者名・誌名・DOI) は **`main.md` の References 節**にある。中央書誌は
-公開 repo に入らないので、読者が辿れる書誌は `main.md` 側が正である。
+## What each reference carries
 
-## 登録済み — すべて `main.md` で引用中
-
-| [n] | 本稿での役割 | 置く節 |
+| `[n]` | Role in this manuscript | Section |
 |---|---|---|
-| [2] | 装置の系譜 (generative agents アーキテクチャ) | §2 |
-| [27] | instrument artifact と real effect の分離という論法の隣接事例 | §2 (簡潔に) |
-| [28] | **必引用・二重の役割**。(a) 「LLM 評価に declared margin での equivalence testing を持ち込む」枠組みが既出であることを自ら示し、本稿の新規性主張をそこから外す。(b) 本稿の `delta_tv_min=0.10` 事前宣言を「既存 good practice の遵守」として正当化する | §2、§4.3 |
-| [29] | TV 距離推定のサンプル複雑性の formal な参照点。**ただし estimand は別物** (系列レベル TV vs 本稿の決定レベル categorical TV) — その差を明記する。あわせて logit access の安さを Limitations の弁明先に使う | §2、§12.3 |
-| [35] | Card et al. — 検出力の議論の下敷き。本稿は「低検出力ではない」ことを主張するので必須 | §2 |
-| [36] | Lakens 2017 — 事前宣言 margin での TOST の標準手続き。**引くこと自体は TOST を実行することを意味しない** (`main.md` §4.4 が「行わない」と明記) | §2、§4.3 |
-| [37] | Vaccaro — AI エージェント実験の事前登録の枠組み | §2 |
-| [38] / [39] | 生成社会シミュレーションの検証論。positioning | §2 |
+| [2] | The generative-agent architecture this apparatus descends from | §2 |
+| [27] | An adjacent case of separating an instrument artefact from a real effect | §2 |
+| [28] | **Load-bearing, in two directions.** It shows that bringing declared-margin, equivalence-style reading to language-model evaluation is already established — which is what removes that framing from this paper's novelty — and it is what justifies declaring `delta_tv_min = 0.10` in advance as adherence to existing practice | §2, §4.3 |
+| [29] | The formal reference point for the sample complexity of estimating total-variation distance. **The estimand differs**: sequence-level there, decision-level categorical here, and the manuscript says so. Also the source for why logit access would be cheaper, which is stated as a limitation | §2, §12.3 |
+| [35] | The basis of the power discussion. Load-bearing, because this paper's claim is precisely that the design is *not* underpowered | §2 |
+| [36] | The standard procedure for equivalence testing against pre-specified bounds. **Citing it does not mean performing it** — §4.4 states that no formal TOST or Bayesian equivalence test is run | §2, §4.3 |
+| [37] | The preregistration framework this submission sits inside | §2 |
+| [38], [39] | Validation of generative social simulation; positioning | §2 |
 
-## 注意
+## Verification caveats, stated rather than smoothed over
 
-- [27]-[31] は中央書誌の規則6 により **abstract のみ実測確認済**。著者順・所属・版は
-  正式引用前に原典で再確認する。**[30] は日付不整合あり** (本稿では未使用)
-- **[37] Vaccaro は arXiv ID (`2606.11217`) と submission 日付 (2026-05-03) が一致しない。**
-  arXiv API が返した値をそのまま記載しており、推測で補正していない
-- [35]-[39] は 2026-09-12 に Crossref / arXiv API の**生 JSON を直接パースして**確認した。
-  中間要約 (小型モデル) はダイアクリティカルマークを落とすことがあるため信用しない
-- 本ファイルに `.steering/` や `.idea/` を出典として書かない。いずれも `.gitignore` 配下で、
-  読者から辿れない出典になる (`CLAIM-BOUNDARY.md` §4)
+- Entries [27]–[31] were confirmed from abstracts only. Author order, affiliation and version are
+  re-checked against the source before formal citation.
+- **[37] has an internal inconsistency**: the arXiv identifier and the submission date returned by
+  the arXiv API do not agree. Both are recorded exactly as retrieved, with no correction inferred.
+  The manuscript notes this at the reference itself.
+- Entries [35]–[39] were confirmed on 2026-09-12 by parsing the raw JSON returned by Crossref and
+  the arXiv API directly. Intermediate summarisation was not relied on: a summarising step had
+  dropped a diacritic from an author's name, which is the kind of error that survives review.
+- Sources cited in the published files of this repository must be reachable by a reader of it.
+  Working directories that are not shipped here are not citable sources.

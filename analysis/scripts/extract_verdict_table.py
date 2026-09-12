@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""verdict.json / manifest.json / es3-verdict-forensic.json から数値を機械抽出する.
+"""Extract the quantities the manuscript quotes, mechanically, from the frozen records.
 
-手写しを禁止するための装置: 本文に載せる数値は必ずこのスクリプトの出力から
-取ること。抽出は `d["key"]` の直接添字のみを使う (`.get(..., default)` は
-使わない) — キーが実ファイルに無ければ黙って既定値を返さず KeyError で
-落ちることで、「値が JSON に実在したこと」を保証する (恒真性を殺す)。
+This exists so that numbers are never copied by hand. Extraction uses direct subscripting,
+``d["key"]``, and never ``.get(..., default)``: a key absent from the file raises rather than
+returning something plausible, which is what makes "this value was present in the record" a fact
+rather than an assumption.
 
-入力 (repo root からの相対、既定):
+Inputs, relative to the repository root:
   - data/raw/cproper-verdict.json
   - data/raw/cproper-manifest.json
   - data/raw/es3-verdict-forensic.json
 
-出力: 標準出力に Markdown テーブル。--out が与えられればそのファイルにも書く
-(既定 data/derived/verdict-table.md。data/derived/* は .gitignore 済)。
+Output: a Markdown table on standard output, and to the path given by ``--out`` if supplied
+(by default data/derived/verdict-table.md, which is not tracked).
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def _render_cproper_section(verdict: dict[str, Any]) -> list[str]:
-    """data/raw/cproper-verdict.json を Markdown 行列へ抽出する."""
+    """Render data/raw/cproper-verdict.json as Markdown rows."""
     v_verdict = verdict["verdict"]
     v_reason = verdict["reason"]
     v_reason_text = "; ".join(str(item) for item in v_reason)
@@ -56,7 +56,7 @@ def _render_cproper_section(verdict: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     lines.append("# C-proper verdict (data/raw/cproper-verdict.json)")
     lines.append("")
-    lines.append("| 量 | 値 |")
+    lines.append("| Quantity | Value |")
     lines.append("|---|---|")
     lines.append(f"| verdict | `{v_verdict}` |")
     lines.append(f"| reason | {v_reason_text} |")
@@ -75,7 +75,7 @@ def _render_cproper_section(verdict: dict[str, Any]) -> list[str]:
     lines.append("")
     lines.append("## thresholds (cproper-verdict.json)")
     lines.append("")
-    lines.append("| キー | 値 |")
+    lines.append("| Key | Value |")
     lines.append("|---|---|")
     lines.extend(f"| {key} | {value} |" for key, value in v_thresholds.items())
     lines.append("")
@@ -83,7 +83,7 @@ def _render_cproper_section(verdict: dict[str, Any]) -> list[str]:
 
 
 def _render_manifest_section(manifest: dict[str, Any]) -> list[str]:
-    """data/raw/cproper-manifest.json を Markdown 行列へ抽出する."""
+    """Render data/raw/cproper-manifest.json as Markdown rows."""
     env_pins = manifest["env_pins"]
     m_model = env_pins["model"]
     m_ollama_version = env_pins["ollama_version"]
@@ -101,7 +101,7 @@ def _render_manifest_section(manifest: dict[str, Any]) -> list[str]:
     lines: list[str] = []
     lines.append("# run manifest (data/raw/cproper-manifest.json)")
     lines.append("")
-    lines.append("| 量 | 値 |")
+    lines.append("| Quantity | Value |")
     lines.append("|---|---|")
     lines.append(f"| env_pins.model | `{m_model}` |")
     lines.append(f"| env_pins.ollama_version | `{m_ollama_version}` |")
@@ -119,18 +119,18 @@ def _render_manifest_section(manifest: dict[str, Any]) -> list[str]:
 def _render_es3_hist_notes(
     e_d_loco: float, hist_fields: tuple[tuple[str, float], ...]
 ) -> list[str]:
-    """n_hist_*_shuffle_d_loco が主推定 d_loco とどちらが大きいかを機械判定する."""
+    """State mechanically how each shuffle variant compares with the point estimate."""
     lines: list[str] = []
     for hist_label, hist_value in hist_fields:
         if hist_value > e_d_loco:
-            relation_text = "より大きい (>)"
+            relation_text = "larger than"
         elif hist_value < e_d_loco:
-            relation_text = "より小さい (<)"
+            relation_text = "smaller than"
         else:
-            relation_text = "と等しい (==)"
+            relation_text = "equal to"
         lines.append(
-            f"> 注: {hist_label}={hist_value} は主推定 "
-            f"d_loco={e_d_loco} {relation_text}。"
+            f"> Note: {hist_label}={hist_value} is {relation_text} the point estimate "
+            f"d_loco={e_d_loco}."
         )
     return lines
 
@@ -138,23 +138,23 @@ def _render_es3_hist_notes(
 def _render_es3_ci_footnote(
     e_d_loco: float, e_ci_lower: float, e_ci_upper: float
 ) -> list[str]:
-    """点推定が自身の bootstrap CI の外にある場合、集計単位の違いを機械的に注記する."""
+    """Note the differing aggregation units when the point estimate falls outside its CI."""
     if not (e_d_loco > e_ci_upper or e_d_loco < e_ci_lower):
         return []
     excess = e_d_loco - e_ci_upper if e_d_loco > e_ci_upper else e_d_loco - e_ci_lower
     note = (
-        f"> 注: 点推定 d_loco={e_d_loco} は自身の CI [{e_ci_lower}, {e_ci_upper}] "
-        f"の外にある (差分 {excess:.6e})。CI は CI_ALPHA=0.10 (90% percentile "
-        "bootstrap) を per-walk-seed 集計に対して取ったものである一方、点推定 "
-        "d_loco は headroom-valid cell に対する cell-equal-weighted median で"
-        "あり、両者は集計単位が異なる (caveats の estimand 定義を参照)。点推定は "
-        "cell 中央値のため、自身の区間内に入る保証はない。"
+        f"> Note: the point estimate d_loco={e_d_loco} lies outside its own interval "
+        f"[{e_ci_lower}, {e_ci_upper}] (by {excess:.6e}). The interval is a 90 per cent "
+        "percentile bootstrap over per-walk-seed aggregates, while the point estimate is a "
+        "cell-equal-weighted median over headroom-valid cells. The two use different "
+        "aggregation units (see the estimand definition in the caveats), and a median is not "
+        "guaranteed to fall inside an interval built this way."
     )
     return [note, ""]
 
 
 def _render_es3_section(es3: dict[str, Any]) -> list[str]:
-    """data/raw/es3-verdict-forensic.json を Markdown 行列へ抽出する."""
+    """Render data/raw/es3-verdict-forensic.json as Markdown rows."""
     e_verdict = es3["verdict"]
     e_d_loco = es3["d_loco"]
     e_ci_lower = es3["ci_lower"]
@@ -168,18 +168,19 @@ def _render_es3_section(es3: dict[str, Any]) -> list[str]:
     e_caveats = es3["caveats"]
 
     zone_label = (
-        "zone_function_d_loco (positive control。**d_loco とは別物の参照値**: "
-        "λ=h(z) を強制し estimand が 0 を取りうることの実証)"
+        "zone_function_d_loco (the positive control -- **a different field from the point "
+        "estimate**: forcing the modulation to be a function of the zone shows the estimand "
+        "is able to read zero)"
     )
 
     header = "# ES-3 locomotion verdict forensic (data/raw/es3-verdict-forensic.json)"
     lines: list[str] = []
     lines.append(header)
     lines.append("")
-    lines.append("| 量 | 値 |")
+    lines.append("| Quantity | Value |")
     lines.append("|---|---|")
     lines.append(f"| verdict | `{e_verdict}` |")
-    lines.append(f"| **d_loco (D_loco, 主推定)** | **{e_d_loco}** |")
+    lines.append(f"| **d_loco (the point estimate)** | **{e_d_loco}** |")
     lines.append(f"| ci_lower | {e_ci_lower} |")
     lines.append(f"| ci_upper | {e_ci_upper} |")
     lines.append(f"| amp_floor | {e_amp_floor} |")
@@ -199,7 +200,7 @@ def _render_es3_section(es3: dict[str, Any]) -> list[str]:
 
     lines.extend(_render_es3_ci_footnote(e_d_loco, e_ci_lower, e_ci_upper))
 
-    lines.append("## caveats (es3-verdict-forensic.json、全文)")
+    lines.append("## caveats (es3-verdict-forensic.json, verbatim)")
     lines.append("")
     lines.extend(f"{i}. {caveat}" for i, caveat in enumerate(e_caveats, start=1))
     lines.append("")
@@ -224,13 +225,13 @@ def main(argv: list[str] | None = None) -> int:
         "--repo-root",
         type=Path,
         default=Path(__file__).resolve().parents[2],
-        help="repo root (data/raw/*.json をこの下から解決する)",
+        help="repository root; data/raw/*.json is resolved beneath it",
     )
     parser.add_argument(
         "--out",
         type=Path,
         default=None,
-        help="出力先ファイル (既定: <repo-root>/data/derived/verdict-table.md)",
+        help="output file (default: <repo-root>/data/derived/verdict-table.md)",
     )
     args = parser.parse_args(argv)
 
@@ -250,9 +251,9 @@ def main(argv: list[str] | None = None) -> int:
     default_out = repo_root / "data" / "derived" / "verdict-table.md"
     out_path = args.out if args.out is not None else default_out
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    # newline="\n" を明示する。既定の text mode は Windows で \n を \r\n へ変換する
-    # ため、同じ内容でも OS 間で出力ファイルの byte が一致しなくなる (2026-09-12 に
-    # Windows / WSL2 で実測。内容差は無く eol 差だけだった)。
+    # newline is set explicitly: the default text mode rewrites line endings on Windows, so
+    # identical content would produce different bytes across platforms. Measured on Windows and
+    # Linux -- the content agreed and only the line endings differed.
     with out_path.open("w", encoding="utf-8", newline="\n") as f:
         f.write(table)
 

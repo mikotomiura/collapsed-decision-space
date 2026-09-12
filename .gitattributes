@@ -1,19 +1,18 @@
-# 本 repo は **checkout された bytes そのもの**を検査対象にしている。
+# This repository checks the bytes as they are checked out.
 #
-# `analysis/scripts/verify_threshold_freeze.py` と `verify_data_hashes.py` は、
-# 作業ツリーのファイルから git blob 識別子 (`sha1("blob <size>\0" + content)`) を
-# 再計算して上流 commit の blob と突き合わせる。したがって **checkout 時に eol が
-# 変換されると、内容が同じでも識別子が変わり、検査が落ちる**。
+# `analysis/scripts/verify_threshold_freeze.py` and `verify_data_hashes.py` recompute the git blob
+# identifier — sha1("blob <size>\0" + content) — from files in the working tree and compare it with
+# the blob at the corresponding upstream commit. If a checkout rewrites line endings, the identifier
+# changes even though the content is the same, and the verification fails.
 #
-# GitHub の `windows-latest` runner は `core.autocrlf = true` が既定である。
-# 著者機は `core.autocrlf = input` (= checkout では変換しない) なので、
-# **著者機だけで試しても検出できない**。上流 ERRE-Sandbox では 2026-09-11 に
-# `uv.lock` が未被覆だったせいで windows leg が実際に落ちている。
-# 教訓は memory `feedback_gitattributes_sha_pin_eol`。
+# GitHub's `windows-latest` runner defaults to `core.autocrlf = true`. A machine configured with
+# `core.autocrlf = input` never converts on checkout, so **this class of failure cannot be observed
+# there at all**; it has to be simulated deliberately.
 #
-# 規則は**後勝ち**なので、順序は「一般規則 → 凍結生データの例外」にしてある。
+# Attribute rules are last-match-wins, so the order below is: general rules first, then the
+# exception for frozen raw evidence.
 
-# --- 一般規則: 追跡するテキストは LF に固定する ---
+# --- General: keep tracked text at LF ---
 *.py        text eol=lf
 *.sh        text eol=lf
 *.md        text eol=lf
@@ -24,20 +23,18 @@
 *.cff       text eol=lf
 *.txt       text eol=lf
 
-# 拡張子が無いために上の規則に当たらないもの。
+# Files without an extension, which the rules above do not reach.
 SEED        text eol=lf
 LICENSE     text eol=lf
 LICENSE-MIT text eol=lf
 
-# --- 例外: 凍結された生の証拠には git を一切触らせない ---
+# --- Exception: git must not touch frozen raw evidence at all ---
 #
-# 経緯 (2026-09-12): global の `core.autocrlf = input` により、初回 import 時点で
-# `data/raw/es3-verdict-forensic.json` の CR が剥がされ、**commit された内容が
-# ERRE-Sandbox の原本と byte 一致しなくなっていた** (11,743 → 11,401 bytes)。
-# `data/data.md` は原本の SHA-256 を pin しているので、この正規化は
-# **hash の記録と出荷物を食い違わせる** (= data.md が防ぐはずのものそのもの)。
-# 作業ツリーにコピー直後の CRLF が残っていたため、checkout が走るまで表面化しなかった。
-#
-# `paper/gather.ps1 -Verify` の DRIFT 検査はこの差を検出する。
+# On 2026-09-12, a global `core.autocrlf = input` stripped the carriage returns from
+# `data/raw/es3-verdict-forensic.json` the moment it was first added, so the committed content no
+# longer matched the original (11,743 -> 11,401 bytes). `data/data.md` pins the original SHA-256, so
+# a normalised copy would have made the recorded digest disagree with the shipped file — which is
+# exactly what recording a digest is meant to prevent. The working tree still held the original
+# bytes, so nothing surfaced until a checkout replaced them.
 data/raw/** -text
 env/uv.lock -text

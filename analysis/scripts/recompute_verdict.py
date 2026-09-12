@@ -1,23 +1,24 @@
 #!/usr/bin/env python3
-"""同梱 annotation と manifest から verdict を**再計算**し、記録と一致させる.
+"""Recompute the recorded verdict from the shipped annotation, and require it to match.
 
-本 repo で最も強い再現検査である。他の検査は「記録と出荷物が一致する」「同梱 bytes が
-上流の bytes である」を言うが、いずれも**記録された verdict を読んでいるだけ**で、
-それが同梱データから導けることは確かめていない。ここで scorer を実際に走らせる。
+This is the strongest check in the repository. The others establish that a record agrees with a
+shipped file, or that shipped bytes are the bytes registered upstream -- but all of them **read** the
+recorded verdict rather than deriving it. Here the scorer actually runs.
 
-走らせるもの:
+What runs:
     ``score_bank_annotation(annotation_rows=<data/raw/bank_annotation.jsonl>,
                             manifest=<data/raw/cproper-manifest.json>)``
-封印実走と同じ ``N_REPLICATES_DEFAULT`` / ``POWER_SEED_DEFAULT`` を既定のまま使う
-(検査を速くするために下げない)。結果を ``data/raw/cproper-verdict.json`` と突き合わせる。
+at the sealed Monte-Carlo settings, which are the defaults and are not lowered to make the check
+faster. The result is compared against ``data/raw/cproper-verdict.json``.
 
-**この検査が示すこと**: 中核 verdict とその全 gate readout が、同梱データと同梱 apparatus
-だけから再導出でき、記録と一致する。scorer の Monte-Carlo は seed 固定で決定的である。
+**What this establishes**: the central verdict and every gate read-out follow from the shipped data
+and the shipped apparatus alone, and agree with the record. The scorer's Monte-Carlo step is
+deterministic under its fixed seed.
 
-**示さないこと**: LLM の draw の再現。draw は再生成すると一致しないので、``data/raw/`` に
-凍結した出力を入力として扱っている (``manuscript/main.md`` §13)。
+**What it does not**: regeneration of the language-model draws. Draws do not recur when regenerated,
+so the per-draw record is treated as a frozen input.
 
-使い方:  python analysis/scripts/recompute_verdict.py
+Usage:  python analysis/scripts/recompute_verdict.py
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _provenance import load_json  # noqa: E402
 
-#: 再計算と記録を突き合わせるフィールド。secondary descriptor も含めて全部見る。
+#: Fields compared between the recomputation and the record, secondary descriptors included.
 COMPARED_SCALARS: tuple[str, ...] = (
     "verdict",
     "n_contexts",
@@ -47,7 +48,7 @@ COMPARED_SCALARS: tuple[str, ...] = (
     "power",
 )
 
-#: dict 値のフィールド (per-context の読み出し)。
+#: Fields holding dictionaries (the per-context read-outs).
 COMPARED_MAPPINGS: tuple[str, ...] = (
     "per_context_h",
     "i_pass_mask",
@@ -55,7 +56,7 @@ COMPARED_MAPPINGS: tuple[str, ...] = (
     "thresholds",
 )
 
-#: 浮動小数の比較許容。verdict.json は 6 桁量子化された値を持つ。
+#: Tolerance for float comparison; verdict.json holds values quantised to six decimals.
 FLOAT_TOL = 5e-7
 
 
@@ -83,7 +84,7 @@ def main(argv: list[str] | None = None) -> int:
         "--repo-root",
         type=Path,
         default=Path(__file__).resolve().parents[2],
-        help="repo root",
+        help="repository root",
     )
     args = parser.parse_args(argv)
     repo_root: Path = args.repo_root
@@ -107,8 +108,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if declared is not None and declared != SCORER_SCHEMA_VERSION:
         print(
-            f"[recompute] FAIL: scorer_schema_version が違う "
-            f"(記録={declared} 同梱={SCORER_SCHEMA_VERSION})",
+            f"[recompute] FAIL: scorer_schema_version differs "
+            f"(recorded={declared} shipped={SCORER_SCHEMA_VERSION})",
             file=sys.stderr,
         )
         return 1
@@ -122,7 +123,7 @@ def main(argv: list[str] | None = None) -> int:
     problems: list[str] = []
     for field in COMPARED_SCALARS:
         if field not in recorded:
-            problems.append(f"記録側に {field} が無い")
+            problems.append(f"the record has no {field}")
             continue
         if not _agree(result[field], recorded[field]):
             problems.append(
@@ -136,11 +137,11 @@ def main(argv: list[str] | None = None) -> int:
         recomputed_map = result[field]
         recorded_map = recorded.get(field)
         if recorded_map is None:
-            problems.append(f"記録側に {field} が無い")
+            problems.append(f"the record has no {field}")
             continue
         if set(recomputed_map) != set(recorded_map):
             problems.append(
-                f"MISMATCH {field}: キー集合が違う "
+                f"MISMATCH {field}: different key sets "
                 f"(recomputed={sorted(recomputed_map)} recorded={sorted(recorded_map)})"
             )
             continue
@@ -150,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
             if not _agree(recomputed_map[key], recorded_map[key])
         ]
         if bad:
-            problems.append(f"MISMATCH {field}: 値が違うキー {bad}")
+            problems.append(f"MISMATCH {field}: keys whose values differ: {bad}")
         else:
             print(f"[recompute] OK {field:<24} ({len(recorded_map)} keys)")
 
@@ -161,7 +162,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(
-        "[recompute] OK: 記録された verdict は同梱データと同梱 apparatus から再導出できる"
+        "[recompute] OK: the recorded verdict is re-derivable from the shipped data "
+        "and the shipped apparatus"
     )
     return 0
 

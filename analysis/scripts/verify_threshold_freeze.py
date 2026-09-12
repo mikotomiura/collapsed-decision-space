@@ -1,31 +1,27 @@
 #!/usr/bin/env python3
-"""閾値が実走より前に凍結されていたことを、repo 上で辿れる形で検査する.
+"""Establish, in a form a reader can check, that the thresholds were frozen before the run.
 
-「margin 0.10 は ``tv_bar = 0.038065`` を見てから決めたのでは」という問いに対する
-反証を機械化する。示すことを 2 つに分け、**それぞれの射程を混ぜない**。
+A reader is entitled to ask whether the materiality margin was chosen after seeing the result. The
+answer is split into two parts, and their scopes are deliberately not blended.
 
-1. **値の一致** — 同梱 apparatus の凍結定数が、完了済み実走の ``verdict.json`` の
-   ``thresholds`` と一致する。run パラメータ (``k_contexts`` / ``m_draws``) は定数では
-   ないので ``manifest.json`` の ``run`` と照合する。
-2. **bytes の同一性 (content-addressed)** — 同梱されている定数ファイルが、
-   ``analysis/freeze-provenance.json`` が名指しする**上流 commit の blob そのもの**で
-   あることを、git blob 識別子 ``sha1(b"blob <size>\\0" + content)`` の再計算で確かめる。
-   ネットワークも git の実行も要らない。
+1. **The values agree.** The frozen constants in the vendored apparatus match the ``thresholds``
+   recorded in the completed run's ``verdict.json``. Two of the recorded entries are run parameters
+   rather than module constants, and those are compared against the run manifest instead.
+2. **The bytes are the same (content-addressed).** Each shipped file that carries a threshold --
+   and the whole 69-module apparatus closure -- is shown to be **the blob of the upstream commit**
+   named in ``analysis/freeze-provenance.json``, by recomputing the git blob identifier
+   (the SHA-1 over a ``blob <size>`` header, a NUL byte, and the content). This needs
+   neither network access nor git.
 
-**この 2 つが示さないもの**: commit の**日付そのもの**。日付は公開されている上流
-リポジトリの性質であり、``freeze-provenance.json`` の URL を辿って確認する。
-「凍結が実走より前だった」は 1 と 2 と日付の連言であって、どれか 1 つでは言えない。
-``--upstream-repo <path>`` を渡すと、上流の clone に対して blob / 日付 / ancestor 関係を
-**追加で**機械検査する (既定はオフライン)。
+**What the two do not establish**: the commit *dates*. Those are a property of the public upstream
+repository, confirmed by following the URLs in ``freeze-provenance.json``. "The thresholds were
+frozen before the run" is the conjunction of the values, the bytes and the dates; no one of them
+carries it alone. Passing ``--upstream-repo <path>`` turns the third into a machine check against a
+clone, and the default path stays offline.
 
-この分割は ``codex-review.md`` §6 が残した宿題への回答である。Codex は
-「git 履歴上の凍結日時までは検証していない。ファイル内容上の定数・verdict JSON の
-一致だけ確認した」と明記していた。ここを曖昧にすると
-``feedback_checker_handed_target_is_not_checked`` と同型になる。
-
-使い方:
+Usage:
     python analysis/scripts/verify_threshold_freeze.py
-    python analysis/scripts/verify_threshold_freeze.py --upstream-repo /path/to/ERRE-Sandbox
+    python analysis/scripts/verify_threshold_freeze.py --upstream-repo /path/to/upstream/clone
 """
 
 from __future__ import annotations
@@ -47,7 +43,7 @@ from _provenance import (  # noqa: E402
     load_json,
 )
 
-#: 浮動小数の比較許容。verdict.json は 6 桁量子化された値を持つ。
+#: Tolerance for float comparison; verdict.json holds values quantised to six decimals.
 FLOAT_TOL = 1e-9
 
 
@@ -62,12 +58,11 @@ def _values_agree(left: Any, right: Any) -> bool:
 def check_apparatus_closure(
     repo_root: Path, provenance: dict[str, Any], upstream: Path | None
 ) -> list[str]:
-    """同梱 apparatus 全件が上流 commit の blob と byte 一致することを確かめる.
+    """Establish that every vendored apparatus file is the blob of its upstream commit.
 
-    ``manuscript/main.md`` §13 は apparatus を「上流から byte-for-byte で複製した
-    import 閉包」と書いている。**主張で終わらせずに検査する**ため、閉包の全ファイルの
-    blob 識別子を突き合わせる。閾値が載っている 2 本 (``frozen_files``) だけを
-    検査していると、残りは無検査の影になる。
+    The manuscript describes the apparatus as an import closure reproduced byte for byte from
+    upstream. Checking only the two files that carry thresholds would leave the other sixty-seven
+    as an unchecked shadow, so the blob identifier of every file in the closure is compared.
     """
     problems: list[str] = []
     closure = provenance["apparatus_closure"]
@@ -76,22 +71,23 @@ def check_apparatus_closure(
 
     if len(closure["files"]) != closure["file_count"]:
         problems.append(
-            f"apparatus_closure: file_count={closure['file_count']} だが "
-            f"files は {len(closure['files'])} 件"
+            f"apparatus_closure: file_count={closure['file_count']} but the files list "
+            f"holds {len(closure['files'])} entries"
         )
 
     for entry in closure["files"]:
         shipped = shipped_root / entry["path"]
         if not shipped.is_file():
             problems.append(
-                f"apparatus に無い: {closure['shipped_prefix']}{entry['path']}"
+                f"missing from the apparatus: "
+                f"{closure['shipped_prefix']}{entry['path']}"
             )
             continue
         actual = git_blob_sha1(shipped.read_bytes())
         if actual != entry["blob_sha1"]:
             problems.append(
-                f"{closure['shipped_prefix']}{entry['path']}: blob SHA-1 が上流 "
-                f"{closure['upstream_commit'][:7]} の記録と違う "
+                f"{closure['shipped_prefix']}{entry['path']}: blob identifier differs "
+                f"from the record for upstream {closure['upstream_commit'][:7]} "
                 f"(expected={entry['blob_sha1']} actual={actual})"
             )
         elif upstream is not None:
@@ -111,33 +107,35 @@ def check_apparatus_closure(
     unrecorded = sorted(on_disk - recorded)
     if unrecorded:
         problems.append(
-            f"apparatus に来歴の無いファイルがある: {unrecorded}。"
-            "閉包に足したなら freeze-provenance.json にも登録すること"
+            f"apparatus files with no provenance entry: {unrecorded}. A file added to the "
+            "closure must also be recorded in freeze-provenance.json"
         )
 
     if not problems:
-        suffix = "" if upstream is None else " (上流 clone でも照合済)"
+        suffix = "" if upstream is None else " (also checked against an upstream clone)"
         print(
             f"[freeze] closure OK {closure['file_count']} files "
-            f"== 上流 {closure['upstream_commit'][:7]} の blob{suffix}"
+            f"== blobs at upstream {closure['upstream_commit'][:7]}{suffix}"
         )
     return problems
 
 
 def check_blob_identity(repo_root: Path, provenance: dict[str, Any]) -> list[str]:
-    """同梱ファイルが凍結 commit の blob と byte 一致することを確かめる."""
+    """Establish that a shipped file is the blob of the commit that froze it."""
     problems: list[str] = []
     for entry in provenance["frozen_files"]:
         shipped = repo_root / entry["shipped_path"]
         if not shipped.is_file():
-            problems.append(f"同梱ファイルが無い: {entry['shipped_path']}")
+            problems.append(
+                f"shipped file is missing: {entry['shipped_path']}"
+            )
             continue
         actual = git_blob_sha1(shipped.read_bytes())
         expected = entry["blob_sha1"]
         if actual != expected:
             problems.append(
-                f"{entry['shipped_path']}: blob SHA-1 が凍結 commit "
-                f"{entry['freeze_commit'][:7]} の記録と違う "
+                f"{entry['shipped_path']}: blob identifier differs from the record for "
+                f"freeze commit {entry['freeze_commit'][:7]} "
                 f"(expected={expected} actual={actual})"
             )
         else:
@@ -150,23 +148,22 @@ def check_blob_identity(repo_root: Path, provenance: dict[str, Any]) -> list[str
 
 
 def load_shipped_module(shipped: Path, module_name: str) -> ModuleType:
-    """同梱ファイルの **bytes をその場で評価して** モジュールを作る.
+    """Build a module by evaluating the **shipped bytes** directly.
 
-    ``import_module`` を使わないのは、``__pycache__`` が古いと **ファイルの中身と
-    import された値が食い違いうる**からである (2026-09-12 に実測: 同梱ファイルを
-    書き戻した直後、ディスク上は ``0.10`` なのに import は ``0.15`` を返した)。
-    ここで評価するのは :func:`check_blob_identity` が blob SHA-1 で検証したのと
-    **同じ bytes** であり、値の検査と bytes の検査が同一の出所を読むようにしてある。
+    ``import_module`` is avoided because a stale ``__pycache__`` can make the imported value
+    disagree with the file on disk. That was observed: immediately after restoring a shipped file,
+    the disk held ``0.10`` while the import returned ``0.15``. What is evaluated here is the same
+    bytes that :func:`check_blob_identity` verified, so the value check and the byte check read
+    one source rather than two.
     """
     source = shipped.read_bytes()
     module = ModuleType(module_name)
     module.__file__ = str(shipped)
     module.__package__ = module_name.rpartition(".")[0]
     code = compile(source, str(shipped), "exec")
-    # `@dataclass` は `sys.modules[cls.__module__]` を引くので、exec の前に
-    # 登録しておかないと `AttributeError: 'NoneType' object has no attribute
-    # '__dict__'` になる。登録しておくと、これらのモジュールを import する側
-    # (bank_scorer → bank_power) も同じ「検証済み bytes」を読むことになる。
+    # `@dataclass` looks the module up in `sys.modules`, so registering it before exec is
+    # required. Registering also means that a module importing another of these reads the same
+    # verified bytes.
     sys.modules[module_name] = module
     try:
         exec(code, module.__dict__)  # noqa: S102
@@ -179,7 +176,7 @@ def load_shipped_module(shipped: Path, module_name: str) -> ModuleType:
 def check_threshold_values(
     repo_root: Path, provenance: dict[str, Any], verdict: dict[str, Any]
 ) -> list[str]:
-    """凍結定数が verdict.json の thresholds と一致することを確かめる."""
+    """Compare the frozen constants with the thresholds recorded in verdict.json."""
     problems: list[str] = []
     apparatus = repo_root / "analysis" / "apparatus"
     if str(apparatus) not in sys.path:
@@ -191,13 +188,13 @@ def check_threshold_values(
     for entry in provenance["frozen_files"]:
         shipped = repo_root / entry["shipped_path"]
         if not shipped.is_file():
-            problems.append(f"同梱ファイルが無い: {entry['shipped_path']}")
+            problems.append(f"shipped file is missing: {entry['shipped_path']}")
             continue
         module = load_shipped_module(shipped, entry["module"])
         for threshold_key, constant_name in entry["threshold_map"].items():
             if threshold_key not in thresholds:
                 problems.append(
-                    f"verdict.json の thresholds に {threshold_key} が無い"
+                    f"verdict.json thresholds has no {threshold_key}"
                 )
                 continue
             constant_value = getattr(module, constant_name)
@@ -219,9 +216,9 @@ def check_threshold_values(
     expected_uncovered = sorted(provenance["run_parameter_map"])
     if uncovered != expected_uncovered:
         problems.append(
-            "thresholds のうち定数照合されなかったキーが想定と違う "
-            f"(expected={expected_uncovered} found={uncovered})。"
-            "新しい閾値が黙って増えていないか確認すること"
+            "the recorded thresholds not matched against a constant are not the ones "
+            f"expected (expected={expected_uncovered} found={uncovered}). Check whether a "
+            "threshold was added silently"
         )
     return problems
 
@@ -229,7 +226,7 @@ def check_threshold_values(
 def check_run_parameters(
     provenance: dict[str, Any], verdict: dict[str, Any], manifest: dict[str, Any]
 ) -> list[str]:
-    """run パラメータが manifest の run と一致することを確かめる."""
+    """Compare the run parameters with the run section of the manifest."""
     problems: list[str] = []
     thresholds = verdict["thresholds"]
     run = manifest["run"]
@@ -248,10 +245,10 @@ def check_run_parameters(
 
 
 def check_recorded_ordering(provenance: dict[str, Any]) -> list[str]:
-    """記録された凍結 commit 時刻が実走 commit 時刻より前であることを確かめる.
+    """Check that the recorded freeze times precede the recorded run time.
 
-    これは **記録の内部整合性** の検査であって、日付そのものの検証ではない。
-    日付は上流の公開リポジトリを辿って確認する (`--upstream-repo` で機械化できる)。
+    This tests the **internal consistency of the record**, not the dates themselves. The dates are
+    confirmed against the public upstream repository, which `--upstream-repo` automates.
     """
     problems: list[str] = []
     run_at = datetime.fromisoformat(
@@ -263,27 +260,28 @@ def check_recorded_ordering(provenance: dict[str, Any]) -> list[str]:
         )
         if froze_at >= run_at:
             problems.append(
-                f"{entry['shipped_path']}: 記録上の凍結時刻 {froze_at.isoformat()} が "
-                f"実走 commit {run_at.isoformat()} より後になっている"
+                f"{entry['shipped_path']}: the recorded freeze time "
+                f"{froze_at.isoformat()} is later than the run commit "
+                f"{run_at.isoformat()}"
             )
         else:
             delta = run_at - froze_at
             print(
-                f"[freeze] recorded-order OK {entry['shipped_path'].split('/')[-1]}: "
-                f"凍結は実走の {delta} 前"
+                f"[freeze] recorded-order OK "
+                f"{entry['shipped_path'].split('/')[-1]}: frozen {delta} before the run"
             )
     return problems
 
 
 def check_upstream(upstream: Path, provenance: dict[str, Any]) -> list[str]:
-    """上流の clone に対して blob / 日付 / ancestor を追加検査する (任意)."""
+    """Additionally check blobs, dates and ancestry against an upstream clone (optional)."""
     problems: list[str] = []
     run_commit = provenance["run_commit"]["commit"]
 
     code, _ = git(upstream, "cat-file", "-e", f"{run_commit}^{{commit}}")
     if code != 0:
         return [
-            f"--upstream-repo {upstream}: 実走 commit {run_commit[:7]} が見つからない"
+            f"--upstream-repo {upstream}: run commit {run_commit[:7]} not found"
         ]
 
     problems.extend(
@@ -305,13 +303,13 @@ def check_upstream(upstream: Path, provenance: dict[str, Any]) -> list[str]:
         code, _ = git(upstream, "merge-base", "--is-ancestor", commit, run_commit)
         if code != 0:
             problems.append(
-                f"凍結 commit {commit[:7]} が実走 commit {run_commit[:7]} の "
-                "ancestor ではない"
+                f"freeze commit {commit[:7]} is not an ancestor of the run commit "
+                f"{run_commit[:7]}"
             )
         else:
             print(
-                f"[freeze] upstream OK {commit[:7]} は {run_commit[:7]} の ancestor / "
-                "blob と日時が記録と一致"
+                f"[freeze] upstream OK {commit[:7]} is an ancestor of "
+                f"{run_commit[:7]}; blob and time match the record"
             )
     return problems
 
@@ -322,15 +320,15 @@ def main(argv: list[str] | None = None) -> int:
         "--repo-root",
         type=Path,
         default=Path(__file__).resolve().parents[2],
-        help="repo root",
+        help="repository root",
     )
     parser.add_argument(
         "--upstream-repo",
         type=Path,
         default=None,
         help=(
-            "上流 ERRE-Sandbox の clone。渡すと blob / commit 日時 / ancestor を"
-            "追加検査する (既定はオフライン検査のみ)"
+            "a clone of the upstream repository; when given, blobs, commit times and "
+            "ancestry are checked against it too (the default path is offline)"
         ),
     )
     args = parser.parse_args(argv)
@@ -353,9 +351,9 @@ def main(argv: list[str] | None = None) -> int:
         problems.extend(check_upstream(args.upstream_repo, provenance))
     else:
         print(
-            "[freeze] note: オフライン検査のみ。commit の日付は "
-            f"{provenance['upstream']['repository']} を辿って確認する "
-            "(--upstream-repo で機械検査できる)"
+            "[freeze] note: offline checks only. Commit dates are confirmed by following "
+            f"{provenance['upstream']['repository']} "
+            "(--upstream-repo turns that into a machine check)"
         )
 
     if problems:
@@ -364,7 +362,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 1
 
-    print("[freeze] OK: 値の一致と bytes の同一性を確認した")
+    print("[freeze] OK: values agree and the shipped bytes are the upstream blobs")
     return 0
 
 
