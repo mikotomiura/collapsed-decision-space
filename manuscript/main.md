@@ -461,6 +461,13 @@ study as an estimation problem under criterion 1B. No directional expectation is
 this protocol, so a hypothesis column could only be filled with something the design does not
 contain.
 
+The final column departs from the template's usual framing for the same reason, and we say so
+rather than let the substitution pass unremarked. That column is ordinarily the theory the outcomes
+could show wrong. Only the first row carries a claim of that kind; the remaining three are
+outcome-neutral checks, and what they bear on is the admissibility of an interpretation rather than
+a theory. The column is therefore headed by what each outcome bears on, and the first row answers
+the template's question directly.
+
 | Question | Sampling plan | Analysis plan | Rationale for the sensitivity of the design | Interpretation given different outcomes | What the outcome bears on |
 |---|---|---|---|---|---|
 | **Primary.** In a second model family (`llama3.1:8b`), what is the magnitude of the channel's downstream effect on the five-way zone decision — that is, what is `tv_bar` (§4.1)? | *M* = 300 draws per condition over the frozen bank of *K* = 8 contexts, both conditions, seed `20260708`: 4,800 model calls in the primary arm (§6.2). Read-out is the pre-bias destination zone. | Estimate `tv_bar` as the mean across contexts of the total-variation distance between the channel-on and channel-off five-way distributions (§4.1), then evaluate the decision function of §4.2 against the thresholds of §6.3 in the fixed order R5 → R4 → R1–R3 (§8). | The a-priori worksheet of §5.2 gives power `1.0000` at `delta_tv = 0.10` for a near-uniform base, and `0.9533` at `delta_tv = 0.01` for a degenerate base: what governs detection power is the size of the shift sought, not how concentrated the base distribution is. The power the realised design actually attains is not assumed — it is gated by R3. | **R1, R2, R3 and R4 exactly as written in §8.** All four are permissible Stage 2 outcomes; which occurs is not predicted, and the scope of claim each licenses is fixed there. Under R1 the confound of §12.1 is carried as a limitation rather than resolved. | Whether the channel shown in §3 to be causal, separable and ablatable propagates to a downstream discrete choice outside the model family in which it was measured. |
