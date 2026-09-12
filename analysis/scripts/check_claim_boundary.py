@@ -157,7 +157,13 @@ def normalise_whitespace(text: str) -> str:
 def scan(guards: tuple[Guard, ...], path: Path, repo_root: Path) -> list[Hit]:
     """Scan one file with every guard, including phrases that straddle a line ending."""
     hits: list[Hit] = []
-    rel = path.relative_to(repo_root).as_posix()
+    # Targets passed with --extra-target need not live under the repository root -- the submission
+    # PDF is read back as text from a build directory. Fall back to the name rather than refusing
+    # to scan, so a derived artefact cannot escape the check on a path technicality.
+    try:
+        rel = path.resolve().relative_to(repo_root.resolve()).as_posix()
+    except ValueError:
+        rel = path.name
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
     flat = normalise_whitespace(text)
@@ -296,6 +302,18 @@ def main(argv: list[str] | None = None) -> int:
         default=Path(__file__).resolve().parents[2],
         help="repository root",
     )
+    parser.add_argument(
+        "--extra-target",
+        type=Path,
+        action="append",
+        default=[],
+        metavar="PATH",
+        help=(
+            "additional file to scan for forbidden phrasing. Used for artefacts derived from the "
+            "manuscript that are published in their own right -- the submission PDF, read back as "
+            "text. A derived artefact is a claim surface too, and one that no other check reaches."
+        ),
+    )
     args = parser.parse_args(argv)
     repo_root: Path = args.repo_root
 
@@ -303,11 +321,13 @@ def main(argv: list[str] | None = None) -> int:
     main_path = repo_root / "manuscript" / "main.md"
     fixture_path = repo_root / "manuscript" / "_claim_boundary_positive_control.md"
     citation_path = repo_root / "CITATION.cff"
+    extra_targets: list[Path] = [p.resolve() for p in args.extra_target]
     targets = (
         main_path,
         repo_root / "README.md",
         repo_root / "README.ja.md",
         citation_path,
+        *extra_targets,
     )
 
     for path in (boundary_path, main_path, fixture_path, *targets):

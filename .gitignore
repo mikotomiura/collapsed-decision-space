@@ -17,6 +17,10 @@ analysis/notebooks/_executed/
 data/derived/*
 !data/derived/.gitkeep
 
+# The submission PDF and its pandoc source, built by .github/workflows/submission-pdf.yml.
+# Derived from manuscript/main.md; the workflow uploads them as an artefact.
+build/
+
 # Secrets
 .env
 *.key

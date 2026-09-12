@@ -1,0 +1,117 @@
+name: Submission PDF
+
+# Build the PDF that is submitted to PCI RR, from `manuscript/main.md`.
+#
+# **Manual only.** Producing a PDF is not part of reproducing the study, and `repro.sh` deliberately
+# needs nothing but `uv`. Adding a LaTeX toolchain to the reproduction path would make the central
+# claim of this repository -- that one command reproduces the completed studies -- harder to honour,
+# not easier.
+#
+# **There is no second manuscript.** The PDF is derived from `manuscript/main.md`, which is the only
+# text the claim-boundary check, the abstract-consistency check and the character-level number check
+# read. A hand-maintained submission copy would be a claim surface outside all three.
+#
+# The build is not trusted. Two silent failure modes are checked for explicitly after the fact:
+#
+#   * XeTeX sets *nothing* for a character its font lacks, and does not fail. A narrow-coverage font
+#     would quietly delete the logical connectives that join the branch conditions of section 8.
+#   * A `longtable` row cannot break across a page. The study design table is four times wider than
+#     any other table here, so it is rotated onto its own page; if that goes wrong, the right-hand
+#     columns are what disappears.
+#
+# Neither is visible from a page count, so the PDF is read back with `pdftotext` and checked.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pdf:
+    name: build and check paper.pdf
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pandoc, XeTeX and a wide-coverage font
+        # `texlive-latex-extra` carries pdflscape; `fonts-dejavu` carries the font chosen for its
+        # coverage of the logical connectives and accented letters the body needs. Both are
+        # verified here rather than at build time: finding out from a malformed PDF is too late.
+        run: |
+          set -eux
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            pandoc \
+            texlive-xetex \
+            texlive-fonts-recommended \
+            texlive-latex-recommended \
+            texlive-latex-extra \
+            fonts-dejavu \
+            poppler-utils
+          kpsewhich pdflscape.sty
+          fc-list | grep -q 'DejaVu Serif'
+          fc-list | grep -q 'DejaVu Sans Mono'
+          pandoc --version | head -1
+
+      - name: Pin the date to the manuscript's last change
+        # `\today` would make the PDF differ on every build. The date of the commit that last
+        # touched the manuscript is the honest answer and is stable for a given commit.
+        id: date
+        run: |
+          set -eu
+          DATE="$(git log -1 --format=%cs -- manuscript/main.md)"
+          test -n "$DATE"
+          echo "value=$DATE" >> "$GITHUB_OUTPUT"
+          echo "manuscript date: $DATE"
+
+      - name: Build the pandoc source
+        run: |
+          set -eux
+          python3 analysis/scripts/make_pdf_source.py \
+            --out build/paper-source.md \
+            --date "${{ steps.date.outputs.value }}"
+
+      - name: Build the PDF
+        # Typesetting variables live in the generated front matter, not here, so that a font name
+        # containing a space cannot be split into separate arguments by the shell.
+        run: |
+          set -eux
+          pandoc build/paper-source.md \
+            --from=markdown \
+            --pdf-engine=xelatex \
+            --toc \
+            --toc-depth=2 \
+            --metadata link-citations=true \
+            --output=build/powered-null-stage1.pdf
+          ls -l build/powered-null-stage1.pdf
+
+      - name: Read the PDF back
+        run: |
+          set -eux
+          pdftotext build/powered-null-stage1.pdf build/extracted.txt
+          wc -c build/extracted.txt
+          pdfinfo build/powered-null-stage1.pdf | sed -n '1,12p'
+
+      - name: Check what the PDF actually contains
+        # Required phrases, every column header of the study design table, the characters at risk of
+        # silent loss, and the quantities read from the frozen inputs by key.
+        run: python3 analysis/scripts/check_pdf_text.py build/extracted.txt
+
+      - name: Check the PDF against the claim boundary
+        # The PDF is published in its own right, so it is a claim surface too. The patterns come
+        # from `manuscript/CLAIM-BOUNDARY.md` -- one SSOT, applied to the derived artefact as well
+        # as to the source.
+        run: python3 analysis/scripts/check_claim_boundary.py --extra-target build/extracted.txt
+
+      - name: Upload the PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: powered-null-stage1-${{ github.sha }}
+          path: |
+            build/powered-null-stage1.pdf
+            build/extracted.txt
+          if-no-files-found: error
+          retention-days: 90
