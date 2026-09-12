@@ -61,12 +61,23 @@ docstring より (要点):
 
 ## 3. 解析コード (→ `analysis/`)
 
+> **2026-09-12 訂正 (DA-P0-13)**: 以下の表は import 閉包の問題が判明する**前**の記述。
+> `analysis/scripts/apparatus/<mod>/` へ平坦化コピーすると、コピーしたモジュールが
+> `from erre_sandbox.evidence...` / `from erre_sandbox.schemas import ...` のように
+> パッケージ相対で import しているため、移送先でパッケージパスが崩れて import が
+> 解決できない (2026-09-07 実測、`C:\ERRE-Sand_Box\paper\gather.ps1` 177-186 行のコメント
+> 参照)。正しい移送先は `analysis/apparatus/erre_sandbox/<原本と同じ相対パス>` であり、
+> `PYTHONPATH=analysis/apparatus` を通すことで self-contained に import できる。
+> 実際に採用したのはこちらの閉包 (68 ファイル、由来 commit `589e881558f713b05312643cb842d0d924d1ce87`、
+> `pwsh paper/gather.ps1 -Verify` で MATCH 確認済) であり、旧 `analysis/scripts/apparatus/`
+> (11 ファイル、平坦化・import 不能) は破棄した。
+
 | 元のパス | 移送先 | 備考 |
 |---|---|---|
-| `src/erre_sandbox/evidence/es3_locomotion/` | `analysis/scripts/apparatus/es3_locomotion/` | 凍結 apparatus。**コピーするなら commit hash を `data/data.md` に記録** |
-| `src/erre_sandbox/evidence/spdm/` | `analysis/scripts/apparatus/spdm/` | 同上 |
-| `src/erre_sandbox/integration/embodied/bank_power.py` | `analysis/scripts/bank_power.py` | 検出力計算 |
-| C-proper scorer (`scorer_schema_version = "ecl-cproper-scorer-1"`) | `analysis/scripts/apparatus/` | **所在を特定してから移す (要確認)** |
+| `src/erre_sandbox/evidence/es3_locomotion/` | `analysis/apparatus/erre_sandbox/evidence/es3_locomotion/` | 凍結 apparatus。閉包の一部として commit hash 込みで `data/data.md` に記録済 |
+| `src/erre_sandbox/evidence/spdm/` | `analysis/apparatus/erre_sandbox/evidence/spdm/` | 同上 |
+| `src/erre_sandbox/integration/embodied/bank_power.py` | `analysis/scripts/bank_power.py` | 検出力計算。**これは閉包コピーでなく別枠のまま存在**(現状維持、移動しない) |
+| C-proper scorer (`scorer_schema_version = "ecl-cproper-scorer-1"`) | — | **確認済: 閉包に含まれない (未解決)**。`grep -rn "ecl-cproper-scorer-1" analysis/apparatus/` はヒット 0 件、`grep -rl "scorer" analysis/apparatus/` も scorer 実体ファイルなし (`world_model.py` 等の無関係な部分一致のみ)。所在は本タスクでは特定できなかった |
 
 ### 新規に書くもの
 
