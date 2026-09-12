@@ -1,0 +1,12 @@
+# 凍結された生の証拠ファイルは git に一切正規化させない。
+#
+# 経緯 (2026-09-12): global の `core.autocrlf = input` により、初回 import 時点で
+# `data/raw/es3-verdict-forensic.json` の CR が剥がされ、**commit された内容が
+# ERRE-Sandbox の原本と byte 一致しなくなっていた** (11,743 → 11,401 bytes)。
+# `data/data.md` は原本の SHA-256 を pin しているので、この正規化は
+# **hash の記録と出荷物を食い違わせる** (= data.md が防ぐはずのものそのもの)。
+# 作業ツリーにコピー直後の CRLF が残っていたため、checkout が走るまで表面化しなかった。
+#
+# `paper/gather.ps1 -Verify` の DRIFT 検査はこの差を検出する。
+data/raw/** -text
+env/uv.lock -text

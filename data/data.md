@@ -30,12 +30,22 @@
   `_MOVE-IN.done.md` §3 参照)
 - 由来 commit hash: `589e881558f713b05312643cb842d0d924d1ce87`
 - 検証方法: `pwsh paper/gather.ps1 -Verify` (ERRE-Sandbox root で実行)。
-  2026-09-12 実行結果 = 176 件中 MATCH 175 / DRIFT 1 / MISSING 0。DRIFT の 1 件は
-  `data/raw/es3-verdict-forensic.json` (apparatus コードではなく生データ。原本
-  `experiments/20260629-m13-es3-locomotion/data/raw/verdict-forensic.json` が
-  CRLF、本 repo のコピーが LF という改行コードの違いのみで内容は同一 — `diff` は
-  全行不一致と報告するが JSON の値は一致する)。apparatus 69 files (`bank_scorer.py`
-  込み) は全て MATCH
+  2026-09-12 実行結果 = **176 件中 MATCH 176 / DRIFT 0 / MISSING 0**
+
+> **一度 DRIFT 1 を出したので、原因と対処を残す (2026-09-12)。**
+> 対象は `data/raw/es3-verdict-forensic.json`。global の `core.autocrlf = input` により、
+> **初回 import の `git add` 時点で CR が剥がされ、commit 済みの内容が原本と
+> byte 一致しなくなっていた** (11,743 → 11,401 bytes)。
+> 作業ツリーにはコピー直後の CRLF が残っていたため、**checkout が走るまで表面化しなかった**。
+>
+> これは「改行コードだけの無害な差」ではない。本ファイルの表 (上) は
+> **原本の SHA-256 `24c6d3ba...` と 11,743 bytes を pin している**ので、
+> 正規化された状態で公開すると **記録した hash と出荷物が食い違う** —
+> `data/data.md` が防ぐはずのものそのものになる。
+>
+> 対処 = (1) 原本から byte 無改変で復元し、(2) `.gitattributes` に
+> `data/raw/** -text` / `env/uv.lock -text` を置いて **git に二度と正規化させない**。
+> 復元後の実測 = 11,743 bytes / `sha256 = 24c6d3ba...` で**上の表と一致**。
 - 使い方: `PYTHONPATH=analysis/apparatus`
 - 再現コマンド (self-contained 確認、出力が repo 内のパスであること。`repro.sh` の
   `uv sync --frozen --project env` ステップと手順を揃えており、素の `python` を直接
