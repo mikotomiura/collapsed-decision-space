@@ -19,11 +19,19 @@ fails rather than redacting a sealed file. When that assertion fires, the fix is
 identifying string out of the sealed file, as ``analysis/upstream-links.json`` records having been
 done once already.
 
-What this establishes: the bundle contains no string matching the patterns below, contains no
-``.git``, and holds the sealed files unchanged.
-What it does not: that a reviewer cannot identify the author by other means -- writing style, the
-subject matter, or a preprint they have already read. Anonymity here is a property of the bytes,
-not a guarantee about the world.
+**One exposure cannot be removed, and is reported rather than hidden.** The measurement apparatus
+is a named public project, and the provenance checks work by showing that the shipped modules are
+byte-identical to that project's blobs. Renaming the package would break exactly the check the
+compendium exists to support: one cannot simultaneously prove which upstream the apparatus came
+from and conceal which upstream it is. The project name therefore stays, a determined reviewer can
+search for it, and the build says so on every run instead of letting a clean scan imply otherwise.
+
+What this establishes: the bundle contains no string matching the leak patterns below, contains no
+``.git``, holds the sealed files unchanged, and carries a written statement of the exposure that
+remains.
+What it does not: that a reviewer cannot identify the author. The project name above is enough for
+anyone who looks for it, and so, quite apart from the bytes, are the writing style, the subject
+matter, and any preprint already read. Anonymity here is a property of the bytes and nothing more.
 
 Usage:
     python analysis/scripts/make_anonymous_bundle.py --out build/anonymous
@@ -64,7 +72,12 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
 #: which is not the question. ``ORCID`` and ``DOI`` are shape patterns and will match the
 #: placeholders too, so the placeholders are excluded explicitly rather than by being unmatchable.
 LEAK_PATTERNS: tuple[tuple[str, str], ...] = (
-    ("a personal name", r"\bmikoto\b|\bmiura\b"),
+    # No word boundaries here. The GitHub handle is the two name parts run together, and a
+    # bounded pattern does not match inside it -- which is how "Copyright 2026 <handle>"
+    # survived a scan that reported the bundle clean, in a file with no extension that the
+    # redaction pass had also skipped. A substring pattern costs the odd false positive and
+    # catches the case that actually occurred.
+    ("a personal name", r"mikoto|miura"),
     ("a GitHub user or organisation", r"github\.com/(?!anonymous\b)[A-Za-z0-9-]+"),
     ("an ORCID identifier", r"\b\d{4}-\d{4}-\d{4}-\d{3}[\dX]\b"),
     ("a DOI", r"\b10\.\d{4,9}/[-._;()/:A-Za-z0-9]+"),
@@ -96,16 +109,45 @@ CITED_DOIS: tuple[str, ...] = (
     "10.1140/epjds/s13688-026-00674-x",
 )
 
-#: Suffixes read as text. Anything else is copied byte for byte and scanned as bytes.
+#: Identifying strings that are **known to remain**, with the reason each one cannot go. These are
+#: counted and written into the bundle's own report rather than treated as failures, because a
+#: check that quietly passes over a known exposure is worse than one that names it: the reader of
+#: a green result would conclude something false. Adding an entry here is a decision to disclose,
+#: never a way to silence a finding.
+ACCEPTED_EXPOSURES: tuple[tuple[str, str, str], ...] = (
+    (
+        "the upstream project name",
+        r"erre[_-]?sandbox",
+        "The apparatus is vendored from a named public project and the provenance checks compare "
+        "the shipped modules against that project's blobs byte for byte. The package name is "
+        "therefore load-bearing: renaming it would break the check, and the check is the point. "
+        "A reviewer who searches the name will find the author.",
+    ),
+)
+
+#: Suffixes read as text, and file names that carry no suffix at all. The second set exists
+#: because the first one silently skipped ``LICENSE`` and ``LICENSE-MIT``, both of which carry a
+#: copyright line naming the author. Nothing announced that: they were copied verbatim, and the
+#: leak scan of the day used word-bounded name patterns that do not match inside a run-together
+#: handle. Two independent misses lining up is what let a bundle report itself clean while its
+#: licence files named the author on line 3.
 TEXT_SUFFIXES: frozenset[str] = frozenset(
     {".md", ".py", ".json", ".toml", ".yml", ".yaml", ".cff", ".txt", ".sh", ".lock", ".cfg"}
 )
+TEXT_NAMES: frozenset[str] = frozenset({"LICENSE", "LICENSE-MIT", "SEED"})
 
 #: Paths never copied into the bundle, matched against the path relative to the repository root.
 #: ``.github`` goes because a workflow file names the repository in its badge and its artefact
 #: names, and because CI configuration is not evidence. ``build`` goes because the bundle is built
 #: there and must not contain a previous copy of itself.
 EXCLUDED_PREFIXES: tuple[str, ...] = (".git/", ".github/", "build/", "data/derived/")
+
+#: Files left out one by one rather than by prefix. This script is here for a reason worth
+#: stating: it is the one file in the repository that *has* to contain the strings it removes,
+#: since those strings are its patterns. Shipping it would either put the author's name in the
+#: bundle or redact the patterns into uselessness. It is a tool for preparing a submission, not
+#: part of reproducing the study, and the reviewer needs neither.
+EXCLUDED_FILES: frozenset[str] = frozenset({"analysis/scripts/make_anonymous_bundle.py"})
 
 #: Paths copied byte for byte whatever their extension, and where a redaction would be an error
 #: rather than a fix. These are the same paths ``.gitattributes`` marks ``-text``, for the same
@@ -181,9 +223,10 @@ def _mask_allowed(text: str) -> str:
     return text
 
 
-def scan(root: Path) -> list[str]:
-    """Return one problem per file still carrying something that looks like identity."""
+def scan(root: Path) -> tuple[list[str], dict[str, int]]:
+    """Return the leaks that fail the build, and a count of the exposures that are disclosed."""
     problems: list[str] = []
+    exposures: dict[str, int] = {label: 0 for label, _, _ in ACCEPTED_EXPOSURES}
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
@@ -197,7 +240,9 @@ def scan(root: Path) -> list[str]:
             for match in re.finditer(pattern, haystack, re.IGNORECASE):
                 line_no = haystack.count("\n", 0, match.start()) + 1
                 problems.append(f"{rel}:{line_no}: {label}: {match.group(0)!r}")
-    return problems
+        for label, pattern, _ in ACCEPTED_EXPOSURES:
+            exposures[label] += len(re.findall(pattern, haystack, re.IGNORECASE))
+    return problems, exposures
 
 
 def anonymise_citation(path: Path) -> None:
@@ -229,7 +274,7 @@ def build(repo_root: Path, out: Path) -> Path:
     copied = 0
     rewritten_paths: list[str] = []
     for rel in tracked_files(repo_root):
-        if rel.startswith(EXCLUDED_PREFIXES):
+        if rel.startswith(EXCLUDED_PREFIXES) or rel in EXCLUDED_FILES:
             continue
         source = repo_root / rel
         if not source.is_file():
@@ -238,11 +283,8 @@ def build(repo_root: Path, out: Path) -> Path:
         target.parent.mkdir(parents=True, exist_ok=True)
         copied += 1
 
-        verbatim = (
-            rel in sealed
-            or rel.startswith(VERBATIM_PREFIXES)
-            or source.suffix.lower() not in TEXT_SUFFIXES
-        )
+        is_text = source.suffix.lower() in TEXT_SUFFIXES or source.name in TEXT_NAMES
+        verbatim = rel in sealed or rel.startswith(VERBATIM_PREFIXES) or not is_text
         if verbatim:
             shutil.copyfile(source, target)
             # A sealed or frozen file that *needs* redacting is a design problem, not something to
@@ -356,7 +398,7 @@ def main(argv: list[str] | None = None) -> int:
     if (out / ".git").exists():
         _die("the bundle contains a .git directory")
 
-    problems = scan(out)
+    problems, exposures = scan(out)
     if problems:
         print(f"[anon] FAIL: {len(problems)} thing(s) in the bundle still identify someone",
               file=sys.stderr)
@@ -371,6 +413,14 @@ def main(argv: list[str] | None = None) -> int:
         "declared as belonging to cited work"
     )
 
+    disclosed = "".join(
+        f"\n## What still identifies the author: {label}\n\n"
+        f"{reason}\n\nOccurrences in this bundle: {exposures[label]}.\n"
+        for label, _, reason in ACCEPTED_EXPOSURES
+    )
+    for label, _, _ in ACCEPTED_EXPOSURES:
+        print(f"[anon] DISCLOSED: {label} remains in {exposures[label]} place(s); see ANONYMISED.md")
+
     (out / "ANONYMISED.md").write_text(
         "# Anonymous supplementary bundle\n\n"
         "This is the research compendium with author-identifying strings removed for "
@@ -383,7 +433,8 @@ def main(argv: list[str] | None = None) -> int:
         "bundle.\n\n"
         "The files under `seal/` are **byte-identical** to the public and deposited copies. That "
         "is deliberate: it is what lets a reader compare this bundle with a third-party archive "
-        "once the identifiers are disclosed at camera-ready.\n",
+        "once the identifiers are disclosed at camera-ready.\n"
+        + disclosed,
         encoding="utf-8",
         newline="\n",
     )
@@ -396,6 +447,10 @@ def main(argv: list[str] | None = None) -> int:
     manifest = {
         "sealed_files_unchanged": list(SEALED_PATHS),
         "leak_patterns_checked": [label for label, _ in LEAK_PATTERNS],
+        "accepted_exposures": [
+            {"what": label, "occurrences": exposures[label], "why_it_cannot_be_removed": reason}
+            for label, _, reason in ACCEPTED_EXPOSURES
+        ],
     }
     (out / "anonymisation-report.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n"
