@@ -669,7 +669,7 @@ the fixture fails the run.
 The two arms together require approximately 5.09 h of compute on the recorded hardware (§5.3), and
 the run is executed once.
 
-Before any prospective draw is collected, ten files are sealed, in five groups:
+Before any prospective draw is collected, eleven files are sealed, in six groups:
 
 | Group | Files | Why it has to be fixed |
 |---|---|---|
@@ -677,13 +677,16 @@ Before any prospective draw is collected, ten files are sealed, in five groups:
 | The run | `seal/arm-spec.json` | Every value the list below calls a not-minor deviation |
 | The protocol | `seal/protocol.md` | The part of this manuscript whose alteration would change how the result reads |
 | The code that reads them | `apply_decision_rules.py`, `render_decision_rules.py`, `verify_seal.py`, `check_seal_scope.py`, `_provenance.py` | A checker that can be edited is not a check. The last of these supplies the hashing the others use, and was missing from an earlier version of this list — which is why the seal now also fails if a sealed script imports a local module that is not itself sealed |
-| The record and the command | `analysis/freeze-provenance.json`, `repro.sh` | The provenance of the frozen thresholds, and the thirteen steps that check all of the above |
+| The code that reaches outside | `collect_zenodo_witness.py` | The only script here that touches the network. It reads an archive's public record and writes down the checksums and server-assigned times it finds, which is the one input to these checks that does not come from the author. A collector editable after the deposit could be taught to write down whatever made the comparison agree |
+| The record and the command | `analysis/freeze-provenance.json`, `repro.sh` | The provenance of the frozen thresholds, and the fourteen steps that check all of the above |
 
 `seal/SEAL-MANIFEST.json` records the SHA-256 of each and a self-hash over itself under a stated
 canonicalisation, and step 12 of `repro.sh` fails if any of them has moved since (§13). What that
 buys is narrow and worth naming exactly: the branch reported after the run can be re-derived, by
 anyone, from the rules as they stood before it. It does not establish that the seal is old, and no
-check that lives inside this repository could.
+check that lives inside this repository could. That would take a copy held by somebody else, and
+§13 describes the step that compares these files against one — together with the reason that
+comparison, even when it passes, bounds less than it appears to.
 
 The following are **not** minor deviations:
 
@@ -803,8 +806,9 @@ manuscript, which has since been rewritten.
 
 The upstream source repository the apparatus and the provenance records come from is
 <https://github.com/mikotomiura/ERRE-Sandbox>, and §10.2 gives the commit identifiers within it.
-There is no separate supplementary archive: the data, the analysis scripts, the apparatus and the
-reproduction command are all in the repository named here.
+Apart from the archival deposit of the sealed files described in §13, there is no separate
+supplementary archive: the data, the analysis scripts, the apparatus and the reproduction command
+are all in the repository named here.
 
 This repository contains the frozen inputs of the completed studies (`data/raw/`, each pinned by
 SHA-256 and size in `data/data.md`), the analysis scripts (`analysis/scripts/`), and the measurement
@@ -813,7 +817,7 @@ the upstream source repository. That closure covers the scoring and power machin
 the analyses in this repository exercise; it does not include the live driver that produced the
 draws, since regenerating draws is out of scope here (§6.2).
 
-`bash repro.sh` performs thirteen steps, in order: environment installation from the lockfile; a
+`bash repro.sh` performs fourteen steps, in order: environment installation from the lockfile; a
 lint check; verification of the frozen inputs against both `data/data.md` and their upstream blobs;
 verification of the threshold freeze and of the whole apparatus closure; **recomputation of the
 completed run's verdict from the shipped annotation and manifest**; mechanical extraction of the
@@ -823,8 +827,10 @@ comparison of the numbers quoted in this manuscript against the frozen inputs th
 claim-boundary check of §10.3; a mutation sweep that measures what the seal and the decision rules
 actually catch; verification of the seal itself, which includes requiring that the rule text in §8
 and in `seal/protocol.md` be **generated from** the sealed rules rather than restated alongside
-them; and, last, the evaluator of §8 applied to the recorded quantities. It exits non-zero if any
-step fails.
+them; the evaluator of §8 applied to the recorded quantities; and, last, a comparison of the
+sealed files against a recorded copy of the per-file checksums an archive publishes for them. It
+exits non-zero if any step fails, and its closing line names any step that was skipped rather than
+reporting a count of steps that passed.
 
 The thirteenth step is the third of the three checks named in §8, and it does nothing yet: the
 prospective verdicts do not exist, so it reports that it is skipping and why. It is wired in
@@ -836,13 +842,51 @@ so nothing in the sealed bytes asserts that the run has not happened; it simply 
 the files appear. When they do, it re-derives the branch from the sealed rules and fails if the
 branch named in `manuscript/reported-branch.txt` is not the one they give.
 
+The fourteenth step is the one that reaches outside this repository, and it is wired in early for
+the same reason and with the same guard. Steps 3 to 13 compare records inside this repository
+against one another; anyone with write access can change both sides of any one of them in a single
+commit, which is why §11 says what it says. An archive publishes, for every file it holds, a
+checksum that anyone can read without an account. `analysis/scripts/collect_zenodo_witness.py`,
+which is sealed, reads that listing and records it as `seal/zenodo-witness.json`, pairing deposited
+files with sealed paths **by content** — each sealed file is hashed locally and matched against the
+published checksums — so the correspondence between the two sets is not something we assert. Step
+14 then compares the recorded listing against the sealed files, and is guarded on the existence of
+that file.
+
+**What step 14 establishes is less than its name suggests, and we would rather say so than be
+found out.** The step is offline. It establishes two things: that the recorded witness agrees with
+these bytes, and that the witness is closed against itself — its anchor is the maximum of the
+server-assigned times it carries, and those times are exactly the ones its own deposit listing
+implies, one created and one updated per deposited file, with no invented name and no duplicate.
+It does *not* establish that the witness is what the archive returned. It cannot: a file in this
+repository is a file in this repository, whatever it describes. An independent review demonstrated
+the gap by writing a witness from nothing — digests computed locally in an algorithm no archive
+publishes, timestamps from the year 2000, a per-file time naming a file that did not exist — and an
+earlier version of this check reported no problems at all. The closure requirements above are the
+repair for what an offline check can repair; this paragraph is the repair for the rest.
+
+Turning a *recorded* external half into a *checked* one takes one online act, and it is the
+reader's: the witness records the public URL it was read from, and re-running the collector against
+that URL reproduces the file. That is deliberately not a step in `repro.sh`, which has to run with
+no network and inside a de-identified copy where the identifier is removed. A reviewer who wants
+the outside half performs it; a reviewer who does not still gets steps 1 to 13, which need neither
+the archive nor an account nor any identifier, and which are where the binding of the reported
+branch to the sealed rules actually lives.
+
+Two further limits, stated here rather than left to be discovered. The checksums an archive
+publishes per file are MD5, so agreement is agreement on that digest. And a deposit record
+**remains editable by its owner for a period after publication, with the identifier unchanged**,
+so the times the archive assigns bound when the deposit was last touched, not when these files were
+written — and no timestamp of any kind can establish that no draw preceded it.
+
 The eleventh step deserves a sentence, because a check that is never exercised may be vacuous. It
 mutates the things the seal is supposed to protect — a threshold moved in the sealed rules, a hash
 altered in the manifest with and without recomputing the manifest's self-hash, the band moved in §8
 of this manuscript while every sealed byte stays put — and requires each case to fail **with a
-diagnostic naming what was changed**, not merely to fail. Three control cases must not fail at all,
-including an edit to this manuscript outside the generated block: a seal that forbade that would be
-a seal nobody could keep. Requiring the diagnostic rather than the exit code is not fastidiousness.
+diagnostic naming what was changed**, not merely to fail. Five control cases must not fail at all,
+including an edit to this manuscript outside the generated block — a seal that forbade that would
+be a seal nobody could keep — and a witness that honestly declares a missing registry timestamp
+rather than supplying one. Requiring the diagnostic rather than the exit code is not fastidiousness.
 While the sweep was being written every mutation was failing for one unrelated reason, and on exit
 code alone the sweep reported success.
 

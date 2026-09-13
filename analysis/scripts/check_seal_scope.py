@@ -23,8 +23,10 @@ self-hash is recomputed to match.
 The scope of that phrase is worth pinning down, because it is easy to read as more. Regenerating
 the rules, the renderer, this file and the manifest **together** passes every case below, and is
 supposed to: it is what preparing a seal looks like. Nothing here distinguishes that from the same
-act performed after the results are known. Only a copy held by someone else can, and
-``seal/protocol.md`` section 7 records that no such copy exists yet.
+act performed after the results are known. Only a copy held by someone else can.
+``seal/protocol.md`` section 7 records that, at the time this file was sealed, there was no such
+copy; whether one exists now is answered by whether ``seal/zenodo-witness.json`` is present and
+by what step 14 of ``repro.sh`` reports, not by this sentence.
 
 Both families carry **no-op controls** that must *not* fail, so that a checker which simply reports
 failure on everything cannot pass this script. This is not a formality: a green result here means
@@ -52,6 +54,8 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from collect_zenodo_witness import latest as collector_latest  # noqa: E402
+from collect_zenodo_witness import main as collector_main  # noqa: E402
 from verify_seal import SEALED_PATHS, canonical_self_hash  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -304,6 +308,7 @@ EXPECTED_SEALED_SET: frozenset[str] = frozenset(
         "analysis/scripts/_provenance.py",
         "analysis/scripts/apply_decision_rules.py",
         "analysis/scripts/check_seal_scope.py",
+        "analysis/scripts/collect_zenodo_witness.py",
         "analysis/scripts/render_decision_rules.py",
         "analysis/scripts/verify_seal.py",
         "analysis/freeze-provenance.json",
@@ -611,12 +616,76 @@ SEAL_CASES: tuple[tuple[str, Callable[[Path], None], str | None, str], ...] = (
 #: threshold comparison cannot be reached by supplying any value.
 OMIT_VERDICT_FILE = "__omit_verdict_file__"
 
+#: The server times a conforming witness carries, as **literal spellings** written out here.
+#:
+#: Three properties are deliberate. The three ISO-8601 forms below -- a fractional-second offset,
+#: a whole-second offset, and ``Z`` -- are what the two services actually return. One of them is
+#: **later as a string and earlier as an instant** than the true maximum, so a checker that
+#: compared these as text rather than as moments would fail the control case. And nothing here is
+#: imported from the checker, so the fixture cannot agree with it by construction.
+FIXTURE_RECORD_TIMES: tuple[tuple[str, str], ...] = (
+    ("record.created", "2026-09-13T08:00:00.123456+00:00"),
+    ("record.updated", "2026-09-13T08:05:00+00:00"),
+)
+
+#: Per-deposited-file times. The first file's ``updated`` is the true maximum; the second file's
+#: is the string-later, instant-earlier decoy (18:45+10:00 is 08:45Z).
+FIXTURE_FILE_TIMES: tuple[tuple[str, str], ...] = (
+    ("created", "2026-09-13T08:01:00+00:00"),
+    ("updated", "2026-09-13T08:02:00+00:00"),
+)
+FIXTURE_LATEST_FILE_UPDATED: str = "2026-09-13T09:30:00Z"
+FIXTURE_DECOY_FILE_UPDATED: str = "2026-09-13T18:45:00+10:00"
+FIXTURE_REGISTERED: str = "2026-09-13T08:10:00.000Z"
+
+#: The latest of all of the above **as an instant**.
+FIXTURE_LATEST: str = FIXTURE_LATEST_FILE_UPDATED
+
+
 def _witness_for(root: Path, **overrides: Any) -> dict[str, Any]:
-    """Build a deposit witness for the staged tree, optionally spoiling one entry."""
-    entries = []
-    for rel in sorted(SEALED_PATHS):
-        digest = hashlib.md5((root / rel).read_bytes()).hexdigest()  # noqa: S324
-        entries.append({"sealed_path": rel, "checksum": f"md5:{digest}"})
+    """Build a conforming deposit witness for the staged tree, optionally spoiling one part.
+
+    The fixture mirrors a real deposit: one deposited file per sealed path, named by its
+    basename, with the archive's own listing carried alongside. That shape matters, because the
+    checker requires the time sources and the per-file entries to answer to that listing; a
+    fixture that carried only the parts the old checker read would pass for the wrong reason.
+    """
+    deposit_files: list[dict[str, Any]] = []
+    entries: list[dict[str, Any]] = []
+    sources: list[dict[str, str]] = [
+        {"source": name, "value": value} for name, value in FIXTURE_RECORD_TIMES
+    ]
+    for index, rel in enumerate(sorted(SEALED_PATHS)):
+        blob = (root / rel).read_bytes()
+        digest = hashlib.md5(blob).hexdigest()  # noqa: S324
+        key = Path(rel).name
+        checksum = f"md5:{digest}"
+        for field, value in FIXTURE_FILE_TIMES:
+            if field == "updated":
+                if index == 0:
+                    value = FIXTURE_LATEST_FILE_UPDATED
+                elif index == 1:
+                    value = FIXTURE_DECOY_FILE_UPDATED
+            sources.append({"source": f"files.{key}.{field}", "value": value})
+        deposit_files.append(
+            {
+                "key": key,
+                "checksum": checksum,
+                "size": len(blob),
+                "created": FIXTURE_FILE_TIMES[0][1],
+                "updated": FIXTURE_FILE_TIMES[1][1],
+            }
+        )
+        entries.append(
+            {
+                "sealed_path": rel,
+                "checksum": checksum,
+                "deposit_key": key,
+                "size": len(blob),
+            }
+        )
+    sources.append({"source": "datacite.registered", "value": FIXTURE_REGISTERED})
+
     if "drop" in overrides:
         entries = [e for e in entries if e["sealed_path"] != overrides["drop"]]
     if "corrupt" in overrides:
@@ -625,16 +694,74 @@ def _witness_for(root: Path, **overrides: Any) -> dict[str, Any]:
                 entry["checksum"] = "md5:" + "0" * 32
     if "algorithm" in overrides:
         entries[0]["checksum"] = f"{overrides['algorithm']}:00"
-    return {"latest_server_time": "2026-09-13T00:00:00Z", "files": entries}
+    if "rehash" in overrides:
+        # Re-record one entry under another algorithm, correctly computed from the local bytes.
+        # This is the shape the fabricated witness had: locally right, never published anywhere.
+        algorithm, rel = overrides["rehash"]
+        for entry in entries:
+            if entry["sealed_path"] == rel:
+                blob = (root / rel).read_bytes()
+                entry["checksum"] = f"{algorithm}:{hashlib.new(algorithm, blob).hexdigest()}"
+    if "deposit_key" in overrides:
+        rel, key = overrides["deposit_key"]
+        for entry in entries:
+            if entry["sealed_path"] == rel:
+                entry["deposit_key"] = key
+    if "relist_checksum" in overrides:
+        key, checksum = overrides["relist_checksum"]
+        for listed in deposit_files:
+            if listed["key"] == key:
+                listed["checksum"] = checksum
+    if "relist_size" in overrides:
+        key, size = overrides["relist_size"]
+        for listed in deposit_files:
+            if listed["key"] == key:
+                listed["size"] = size
+
+    if "drop_time_source" in overrides:
+        sources = [s for s in sources if s["source"] != overrides["drop_time_source"]]
+    if overrides.get("drop_file_times"):
+        sources = [s for s in sources if not s["source"].startswith("files.")]
+    if "retime" in overrides:
+        name, value = overrides["retime"]
+        for source in sources:
+            if source["source"] == name:
+                source["value"] = value
+    if "add_time_source" in overrides:
+        name, value = overrides["add_time_source"]
+        sources.append({"source": name, "value": value})
+
+    witness: dict[str, Any] = {
+        "schema": overrides.get("schema", "cds-deposit-witness-1"),
+        "record_api_url": "https://archive.invalid/api/records/000",
+        "latest_server_time": overrides.get("anchor", FIXTURE_LATEST),
+        "time_sources": sources,
+        "deposit_files": deposit_files,
+        "files": entries,
+    }
+    if "registry_reason" in overrides:
+        witness["datacite_absent_reason"] = overrides["registry_reason"]
+    if overrides.get("no_time_sources"):
+        del witness["time_sources"]
+    if overrides.get("no_deposit_files"):
+        del witness["deposit_files"]
+    return witness
 
 
 #: (name, how to build the witness, expected diagnostic, why it matters)
 #:
-#: ``--witness`` is the external half of the binding, and until these cases existed it had never
-#: run against anything -- not a real deposit, which does not exist, and not a synthetic one. A
-#: review pointed out that the sealed protocol described it in the present tense regardless. The
-#: protocol now says the deposit is absent; these cases at least establish that the code which
-#: would read one is not vacuous.
+#: ``--witness`` is the outside half of the binding, and the history of these cases is the reason
+#: to distrust a green light here. They were added because the sealed protocol described the
+#: witness in the present tense while the code path had never run against anything. They were then
+#: **rewritten**, because an independent review wrote a witness out of nothing -- digests computed
+#: locally in an algorithm no archive publishes, timestamps from the year 2000, a per-file time
+#: naming a file that did not exist, and the string "trust me" where a reason belonged -- and the
+#: checker reported no problems at all. The cases below are one per hole that review opened, plus
+#: the fabricated witness itself as a regression case.
+#:
+#: What none of them can establish is that a witness came from an archive. That is not a gap in
+#: the fixtures; it is a property of an offline check, and it is stated in the manuscript rather
+#: than patched over here.
 WITNESS_CASES: tuple[tuple[str, Callable[[Path], dict[str, Any]], str | None, str], ...] = (
     (
         "a witness listing every sealed file with the right checksum",
@@ -658,14 +785,200 @@ WITNESS_CASES: tuple[tuple[str, Callable[[Path], dict[str, Any]], str | None, st
     (
         "a witness naming a checksum algorithm that does not exist",
         lambda root: _witness_for(root, algorithm="notahash"),
-        "unknown checksum algorithm",
+        "the archive publishes",
         "a malformed record must be an error rather than an unchecked entry",
     ),
     (
         "a witness with no entries at all",
-        lambda root: {"latest_server_time": "2026-09-13T00:00:00Z", "files": []},
-        "must be a non-empty list",
+        lambda root: {
+            "schema": "cds-deposit-witness-1",
+            "latest_server_time": "2026-09-13T00:00:00Z",
+            "files": [],
+        },
+        "'files' must be a non-empty list",
         "an empty deposit must fail rather than vacuously agree",
+    ),
+    # --- the shape of the document, rather than one field in it ----------------------------- #
+    (
+        "the fabricated witness an independent review wrote out of nothing",
+        lambda root: {
+            "schema": "cds-deposit-witness-1",
+            "latest_server_time": "2000-01-01T00:00:02Z",
+            "datacite_absent_reason": "trust me",
+            "time_sources": [
+                {"source": "record.created", "value": "2000-01-01T00:00:00Z"},
+                {"source": "record.updated", "value": "2000-01-01T00:00:01Z"},
+                {"source": "files.fabricated.updated", "value": "2000-01-01T00:00:02Z"},
+            ],
+            "files": [
+                {
+                    "sealed_path": rel,
+                    "checksum": "sha256:"
+                    + hashlib.sha256((root / rel).read_bytes()).hexdigest(),
+                }
+                for rel in sorted(SEALED_PATHS)
+            ],
+        },
+        "'deposit_files' must be a non-empty list",
+        "this exact document passed every check that existed before it was written: locally "
+        "correct digests in an algorithm no archive publishes, year-2000 times, a per-file time "
+        "naming a file that is not in the record, and a reason field reading 'trust me'. It is "
+        "kept verbatim so that the hole it found cannot reopen quietly",
+    ),
+    (
+        "a witness carrying no deposit listing",
+        lambda root: _witness_for(root, no_deposit_files=True),
+        "'deposit_files' must be a non-empty list",
+        "the listing is what the times and digests answer to. Without it the witness asserts a "
+        "set of times that nothing constrains",
+    ),
+    (
+        "a witness labelled with some other schema",
+        lambda root: _witness_for(root, schema="something-else-1"),
+        "expected 'cds-deposit-witness-1'",
+        "the structure is checked as a whole, so a document of another shape must be refused "
+        "rather than read for whichever fields happen to fit",
+    ),
+    (
+        "a witness recording a correct digest in an algorithm no archive publishes",
+        lambda root: _witness_for(root, rehash=("sha256", "seal/protocol.md")),
+        "the archive publishes",
+        "the digest agrees with the local bytes, which is exactly why it must still fail: "
+        "agreement with oneself in a form nobody published is not agreement with anybody",
+    ),
+    (
+        "a witness whose entry names a deposited file the listing does not hold",
+        lambda root: _witness_for(root, deposit_key=("seal/protocol.md", "not-in-the-record")),
+        "which the deposit listing does not hold",
+        "a digest that names no particular deposited file floats free of the record, and a "
+        "reader re-reading the record would have nothing to compare",
+    ),
+    (
+        "a witness whose entry and listing record different checksums for the same file",
+        lambda root: _witness_for(root, relist_checksum=("protocol.md", "md5:" + "0" * 32)),
+        "were edited apart",
+        "the entry and the listing are two statements about one deposited file. Editing one of "
+        "them is the cheapest way to change what the witness says",
+    ),
+    (
+        "a witness whose listing gives a file the wrong size",
+        lambda root: _witness_for(root, relist_size=("protocol.md", 1)),
+        "size of",
+        "size is the second thing the archive publishes about a file, and checking only the "
+        "digest leaves half the listing unexamined",
+    ),
+    # --- the anchor ------------------------------------------------------------------------- #
+    # The cases above ask whether the deposit holds these bytes. These ask whether the time the
+    # witness reports is the time its own contents imply. The two are independent: a witness can
+    # be right about every file and still carry an anchor nobody computed.
+    (
+        "a witness reporting an anchor later than every time it carries",
+        lambda root: _witness_for(root, anchor="2027-01-01T00:00:00Z"),
+        "the latest time this witness carries",
+        "the anchor is the one number the manuscript quotes from the deposit. If it is copied "
+        "rather than recomputed, a witness whose files all agree can still date the deposit to "
+        "whenever suits the claim",
+    ),
+    (
+        "a witness carrying no server times at all",
+        lambda root: _witness_for(root, no_time_sources=True),
+        "'time_sources' must be a non-empty list",
+        "an anchor with nothing under it is an assertion. Requiring the raw times is what lets "
+        "the maximum be re-taken by someone else",
+    ),
+    (
+        "a witness whose anchor includes the depositor-supplied publication date",
+        lambda root: _witness_for(
+            root, add_time_source=("publication_date", "2027-06-01T00:00:00Z")
+        ),
+        "supplied by the depositor",
+        "the publication date is typed in by whoever fills the record in. Admitting it to the "
+        "anchor would let the deposit be dated by its depositor, which is the whole property the "
+        "outside half is supposed to supply",
+    ),
+    (
+        "a witness anchored to a per-file time for a file that is not in the record",
+        lambda root: _witness_for(
+            root, add_time_source=("files.fabricated.updated", "2027-06-01T00:00:00Z")
+        ),
+        "answers to nothing in the deposit listing",
+        "an invented source name is how an anchor moves without any real time changing. Before "
+        "this case, one `files.` prefix was enough to satisfy the per-file requirement, so a "
+        "witness could drop the real latest time and anchor to a file it made up",
+    ),
+    (
+        "a witness that omits the record's own creation time",
+        lambda root: _witness_for(root, drop_time_source="record.created"),
+        "omits the time sources ['record.created']",
+        "an anchor taken over a chosen subset is narrower than the one the design defines, and a "
+        "narrower anchor reads as a stronger claim than was earned",
+    ),
+    (
+        "a witness that omits the updated time of one deposited file",
+        lambda root: _witness_for(root, drop_time_source="files.protocol.md.updated"),
+        "omits the time sources ['files.protocol.md.updated']",
+        "the listing implies one created and one updated time per file. Requiring the set rather "
+        "than a sample is what stops the latest real timestamp being dropped",
+    ),
+    (
+        "a witness that carries no per-file time",
+        # The anchor is restated because dropping the file times moves the true maximum to the
+        # registry time. A case that also got the anchor wrong would be two mutations at once,
+        # and the diagnostic it was written to provoke would no longer be the only one available.
+        lambda root: _witness_for(
+            root, drop_file_times=True, anchor="2026-09-13T08:10:00.000Z"
+        ),
+        "'files.repro.sh.created'",
+        "the editable window after publication allows a file to be replaced without the record's "
+        "own timestamps moving, so a record-level anchor would miss exactly the change it exists "
+        "to bound",
+    ),
+    (
+        "a witness listing the same server time twice",
+        lambda root: _witness_for(
+            root, add_time_source=("record.created", "2026-09-13T08:00:00.123456+00:00")
+        ),
+        "appear more than once",
+        "a listing that says one field twice cannot be read as an archive's answer, and a "
+        "duplicate is how a second value for the same field gets in beside the first",
+    ),
+    (
+        "a witness carrying a time with no timezone",
+        # A non-maximal source is retimed on purpose: stripping the offset from the latest one
+        # would also invalidate the anchor, and the case would then pass on either diagnostic.
+        lambda root: _witness_for(root, retime=("record.updated", "2026-09-13T08:05:00")),
+        "has no timezone",
+        "the two services answer in different ISO-8601 spellings, so the anchor is a maximum "
+        "over parsed instants. A value that cannot be placed on that line has to be an error "
+        "rather than an entry that quietly sorts as text",
+    ),
+    (
+        "a witness whose registry time is neither present nor accounted for",
+        lambda root: _witness_for(root, drop_time_source="datacite.registered"),
+        "nor a non-empty 'datacite_absent_reason'",
+        "a registry that was not consulted is a legitimate state and a silently missing anchor "
+        "is not. The difference is whether the reader is told",
+    ),
+    (
+        "a witness accounting for the missing registry time with an empty string",
+        lambda root: _witness_for(
+            root, drop_time_source="datacite.registered", registry_reason="   "
+        ),
+        "nor a non-empty 'datacite_absent_reason'",
+        "a truthiness test on this field would accept any value at all, so the declared-absence "
+        "path would become a way to drop an anchor rather than a way to disclose one",
+    ),
+    (
+        "a witness with no registry time but a stated reason for its absence",
+        lambda root: _witness_for(
+            root,
+            drop_time_source="datacite.registered",
+            registry_reason="the DOI had not been registered when this was collected",
+        ),
+        None,
+        "the declared-absence path is a control, not an afterthought: if it failed, the only way "
+        "to pass would be to consult the registry, and the honest narrower witness would be "
+        "unshippable",
     ),
 )
 
@@ -903,6 +1216,164 @@ def run_seal_family(tmp: Path) -> list[str]:
     return problems
 
 
+
+# ================================================================================================ #
+# Family 3 -- the collector, driven end to end against a synthetic archive
+# ================================================================================================ #
+#
+# The two families above check the seal and the rules. Neither runs
+# ``collect_zenodo_witness.py``, and that gap has a specific cost: the collector writes the witness
+# and ``verify_seal.py`` reads it, so a tightening of the reader can leave the writer producing a
+# document the run refuses. The place that would surface is **after the deposit**, where the sealed
+# files can no longer be changed. So the collector is driven here, offline, against a response
+# shaped like the archive's, and its output is handed to the sealed checker.
+#
+# The response below is built from the staged tree rather than recorded from the network. That is
+# the right trade for this purpose -- the question is whether writer and reader agree on a shape,
+# not what the archive actually holds -- and the shape itself was taken from a real unauthenticated
+# read of the public API, recorded in the task notes.
+
+#: Times the synthetic archive assigns. Same three ISO-8601 spellings, same decoy: the second
+#: file's ``updated`` is later as a string and earlier as an instant than the true maximum.
+ARCHIVE_RECORD_CREATED = "2026-09-13T08:00:00.123456+00:00"
+ARCHIVE_RECORD_UPDATED = "2026-09-13T08:05:00+00:00"
+ARCHIVE_FILE_CREATED = "2026-09-13T08:01:00+00:00"
+ARCHIVE_FILE_UPDATED = "2026-09-13T08:02:00+00:00"
+ARCHIVE_LATEST = "2026-09-13T09:30:00Z"
+ARCHIVE_DECOY = "2026-09-13T18:45:00+10:00"
+ARCHIVE_REGISTERED = "2026-09-13T08:10:00.000Z"
+
+
+def _synthetic_archive(root: Path, omit: str | None = None) -> Callable[[str, float], Any]:
+    """Return a reader that answers like the public API, for the files in the staged tree."""
+    entries = []
+    for index, rel in enumerate(sorted(SEALED_PATHS)):
+        if rel == omit:
+            continue
+        blob = (root / rel).read_bytes()
+        updated = ARCHIVE_FILE_UPDATED
+        if index == 0:
+            updated = ARCHIVE_LATEST
+        elif index == 1:
+            updated = ARCHIVE_DECOY
+        entries.append(
+            {
+                "key": Path(rel).name,
+                "checksum": f"md5:{hashlib.md5(blob).hexdigest()}",  # noqa: S324
+                "size": len(blob),
+                "created": ARCHIVE_FILE_CREATED,
+                "updated": updated,
+            }
+        )
+
+    # The identifiers below are deliberately **not DOI-shaped**. This file is sealed, so it
+    # ships to an anonymous review unredacted, and the bundle's leak scan matches the shape
+    # `10.<digits>/...` wherever it appears -- which is correct of it, since a DOI is identifying
+    # when it is the author's own deposit and no pattern can tell that from a citation. A
+    # plausible-looking fake here would therefore fail the bundle build, with nothing that could
+    # be done about it short of breaking the seal. The collector only passes this string through
+    # to a URL, and the reader below ignores the URL, so the shape is free.
+    record = {
+        "id": "000",
+        "doi": "archive-invalid/000",
+        "conceptdoi": "archive-invalid/999",
+        "created": ARCHIVE_RECORD_CREATED,
+        "updated": ARCHIVE_RECORD_UPDATED,
+        "metadata": {"publication_date": "2026-09-13"},
+    }
+
+    def read(url: str, timeout: float) -> Any:
+        if url.endswith("/files"):
+            return {"entries": entries}
+        if "/dois/" in url:
+            return {"data": {"attributes": {"registered": ARCHIVE_REGISTERED}}}
+        return record
+
+    return read
+
+
+def run_collector_family(tmp: Path) -> list[str]:
+    """Drive the collector against a synthetic archive and check the round-trip and the refusal."""
+    problems: list[str] = []
+
+    # 1. The maximum is over instants, not strings. Asked of the collector directly, because the
+    #    collector computes the anchor and the checker recomputes it: both have to agree, and a
+    #    string comparison in either one is the same bug with two places to hide.
+    spelled = [
+        {"source": "a", "value": ARCHIVE_LATEST},
+        {"source": "b", "value": ARCHIVE_DECOY},
+    ]
+    chosen = collector_latest(spelled)
+    if chosen != ARCHIVE_LATEST:
+        problems.append(
+            "the collector's anchor is not the latest instant: it chose "
+            f"{chosen!r} over {ARCHIVE_LATEST!r}. {ARCHIVE_DECOY!r} sorts later as text and "
+            "earlier as a moment, which is what a string comparison gets wrong"
+        )
+
+    # 2. The round-trip. The collector writes a witness; the sealed checker must accept it.
+    case_dir = tmp / "collector-roundtrip"
+    case_dir.mkdir(parents=True, exist_ok=True)
+    root = _stage(case_dir)
+    out = case_dir / "witness.json"
+    code = collector_main(
+        [
+            "--repo-root",
+            str(root),
+            "--record-api-url",
+            "https://archive.invalid/api/records/000",
+            "--datacite-api-base",
+            "https://registry.invalid/dois",
+            "--out",
+            str(out),
+        ],
+        fetch=_synthetic_archive(root),
+    )
+    if code != 0:
+        problems.append(f"the collector refused a complete synthetic deposit (exit {code})")
+    elif not out.is_file():
+        problems.append("the collector reported success but wrote no witness")
+    else:
+        seal_code, output = _run_seal_checker(root, witness=out)
+        if seal_code != 0:
+            trace = output.strip().replace("\n", "\n      ")
+            problems.append(
+                "the checker rejected the witness the collector wrote. Writer and reader "
+                f"disagree about the shape of a witness:\n      {trace}"
+            )
+
+    # 3. The refusal. A deposit missing one sealed file must produce no witness at all, rather
+    #    than a partial one that reads as complete.
+    case_dir = tmp / "collector-partial"
+    case_dir.mkdir(parents=True, exist_ok=True)
+    root = _stage(case_dir)
+    out = case_dir / "witness.json"
+    code = collector_main(
+        [
+            "--repo-root",
+            str(root),
+            "--record-api-url",
+            "https://archive.invalid/api/records/000",
+            "--datacite-absent-reason",
+            "not consulted in this fixture",
+            "--out",
+            str(out),
+        ],
+        fetch=_synthetic_archive(root, omit="seal/protocol.md"),
+    )
+    if code == 0:
+        problems.append(
+            "the collector accepted a deposit missing seal/protocol.md; a witness covering part "
+            "of the seal would read as covering all of it"
+        )
+    if out.exists():
+        problems.append(
+            "the collector wrote a witness for an incomplete deposit. Refusing has to mean "
+            "writing nothing, or the next run picks up the partial file"
+        )
+    return problems
+
+
 def main() -> int:
     if not RULES.is_file():
         print(f"[scope] FAIL: the sealed rules are missing: {RULES}", file=sys.stderr)
@@ -946,6 +1417,7 @@ def main() -> int:
                 )
 
         problems.extend(run_seal_family(tmp))
+        problems.extend(run_collector_family(tmp))
 
     if problems:
         print("[scope] FAIL", file=sys.stderr)
@@ -960,8 +1432,9 @@ def main() -> int:
         f"[scope] OK: {len(CASES)} decision-rule cases ({rejected_rules} of them required to be "
         f"rejected), and {len(seal_family)} seal and run-manifest cases of which {controls} are "
         f"controls that had to succeed and {len(seal_family) - controls} had to fail with a "
-        "diagnostic naming what was changed. This measures the reach of the checks, not the "
-        "correctness of the rules."
+        "diagnostic naming what was changed. The collector was also driven end to end against a "
+        "synthetic archive response, and the witness it wrote had to be one this checker "
+        "accepts. This measures the reach of the checks, not the correctness of the rules."
     )
     return 0
 
