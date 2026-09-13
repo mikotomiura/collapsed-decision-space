@@ -1266,10 +1266,17 @@ def _synthetic_archive(root: Path, omit: str | None = None) -> Callable[[str, fl
             }
         )
 
+    # The identifiers below are deliberately **not DOI-shaped**. This file is sealed, so it
+    # ships to an anonymous review unredacted, and the bundle's leak scan matches the shape
+    # `10.<digits>/...` wherever it appears -- which is correct of it, since a DOI is identifying
+    # when it is the author's own deposit and no pattern can tell that from a citation. A
+    # plausible-looking fake here would therefore fail the bundle build, with nothing that could
+    # be done about it short of breaking the seal. The collector only passes this string through
+    # to a URL, and the reader below ignores the URL, so the shape is free.
     record = {
         "id": "000",
-        "doi": "10.0000/archive.invalid.000",
-        "conceptdoi": "10.0000/archive.invalid.999",
+        "doi": "archive-invalid/000",
+        "conceptdoi": "archive-invalid/999",
         "created": ARCHIVE_RECORD_CREATED,
         "updated": ARCHIVE_RECORD_UPDATED,
         "metadata": {"publication_date": "2026-09-13"},

@@ -13,8 +13,8 @@
       "size": 11668
     },
     "analysis/scripts/check_seal_scope.py": {
-      "sha256": "bb0f66488fda8f4f4059c84bbf2c85ab23373176065e17167147205dc5ba044d",
-      "size": 62223
+      "sha256": "027fd2774bdb162702df23f3f07798e7b4c9cda643db15195297e6079fd5923b",
+      "size": 62849
     },
     "analysis/scripts/collect_zenodo_witness.py": {
       "sha256": "4f031df3ee8716a752ff5310f55a1aedeca4528b6a90e9acb0cd84baa6141d98",
@@ -49,5 +49,5 @@
   "schema": "cds-seal-manifest-1",
   "scope_note": "This document establishes internal consistency only. It cannot show that the files are old, nor that a sealed file and this manifest were not edited together. The external half is the deposit, which publishes a per-file checksum that anyone can read without an account.",
   "self_hash_canonicalisation": "sha256 of json.dumps(manifest_without_self_sha256, sort_keys=True, indent=2, ensure_ascii=False) + \"\\n\", encoded as UTF-8",
-  "self_sha256": "a1fa1f5dc610b67fd643d90e84e5c626155da6eec8f4ef64ab2b7bca0599b4c5"
+  "self_sha256": "9609922a75f78b5598d223e2fb4ced536d5d74a5f5c75bcfeb5caf7f9d98465d"
 }
