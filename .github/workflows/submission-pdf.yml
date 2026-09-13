@@ -1,6 +1,6 @@
 name: Submission PDF
 
-# Build the PDF that is submitted to PCI RR, from `manuscript/main.md`.
+# Build the PDF that is submitted, from `manuscript/main.md`.
 #
 # **Manual only.** Producing a PDF is not part of reproducing the study, and `repro.sh` deliberately
 # needs nothing but `uv`. Adding a LaTeX toolchain to the reproduction path would make the central
@@ -15,18 +15,30 @@ name: Submission PDF
 #
 #   * XeTeX sets *nothing* for a character its font lacks, and does not fail. A narrow-coverage font
 #     would quietly delete the logical connectives that join the branch conditions of section 8.
-#   * A `longtable` row cannot break across a page. The study design table is four times wider than
-#     any other table here, so it is rotated onto its own page; if that goes wrong, the right-hand
-#     columns are what disappears.
+#   * A `longtable` row cannot break across a page. If a table is set too wide, the right-hand
+#     columns are what disappears. The acute case used to be the six-column study design table,
+#     which was rotated onto its own page; that table is gone and the rotation with it, so the
+#     check now watches the column headers of the widest table left.
 #
 # Neither is visible from a page count, so the PDF is read back with `pdftotext` and checked.
 
 on:
   workflow_dispatch:
+    inputs:
+      anonymous:
+        description: >-
+          Build the anonymised submission PDF instead of the named one, and read it back to check
+          that nothing in it identifies the author.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+# Anonymity is not a property anyone should infer. The named build's own annotations carry the
+# repository URL nine times over, in a layer nobody reading the page can see, so the anonymous
+# build is produced here from the anonymised manuscript and then read back with
+# `check_pdf_identity.py`. Passing `anonymous: true` switches both.
 jobs:
   pdf:
     name: build and check paper.pdf
@@ -36,9 +48,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install uv
+        if: inputs.anonymous
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build the anonymous bundle, and take the manuscript from it
+        # `make_anonymous_bundle.py` refuses to run on a dirty tree, produces the redacted
+        # manuscript, and asserts that every sealed file is byte-identical to the public copy.
+        # Swapping the manuscript in place afterwards keeps the rest of this workflow identical
+        # for both builds -- one pipeline, not two, so the anonymous PDF cannot drift from the
+        # named one in any way except the redactions.
+        if: inputs.anonymous
+        run: |
+          set -eux
+          uv run --project env --no-sync python analysis/scripts/make_anonymous_bundle.py \
+            --out build/anonymous
+          for f in manuscript/main.md                    analysis/scripts/make_pdf_source.py                    analysis/scripts/check_pdf_text.py; do
+            cp "build/anonymous/$f" "$f"
+          done
+          # make_pdf_source.py carries the author line for the title block, and
+          # check_pdf_text.py carries the author name and ORCID among the phrases it requires to
+          # survive into the page. Redacted in the manuscript but not in those two, the build
+          # would either print the name or fail looking for it.
+
       - name: Install pandoc, XeTeX and a wide-coverage font
-        # `texlive-latex-extra` carries pdflscape; `fonts-dejavu` carries the font chosen for its
-        # coverage of the logical connectives and accented letters the body needs.
+        # `fonts-dejavu` carries the font chosen for its coverage of the logical connectives and
+        # accented letters the body needs. `texlive-latex-extra` is kept because the pandoc
+        # template reaches into it for several ordinary packages, but no longer for pdflscape:
+        # the landscape rotation went when the study design table did.
         #
         # `lmodern` is named explicitly because pandoc's default LaTeX template loads it
         # unconditionally -- including under xelatex with a `mainfont` set, where one might assume
@@ -65,7 +102,6 @@ jobs:
           #
           #   lmodern   -- pandoc's default template loads it unconditionally. Its absence is what
           #                failed the first run of this workflow.
-          #   pdflscape -- required by the preamble this repository generates in make_pdf_source.py.
           #   seqsplit  -- likewise; it is what lets a 64-character digest break instead of running
           #                off the page, which is how 17 characters of one went missing.
           #
@@ -75,7 +111,6 @@ jobs:
           # it fails builds that would have worked. What the template actually needs is proven by
           # the build step itself, which names any missing file.
           kpsewhich lmodern.sty
-          kpsewhich pdflscape.sty
           kpsewhich seqsplit.sty
           fc-list | grep -q 'DejaVu Serif'
           fc-list | grep -q 'DejaVu Sans Mono'
@@ -114,20 +149,31 @@ jobs:
             --toc \
             --toc-depth=2 \
             --metadata link-citations=true \
-            --output=build/powered-null-stage1.pdf
-          ls -l build/powered-null-stage1.pdf
+            --output=build/collapsed-decision-space-protocol.pdf
+          ls -l build/collapsed-decision-space-protocol.pdf
 
       - name: Read the PDF back
         run: |
           set -eux
-          pdftotext build/powered-null-stage1.pdf build/extracted.txt
+          pdftotext build/collapsed-decision-space-protocol.pdf build/extracted.txt
           wc -c build/extracted.txt
-          pdfinfo build/powered-null-stage1.pdf | sed -n '1,12p'
+          pdfinfo build/collapsed-decision-space-protocol.pdf | sed -n '1,12p'
 
       - name: Check what the PDF actually contains
-        # Required phrases, every column header of the study design table, the characters at risk of
+        # Required phrases, every column header of the widest table, the characters at risk of
         # silent loss, and the quantities read from the frozen inputs by key.
         run: python3 analysis/scripts/check_pdf_text.py build/extracted.txt
+
+      - name: Check that nothing in the anonymous PDF identifies the author
+        # Reads the information dictionary, any XMP packet, every link annotation and every
+        # inflated stream. The annotations are the point: they hold their target URI as plain
+        # text, and the named build carries nine of them.
+        if: inputs.anonymous
+        run: |
+          set -eux
+          uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py \
+            build/collapsed-decision-space-protocol.pdf \
+            --text build/extracted.txt
 
       - name: Check the PDF against the claim boundary
         # The PDF is published in its own right, so it is a claim surface too. The patterns come
@@ -142,9 +188,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: powered-null-stage1-${{ github.sha }}
+          name: collapsed-decision-space-protocol-${{ inputs.anonymous && 'anonymous' || 'named' }}-${{ github.sha }}
           path: |
-            build/powered-null-stage1.pdf
+            build/collapsed-decision-space-protocol.pdf
             build/extracted.txt
           if-no-files-found: error
           retention-days: 90

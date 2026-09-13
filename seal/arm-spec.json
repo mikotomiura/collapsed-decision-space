@@ -1,0 +1,112 @@
+{
+  "schema": "cds-arm-spec-1",
+  "description": "Everything about the prospective run that was fixed in advance. The six items the protocol names as changes that would not be minor deviations appear here as machine-checkable fields, so that the commitment survives without an institution to enforce it.",
+  "enforcement": {
+    "statement": "If any field below differs from the corresponding field of a run manifest, the seal is broken for that run. The run is then reported as a deviation and is not presented as pre-registered.",
+    "note": "Under in-principle acceptance this was 'we will consult the recommender'. That sentence has no force outside the venue that supplied the recommender, so it is replaced by a condition a script can evaluate.",
+    "scope_note": "An independent review found that this file declared six categories of not-minor deviation while the checker compared only four of them: a run manifest naming a different model, a different model digest and delta_tv_min = 999 was reported as matching this spec. The field map above and analysis/scripts/verify_seal.py now cover all six, and the mutation suite in analysis/scripts/check_seal_scope.py carries a rejection case for each."
+  },
+  "thresholds": {
+    "note": "The eleven constants recorded in the completed run's verdict.json. None is changed for the prospective run and none is added to.",
+    "alpha": 0.05,
+    "delta_tv_min": 0.1,
+    "h_min_bits": 0.5,
+    "k_contexts": 8.0,
+    "k_min": 8.0,
+    "m_draws": 300.0,
+    "m_min": 300.0,
+    "none_rate_max": 0.5,
+    "power_min": 0.8,
+    "rho_min": 0.5,
+    "seed": 20260708.0
+  },
+  "sampling": {
+    "m_draws": 300,
+    "k_contexts": 8,
+    "seed": 20260708,
+    "draws_per_arm": 4800,
+    "draws_total": 9600,
+    "readout": "pre_bias_destination_zone",
+    "zones": [
+      "agora",
+      "chashitsu",
+      "garden",
+      "peripatos",
+      "study"
+    ]
+  },
+  "context_bank": {
+    "bank_schema_version": "ecl-bank-1",
+    "bank_checksum": "5e991dd6340778196f79c3ba579224e41b55e27647c64ec3694b0648ca6f71fb",
+    "context_ids": [
+      "cproper-ctx-0",
+      "cproper-ctx-1",
+      "cproper-ctx-2",
+      "cproper-ctx-3",
+      "cproper-ctx-4",
+      "cproper-ctx-5",
+      "cproper-ctx-6",
+      "cproper-ctx-7"
+    ]
+  },
+  "arms": {
+    "control": {
+      "model": "qwen3:8b",
+      "model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+      "think": false,
+      "role": "Re-run of the reference model, so that the backend version change is not read as a family effect. Evaluated first; gates the primary arm."
+    },
+    "primary": {
+      "model": "llama3.1:8b",
+      "model_digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+      "think": false,
+      "think_note": "The model has no native thinking regime. The pilot established that the harness's disabled-think request is accepted; acceptance is not behavioural inertness, and no claim rests on it.",
+      "role": "Cross-family replication in a natively non-thinking model."
+    }
+  },
+  "environment": {
+    "ollama_version": "0.32.12",
+    "python": "3.11.15",
+    "uv_lock_sha256": "9cc70f9dc5d61f6c74c08dee4dd73815993861022a80781a75ef5d873860c0f7",
+    "ERRE_ZONE_BIAS_P": "0.2",
+    "zone_bias_note": "The environment pins a bias probability, but the read-out is taken before any bias is applied, so the estimand does not depend on it."
+  },
+  "completed_run_reference": {
+    "note": "The completed run is the baseline the control arm is compared against. Its tv_bar fixes the centre of the R5 tolerance band as a pre-declared constant. It is reported, not re-analysed.",
+    "ollama_version": "0.31.1",
+    "tv_bar": 0.038065,
+    "verdict": "NO_CHANNEL_CONFORMANCE"
+  },
+  "not_minor_deviations": [
+    "substituting a different model for either arm",
+    "changing the backend version",
+    "changing any of the eleven threshold values",
+    "changing the seed",
+    "changing M or K",
+    "substituting the frozen context bank"
+  ],
+  "manifest_field_map": {
+    "note": "How each not-minor-deviation item is located, so the comparison is mechanical rather than a matter of reading. Split into three groups because they live in three places: fields that are the same for both arms, fields that differ per arm, and the eleven thresholds, which a run manifest does not carry at all -- they are recorded in the run's verdict.json and are compared from there.",
+    "shared": {
+      "ollama_version": "env_pins.ollama_version",
+      "uv_lock_sha256": "env_pins.uv_lock_sha256",
+      "python": "env_pins.python",
+      "seed": "run.seed",
+      "m_draws": "run.m_draws",
+      "k_contexts": "run.k_contexts",
+      "context_ids": "run.context_ids",
+      "bank_checksum": "bank_checksum"
+    },
+    "per_arm": {
+      "model": "env_pins.model",
+      "model_digest": "env_pins.model_digest",
+      "think": "env_pins.think"
+    },
+    "thresholds_source": {
+      "file": "the run's verdict.json",
+      "path": "thresholds",
+      "note": "All eleven values, compared key by key against the thresholds block of this file. A threshold present in one and absent from the other is a failure, so a threshold cannot be added or dropped silently."
+    },
+    "legacy_note": "The completed run's manifest records the model digest under the model-specific key env_pins.qwen3_model_digest. That key cannot serve two model families, so the prospective driver is required to emit env_pins.model_digest instead. Declaring the field name here, before the driver exists, is part of what is being pre-registered: a run whose manifest does not carry it fails the check rather than skipping it."
+  }
+}

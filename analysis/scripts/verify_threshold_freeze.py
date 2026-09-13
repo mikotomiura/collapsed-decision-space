@@ -14,7 +14,7 @@ answer is split into two parts, and their scopes are deliberately not blended.
    neither network access nor git.
 
 **What the two do not establish**: the commit *dates*. Those are a property of the public upstream
-repository, confirmed by following the URLs in ``freeze-provenance.json``. "The thresholds were
+repository, confirmed by following the URLs in ``analysis/upstream-links.json``. "The thresholds were
 frozen before the run" is the conjunction of the values, the bytes and the dates; no one of them
 carries it alone. Passing ``--upstream-repo <path>`` turns the third into a machine check against a
 clone, and the default path stays offline.
@@ -40,7 +40,7 @@ from _provenance import (  # noqa: E402
     check_upstream_commit_time,
     git,
     git_blob_sha1,
-    load_json,
+    load_json,    upstream_repository_url,
 )
 
 #: Tolerance for float comparison; verdict.json holds values quantised to six decimals.
@@ -352,7 +352,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(
             "[freeze] note: offline checks only. Commit dates are confirmed by following "
-            f"{provenance['upstream']['repository']} "
+            f"{upstream_repository_url(repo_root)} "
             "(--upstream-repo turns that into a machine check)"
         )
 

@@ -1,0 +1,8 @@
+{
+  "schema_version": "cds-upstream-links-1",
+  "purpose": "Where to look up, by hand, the upstream commits recorded in analysis/freeze-provenance.json. Split out of that file because it is sealed and these URLs name their owner; see upstream.links_note there.",
+  "scope_note": "Nothing in this repository reads these templates mechanically. They establish nothing on their own: what the offline checks establish is that the shipped bytes are the blobs at the commits named in freeze-provenance.json. Following a link confirms the commit TIME, which is the other half of the ordering claim.",
+  "repository": "https://github.com/mikotomiura/ERRE-Sandbox",
+  "commit_url_template": "https://github.com/mikotomiura/ERRE-Sandbox/commit/{commit}",
+  "blob_url_template": "https://github.com/mikotomiura/ERRE-Sandbox/blob/{commit}/{upstream_path}"
+}

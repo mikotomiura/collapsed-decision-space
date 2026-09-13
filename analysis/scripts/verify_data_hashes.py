@@ -49,7 +49,7 @@ from _provenance import (  # noqa: E402
     check_upstream_commit_time,
     git_blob_sha1,
     load_json,
-    sha256_of,
+    sha256_of,    upstream_repository_url,
 )
 
 #: Start of the `## raw/` section, and the next `## ` heading.
@@ -277,7 +277,7 @@ def check_frozen_input_provenance(
     if upstream is None:
         print(
             "[data-hash] note: the blob comparison runs offline, but commit dates are "
-            f"confirmed by following {provenance['upstream']['repository']} "
+            f"confirmed by following {upstream_repository_url(repo_root)} "
             "(--upstream-repo turns that into a machine check)"
         )
     return problems

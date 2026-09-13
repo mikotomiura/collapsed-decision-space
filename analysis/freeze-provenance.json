@@ -1,13 +1,12 @@
 {
-  "schema_version": "powered-null-freeze-provenance-1",
+  "schema_version": "cds-freeze-provenance-1",
   "recorded_at_utc": "2026-09-12T00:00:00Z",
   "purpose": "Evidence that the decision thresholds were fixed before the completed run, in a form a reader can check. See manuscript/main.md section 10.2 for the scope of what each half establishes.",
-  "scope_note": "The offline check (verify_threshold_freeze.py, no network and no git required) establishes that the apparatus files shipped in this repository are byte-identical to the blobs at the upstream commits named below. The commit TIMES are a property of the public upstream repository and are confirmed by following upstream.commit_url_template. The ordering claim is the conjunction of the two halves; neither half carries it alone.",
+  "scope_note": "The offline check (verify_threshold_freeze.py, no network and no git required) establishes that the apparatus files shipped in this repository are byte-identical to the blobs at the upstream commits named below. The commit TIMES are a property of the public upstream repository and are confirmed by following the URL templates in analysis/upstream-links.json. The ordering claim is the conjunction of the two halves; neither half carries it alone.",
   "upstream": {
     "name": "ERRE-Sandbox",
-    "repository": "https://github.com/mikotomiura/ERRE-Sandbox",
-    "commit_url_template": "https://github.com/mikotomiura/ERRE-Sandbox/commit/{commit}",
-    "blob_url_template": "https://github.com/mikotomiura/ERRE-Sandbox/blob/{commit}/{upstream_path}"
+    "links": "analysis/upstream-links.json",
+    "links_note": "The repository URL and the commit and blob URL templates live in that separate file, which is NOT sealed. A public repository URL names its owner, and this file is sealed: keeping the URLs here would mean the sealed bytes could not be shipped to an anonymous review unchanged, and the whole value of a content-addressed seal is that the reviewer's copy and the deposited copy are the same bytes. Nothing reads the URLs mechanically; they are for a human following the record."
   },
   "frozen_files": [
     {

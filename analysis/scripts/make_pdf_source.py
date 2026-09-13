@@ -13,11 +13,16 @@ What it changes, and why each change is necessary:
 1. **The level-one heading becomes document metadata.** pandoc renders front-matter ``title`` as a
    title block; left in the body it would be an ordinary heading and the PDF would have no title.
 
-2. **The study design table is wrapped in a landscape environment at a smaller size.** That table is
-   six columns and its longest source row is over 1,400 characters -- about four times the next
-   widest table in the manuscript. In portrait at body size its columns are too narrow to set, and
-   a ``longtable`` row cannot be broken across a page, so the row would overflow rather than reflow.
-   Rotating the page is the standard remedy and is applied to that one table only.
+2. **Over-long typewriter tokens are given permission to break.** TeX sets a token that offers no
+   breakpoint past the column edge rather than wrapping it, and the overflow is not on the page at
+   all.
+
+A third transformation used to live here: the six-column study design table was rotated onto a
+landscape page, because a ``longtable`` row cannot break across a page and that row was over 1,400
+characters. That table belonged to the registered-report submission template and has been removed
+from the manuscript, so the rotation went with it. The widest remaining table is three columns and
+sets in portrait. Nothing asserts that here -- ``check_pdf_text.py`` reads the finished page back
+and fails if a required heading or quantity is missing from it.
 
 Everything else is passed through byte for byte. The transformation is checked: the script fails
 rather than emitting a source it could not transform as intended.
@@ -32,29 +37,17 @@ import re
 import sys
 from pathlib import Path
 
-#: The first cell of the study design table's header row. Used to locate the table.
-DESIGN_TABLE_HEADER = "| Question | Sampling plan |"
-
 #: Author line for the title block. The ORCID is the one pinned in ``CITATION.cff``; a test in the
 #: repository is not what keeps these in step -- ``check_claim_boundary.py`` compares the abstract,
 #: and the submission checklist compares the ORCID. Changing it here alone is a mistake.
 AUTHOR = "Mikoto Miura, Independent Researcher (ORCID 0009-0000-4196-0508)"
 
-#: Preamble. ``pdflscape`` supplies the landscape environment; ``emergencystretch`` lets TeX
-#: relieve overfull lines inside narrow table columns rather than letting them run into the margin.
-#:
-#: ``\blandscape`` and ``\elandscape`` exist because pandoc must not be given a complete LaTeX
-#: environment to look at. Writing ``\begin{landscape}`` directly in the body makes pandoc treat
-#: everything up to ``\end{landscape}`` as one raw block and pass it through untouched -- the
-#: markdown table inside is then never parsed, and its underscores reach LaTeX bare, which fails
-#: with ``Missing $ inserted``. Wrapping the environment in two macros gives pandoc two ordinary
-#: raw commands instead, and the markdown between them is parsed normally. This is the documented
-#: idiom for rotating a pandoc-generated table.
+#: Preamble. ``seqsplit`` supplies the breakable digest; ``emergencystretch`` lets TeX
+#: relieve overfull lines inside narrow table columns rather than letting them run into the
+#: margin. Any LaTeX environment added here must be reached through a macro rather than
+#: written into the body -- ``check_no_raw_environment`` says what happens otherwise.
 HEADER_INCLUDES = (
-    r"\usepackage{pdflscape}",
     r"\usepackage{seqsplit}",
-    r"\newcommand{\blandscape}{\begin{landscape}}",
-    r"\newcommand{\elandscape}{\end{landscape}}",
     r"\setlength{\emergencystretch}{3em}",
 )
 
@@ -109,35 +102,6 @@ def split_title(text: str) -> tuple[str, str]:
     raise AssertionError("unreachable")
 
 
-def wrap_design_table(body: str) -> str:
-    """Put the study design table on a rotated page at a smaller size.
-
-    The table runs from its header row to the first line that is not part of the table. Fails if
-    the header cannot be found, so a rename upstream cannot silently produce a PDF whose widest
-    table is unreadable.
-    """
-    lines = body.splitlines()
-    starts = [i for i, line in enumerate(lines) if line.startswith(DESIGN_TABLE_HEADER)]
-    if len(starts) != 1:
-        _die(
-            f"expected exactly one study design table header starting {DESIGN_TABLE_HEADER!r}, "
-            f"found {len(starts)}"
-        )
-    start = starts[0]
-
-    end = start
-    while end < len(lines) and lines[end].startswith("|"):
-        end += 1
-    if end - start < 3:
-        _die(f"the study design table has only {end - start} lines; it should have at least 3")
-
-    # `\blandscape` / `\elandscape` rather than the environment itself -- see HEADER_INCLUDES for
-    # why giving pandoc a complete environment silently disables markdown parsing inside it.
-    opening = ["", r"\blandscape", r"\footnotesize", r"\setlength{\tabcolsep}{3pt}", ""]
-    closing = ["", r"\normalsize", r"\elandscape", ""]
-    return "\n".join(lines[:start] + opening + lines[start:end] + closing + lines[end:])
-
-
 def split_long_tokens(body: str) -> tuple[str, int]:
     """Let over-long typewriter tokens break, so they cannot run off the page.
 
@@ -166,8 +130,10 @@ def check_no_raw_environment(body: str) -> None:
     between them through without parsing it. A markdown table caught inside one is therefore never
     converted, and its underscores arrive at LaTeX bare -- the build fails with ``Missing $
     inserted`` pointing at a line of the manuscript, which reads like a problem with the prose
-    rather than with this script. That already happened once. Environments must be reached through
-    a macro instead, as ``HEADER_INCLUDES`` does for ``landscape``.
+    rather than with this script. That already happened once, when a landscape environment was
+    written into the body directly. Any environment must be reached through a macro declared in
+    ``HEADER_INCLUDES`` instead. The check is kept even though the manuscript currently needs no
+    environment at all, because the failure it prevents is silent in the build log.
     """
     offenders = [
         line for line in body.splitlines() if line.lstrip().startswith((r"\begin{", r"\end{"))
@@ -182,7 +148,6 @@ def check_no_raw_environment(body: str) -> None:
 def build(manuscript: Path, date: str) -> str:
     text = manuscript.read_text(encoding="utf-8")
     title, body = split_title(text)
-    body = wrap_design_table(body)
     body, split_count = split_long_tokens(body)
     check_no_raw_environment(body)
     print(f"[pdf-source] {split_count} over-long token(s) made breakable")
@@ -228,7 +193,7 @@ def main(argv: list[str] | None = None) -> int:
     args.out.write_text(source, encoding="utf-8")
 
     print(f"[pdf-source] wrote {args.out} ({len(source.splitlines())} lines)")
-    print("[pdf-source] title block added; study design table set landscape at footnotesize")
+    print("[pdf-source] title block added")
     return 0
 
 

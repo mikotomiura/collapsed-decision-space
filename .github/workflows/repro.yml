@@ -8,7 +8,12 @@ name: repro
 #   - 凍結入力が data/data.md の記録と byte 一致していること
 #   - 閾値が凍結 commit の bytes と一致していること
 #   - 本文の数値が凍結入力から機械抽出できること
-#   - claim 境界の禁止句が本文・README・CITATION.cff に無く、陽性対照が 13/13 発火すること
+#   - claim 境界の禁止句が本文・README・CITATION.cff に無く、陽性対照で 13 guard の
+#     全 25 pattern が発火すること
+#   - 封印済み bytes が SEAL-MANIFEST.json と一致し、本文と protocol の決定規則テキストが
+#     封印ファイルから**生成された**ものであること
+#   - 変異スイートが決定規則と封印の射程を実測すること (否定ケースは「何を見て落ちたか」まで
+#     照合し、対照は落ちてはならない)
 
 on:
   push:

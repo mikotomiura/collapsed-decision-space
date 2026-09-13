@@ -1,17 +1,23 @@
-# 検出力を確保した null — 配線が確認済みのチャネルについて
+# 検出力ゲートが落ちようのないとき
 
-*Separating effect-absent from low power in embodied LLM agents*
+*Collapsed decision spaces defeat margin-and-power null reporting in LLM agents*
 
 > **これは [`README.md`](README.md) の日本語版です。正典は英語版であり、食い違いがあれば
 > 英語版が正しい**（本文・投稿・査読がすべて英語のため）。
 
-本リポジトリは、[PCI Registered Reports](https://rr.peercommunityin.org/) へ提出する
-**Stage 1 Registered Report** の研究コンペンディウムです。protocol 本文
-(`manuscript/main.md`)、その土台となる凍結済みの証拠、測定 apparatus、そして protocol が引く
-数値をすべて導出し直す 1 コマンドが入っています。
+本リポジトリは、**完了済みの予備測定を全面的に報告する事前登録 protocol**
+(`manuscript/main.md`) の研究コンペンディウムです。protocol 本文、その土台となる凍結済みの
+証拠、測定 apparatus、そして protocol が引く数値をすべて導出し直す 1 コマンドが入っています。
 
-**前向きのデータはまだ 1 つも取得していません。** データ収集は in-principle acceptance の
-後にのみ始まります。
+**封印の時点で、前向きのデータは 1 つも取得されていませんでした。** 前向きアームを読む
+決定規則は、アームを走らせる前に封印されます。`seal/` が機械可読な形でそれを保持し、`seal/SEAL-MANIFEST.json` が
+その bytes を固定するので、実走後に報告される分岐は、実走前に立っていた規則から再導出できます。
+それを検査するのが `repro.sh` の 12・13 ステップ目で、ネットワークもアカウントも
+著者への信頼も要りません。
+
+**検査できないのは「封印が古いこと」です。** 著者は封印ファイルと manifest を同じ commit で
+作り直せますし、このリポジトリの内側に住む検査でそれを見ることはできません。その半分には
+控えを持つ第三者が要り、まだ存在しません。`seal/protocol.md` §7 にそう書いてあります。
 
 ---
 
@@ -24,10 +30,13 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 示しています。
 
 開いている問いは、そのチャネルが**伝播するか**です。1 モデルでの完了済み測定は、事前に
-宣言した materiality margin を超える偏りを 5 値のゾーン選択に見出さず、しかも公称検出力を
-保っていました。本 protocol は同じ量を **2 つ目のモデル族**で推定します。control アームが
-元のモデルを再走させるので、モデル族の変化とバックエンド版の変化が一緒に読まれることは
-ありません。
+宣言した materiality margin を超える偏りを 5 値のゾーン選択に見出さず、検出力ゲートは公称
+検出力を報告していました — そして後からその読み出しの台を見たところ、どちらの数値も情報を
+運んでいなかった理由が分かりました。5 ゾーンのうち 2 つは一度も産出されず、空セルが
+chi-square の検出力ゲートを膨らませ、距離統計量の帰無床が宣言 margin の大半を食っています。
+**この二重の破綻が本稿の主題です。** その上で protocol は同じ量を **2 つ目のモデル族**で
+推定し、この破綻がモデルに属するのか apparatus に属するのかを見ます。control アームが元の
+モデルを再走させるので、モデル族の変化とバックエンド版の変化が一緒に読まれることはありません。
 
 **本稿のあらゆる主張の主語はチャネルです。** 歩行ではなく、創造性でもありません。
 
@@ -40,7 +49,9 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 
 - チャネルが非退化に配線されていること（positive control が 0 を返せることを含む）
 - そのチャネルの下流効果が、データが存在する前に固定した margin の下で検出されなかったこと
-- near-uniform なカテゴリ基質が低検出力を意味しないこと
+- 決定空間が崩落すると margin と power の対が同時に、同じ向きに壊れること。
+  本 apparatus 上での実証であり毎回再計算されるが、**どれだけ広く起きるかは調べていない**
+- 基底分布の集中それ自体は検出力を下げないこと
 - effect-absent / low-power / apparatus-invalid を**三者別々**に保つこと
 - envelope が限定されていること（単一 apparatus・単一サンプリング regime・凍結 8 context）
 
@@ -57,13 +68,15 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 
 | パス | 内容 |
 |---|---|
-| `manuscript/main.md` | Stage 1 protocol 本文 |
+| `manuscript/main.md` | protocol 本文 |
 | `manuscript/CLAIM-BOUNDARY.md` | claim ガードと検索パターン |
+| `seal/` | 封印済みの決定規則・アーム仕様・protocol 本文と、その manifest |
 | `data/raw/` | 完了済み研究の凍結証拠（各ファイルを SHA-256 とサイズで pin） |
 | `data/data.md` | 凍結入力すべての由来と、その検証方法 |
 | `analysis/apparatus/` | 測定 apparatus 69 モジュール（上流と byte 一致） |
 | `analysis/scripts/` | 検証・抽出スクリプト |
 | `analysis/freeze-provenance.json` | 証拠を担う同梱ファイルの上流 commit と blob 識別子 |
+| `analysis/upstream-links.json` | その commit を手で辿るための URL。封印ファイルの外に置く |
 | `env/` | 完了済み実走が使った lockfile |
 | `repro.sh` | 上記すべてを走らせる 1 コマンド |
 
@@ -74,7 +87,7 @@ bash repro.sh
 ```
 
 [uv](https://docs.astral.sh/uv/) と、初回の依存取得のためのネットワークが要ります。
-9 ステップを走らせ、1 つでも落ちれば非ゼロで終わります。
+13 ステップを走らせ、1 つでも落ちれば非ゼロで終わります。
 
 1. lockfile から環境を固定
 2. lint
@@ -83,8 +96,20 @@ bash repro.sh
 5. **完了済み実走の verdict を、同梱の per-draw annotation から再計算**
 6. protocol が引く量を抽出
 7. power 表を再生成
-8. protocol の数値と凍結入力を**文字単位**で比較
-9. claim 境界の検査を陽性対照つきで実行
+8. 決定空間の台と、推定対象の帰無床を導出
+9. protocol と本 README の数値を、凍結入力と**文字単位**で比較
+10. claim 境界の検査を陽性対照つきで実行
+11. **封印と決定規則が実際に何を捕まえるかを、守るべき対象を変異させて実測**。
+    規則には合成のアーム記録を、封印検査器には封印ツリーの複製を当てる。落ちる側は
+    「何を変えたか」を名指しする診断で落ちることまで要求し、落ちてはならない
+    対照を 3 件置く
+12. **封印を検証**。封印済みファイルが manifest の記録どおりに hash し、manifest 自身の
+    self-hash が正しく、封印済み script が封印外の local module を import しておらず、
+    protocol と本文の規則テキストが封印規則から**生成された**ものである
+    （横に書き写したものでない）ことを要求する
+13. **報告する分岐を再導出**。封印規則を前向き verdict に適用する。まだファイルが無い間は
+    理由を明示して skip する。今のうちに配線してあるのは `repro.sh` 自身が封印対象だから：
+    実走後に足すと封印が変わり、「結果を手にしてから封印を作り直した」記録が残る
 
 公開 CI は Ubuntu と Windows の両方でまったく同じものを走らせ、さらに 3 つ目のジョブが
 生成物の両 OS での byte 一致を要求します。
@@ -107,6 +132,8 @@ ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 - 完了済み実走の verdict が、同梱 annotation と同梱 apparatus から**再導出できる**こと
   （verdict 文字列・9 つの gate 読み出し・4 つの per-context マップをすべて突合）
 - protocol が凍結入力から引く量が、1 文字たがわず一致すること
+- 封印済みファイルが内部整合であること。そして protocol の決定規則が封印ファイルの持つ規則
+  そのものであること（規則テキストは二度書かれず、封印ファイルから生成されるため）
 
 **示さないこと**
 
@@ -118,11 +145,18 @@ ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 - ある 1 件の記録の**年代**。チャネル研究の forensic 記録はバージョン管理へ「移設」commit で
   入ったため、履歴はその内容を証言しますが、いつ産出されたかは証言しません。
   `analysis/freeze-provenance.json` に記録し、protocol でも開示しています
+- **封印が古いこと。** 12 ステップ目が示すのは、封印済みファイルが manifest の記録する bytes
+  だということだけです。封印ファイルと manifest が一緒に書き換えられていないことは示せず、
+  このリポジトリの内側に住む検査でそれを示せるものはありません。その半分には控えを持つ
+  第三者が要り、protocol は緑のバッジにそれを匂わせるのでなく、そう書いています
 
 ## 主要な数値
 
 以下はすべて `analysis/scripts/extract_verdict_table.py` が生成したものです。手写しは
-しておらず、`repro.sh` の 8 ステップ目がそれを強制します。数値そのものは英語版と同一なので、
+しておらず、`repro.sh` の 9 ステップ目が protocol と README の両方で凍結入力と照合します。
+2026-09-13 までこのステップは protocol しか読んでおらず、この文は検査が持っていない射程を
+主張していました。照合対象は `check_manuscript_numbers.py` の `README_QUANTITIES` です。
+なお照合は「出現するか」であって「一意か」ではありません。数値そのものは英語版と同一なので、
 表は [`README.md`](README.md#key-quantities) を参照してください。要点だけ再掲します。
 
 - チャネル研究: 点推定 `d_loco` は事前登録 floor の 2.3 倍、ablation は bit-equal、
@@ -136,9 +170,9 @@ ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 
 ## 現在の状態
 
-Stage 1 protocol は書き上がり、その土台となる証拠は凍結され検証可能です。投稿前に残って
-いるのは投稿手続きの文面そのものです。前向き実走（2 アーム・9,600 draws・約 5 時間）は
-in-principle acceptance の後に、1 回だけ、チューニングなしで行います。
+protocol は書き上がり、その土台となる証拠は凍結され検証可能で、決定規則は封印されています。
+前向き実走（2 アーム・9,600 draws・約 5 時間）は、封印の後に 1 回だけ、チューニングなしで
+行います。
 
 予備研究のうち 1 件は protocol で報告していますが、機械可読な記録が残っていないため、
 そこからの数値はどこにも引いていません。この欠落は回避せず開示しています。

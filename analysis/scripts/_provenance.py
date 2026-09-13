@@ -87,3 +87,18 @@ def check_upstream_commit_time(
             f"(recorded={expected_utc} upstream={to_utc(committed_at)})"
         ]
     return []
+
+
+def upstream_repository_url(repo_root: Path) -> str:
+    """Return the upstream repository URL, for a diagnostic line rather than for a check.
+
+    The URL used to live in ``analysis/freeze-provenance.json``. It moved out when that file was
+    sealed: a repository URL names its owner, and a sealed file has to be shippable to an anonymous
+    review unchanged, so that the reviewer's copy and the deposited copy are the same bytes.
+    Nothing about the freeze depends on this string, so a missing file yields a description rather
+    than an error.
+    """
+    links = repo_root / "analysis" / "upstream-links.json"
+    if not links.is_file():
+        return "the upstream repository"
+    return str(load_json(links).get("repository", "the upstream repository"))

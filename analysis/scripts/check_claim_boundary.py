@@ -59,8 +59,11 @@ BACKTICKED_RE = re.compile(r"`([^`]+)`")
 EXPECTED_GUARD_IDS: tuple[str, ...] = tuple(f"G{i}" for i in range(1, 14))
 
 #: Preconditions for the manuscript being non-vacuous. Failing these means it is unfinished.
+#: ``Level 6`` used to head this list and is deliberately gone. The level declaration belonged to
+#: the registered-report route the manuscript no longer takes, and a required-anchor list that
+#: demanded a phrase the manuscript should not carry would have become a reason to keep dead venue
+#: prose alive. Guard G9, which forbids overclaiming that level, is kept -- see CLAIM-BOUNDARY.md.
 MAIN_REQUIRED_ANCHORS: tuple[str, ...] = (
-    "Level 6",
     "R1",
     "R2",
     "R3",

@@ -1,0 +1,49 @@
+{
+  "files": {
+    "analysis/freeze-provenance.json": {
+      "sha256": "3ea660bfc19f6fd134a1cc721ce782ec4db8d1002e0d088c69ec7024e55779d3",
+      "size": 16592
+    },
+    "analysis/scripts/_provenance.py": {
+      "sha256": "14d5b75feef86f5b0510a94a670637343d665eebe0ceae2b49c7909869d17ebb",
+      "size": 3780
+    },
+    "analysis/scripts/apply_decision_rules.py": {
+      "sha256": "b2e61b5f31f394643be0f11a14ce283ef03c58812862ec1f13eaed405025bf27",
+      "size": 11668
+    },
+    "analysis/scripts/check_seal_scope.py": {
+      "sha256": "40224b54a5a027c5e7a7d8d1893eaa10bd8efb0cf311d471cfeeaa78dd973718",
+      "size": 39989
+    },
+    "analysis/scripts/render_decision_rules.py": {
+      "sha256": "da9d19c0c832af6c0d3fd916f31486e3240a44f6ed3d858db26c6308f35676d5",
+      "size": 9202
+    },
+    "analysis/scripts/verify_seal.py": {
+      "sha256": "90e57b3bb0a890255a344746bc8afd423ddef3065734f8d09154c4df6eb55847",
+      "size": 20923
+    },
+    "repro.sh": {
+      "sha256": "ae486b9f22f2a8a7e4131ea39af37d7fe3cdb0931dbbfc5a261b2ba10f492e5b",
+      "size": 8530
+    },
+    "seal/arm-spec.json": {
+      "sha256": "3840db48acf3c3295a141c3e5b038e8566f91931a841ee78d0270896dcbce9d5",
+      "size": 5660
+    },
+    "seal/decision-rules.json": {
+      "sha256": "22ba8b7b4d5903b745f1bab67e27d0bb2a0411a227c6557115a987a8035cffbc",
+      "size": 7625
+    },
+    "seal/protocol.md": {
+      "sha256": "f1f7aaf9e7ea1445128195c4da641b87d1f852afa89daabdb7d8c7aa9261497b",
+      "size": 15610
+    }
+  },
+  "purpose": "Fixes the bytes of the decision rules, the arm specification, the protocol, and the code that applies them, so that the branch reported after the run can be re-derived from the rules as they stood before it.",
+  "schema": "cds-seal-manifest-1",
+  "scope_note": "This document establishes internal consistency only. It cannot show that the files are old, nor that a sealed file and this manifest were not edited together. The external half is the deposit, which publishes a per-file checksum that anyone can read without an account.",
+  "self_hash_canonicalisation": "sha256 of json.dumps(manifest_without_self_sha256, sort_keys=True, indent=2, ensure_ascii=False) + \"\\n\", encoded as UTF-8",
+  "self_sha256": "355e645b302df996e8195378eeba9209e9ca4683f7ab160660989b4562118f0b"
+}

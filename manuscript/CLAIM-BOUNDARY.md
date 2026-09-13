@@ -18,8 +18,15 @@
 - The channel is wired non-degenerately (from the channel study and the determinism study),
   **including that the positive control is able to return zero**.
 - The channel's downstream effect was not detected under a materiality margin declared in advance.
-- A near-uniform categorical substrate does not imply low detection power — which runs against a
-  common intuition.
+- **Concentration of the base distribution is not itself what reduces detection power** — what
+  reduces it is a small attainable shift. This runs against a common intuition. Stated this way
+  because the worksheet's own near-uniform row reaches `power = 0.1842` at `delta_tv = 0.01`, so
+  "a near-uniform substrate does not imply low power", which earlier drafts wrote here, is
+  contradicted by the table it was meant to summarise.
+- **The margin-and-power pairing fails in both directions at once when the decision space
+  collapses**: the chi-square power gate is inflated by empty cells, and the null floor of the
+  total-variation estimand consumes much of the declared margin. Demonstrated on this apparatus and
+  recomputed on every run; **not** surveyed for how often it occurs elsewhere.
 - Effect-absent, low-power and apparatus-invalid are kept apart as **three distinct outcomes**.
 - The envelope is bounded and stated: one apparatus, one sampling regime, one model in the
   completed measurement.
@@ -42,7 +49,7 @@ relaxed.**
 | G6 | The control arm was a bitwise comparison | The control compares **statistics inside a declared band**. Bitwise agreement is a property of replaying recorded output, not of regenerating it | `byte-(identical\|exact)[a-z ]*control`, `control[a-z ]*byte-(identical\|exact)` |
 | G7 | A collapsed distribution reduces detection power | **The measurement says otherwise**: a degenerate base with a collapse-scale shift still reaches `power = 0.9533`. What reduces power is a **small attainable `delta_tv`**, not concentration | `collapsed? (base )?distribution[a-z ]*(low\|reduced\|kills?) power`, `degenerate[a-z ]*(low\|reduced) power` |
 | G8 | The completed run's result is a prediction for the second model | Would make a realised outcome of a planned analysis known in advance; the completed run is not the focus of the planned analyses | `we (expect\|predict\|anticipate)[a-z ]*llama`, `llama[a-z0-9.: ]*will (also )?(show\|reproduce\|replicate)` |
-| G9 | Level 6 is guaranteed | A **defensible reading** of two clauses read together, not a guarantee stated by the venue | `level 6 is (guaranteed\|assured\|preserved)`, `guarantees? level 6` |
+| G9 | Level 6 is guaranteed | **Retained after the level declaration was removed.** The manuscript no longer declares a level, so this guard now has nothing to fire on there; it is kept because the level scheme belongs to a venue the submission plan keeps as a fallback, and because a level declaration is a defensible reading of two clauses read together rather than a guarantee stated by anyone. A guard that is inert costs a line; a guard removed and needed again costs the claim | `level 6 is (guaranteed\|assured\|preserved)`, `guarantees? level 6` |
 | G10 | The point estimate is `7.40e-17` | **A field mix-up.** `7.401486830834377e-17` belongs to `zone_function_d_loco`, the zone-function positive control. The point estimate is `d_loco = 0.04682681825722385`. **The lookbehind carries the distinction**: `zone_function_d_loco = 7.401486830834377e-17` is *true* and must remain sayable, so the guard must not fire on an identifier that merely ends in `d_loco` | `(?<![a-z_])D_loco *= *7\.4`, `(?<![a-z_])D_loco[^\n]{0,40}e-17` |
 | G11 | A control-arm pass proves that no version drift occurred | A pass states only that the quantities fall **inside the declared band** | `(proves?\|demonstrates?\|establishes?)[a-z ]*no (version )?drift`, `rules? out[a-z ]*version drift` |
 | G12 | Speculation about the primary arm after a control-arm failure | Defeats the purpose of a stopping rule | `(had\|if)[a-z ]*r5[a-z ]*(failed\|fails)[^.]*primary[^.]*would` |
@@ -81,9 +88,14 @@ failure.
 
 ## 4. Conventions for sourcing
 
-- Numbers in the manuscript come from `analysis/scripts/extract_verdict_table.py`. They are not
-  transcribed by hand, and `analysis/scripts/check_manuscript_numbers.py` compares them against the
-  frozen inputs character for character.
+- Numbers the manuscript draws from the frozen inputs, and from the derived artefacts regenerated
+  on every run, are checked by `analysis/scripts/check_manuscript_numbers.py` against those sources.
+  Two limits on that, both of which earlier drafts of this file omitted. **The check tests
+  occurrence, not uniqueness**: a value appearing in several places is not protected against one of
+  them being altered. And **its scope is the listed quantities only** — in particular the pilot
+  figures in §5.3 (timings, digests, peak memory, the projected run length) exist in no frozen input
+  and are covered by nothing. They are transcribed by hand, and saying otherwise here would be the
+  same error this file exists to prevent.
 - Sources cited in published files must be reachable by a reader of this repository. Working
   directories that are not shipped here are not citable sources.
 - When `power ≈ 0.18` is quoted, the base distribution and the `delta_tv` it belongs to are quoted
