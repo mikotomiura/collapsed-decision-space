@@ -15,10 +15,16 @@ construction and so measures nothing.
 **Family 2 -- the seal itself.** A copy of the sealed tree is made in a temporary directory, one
 thing in it is changed, and ``verify_seal.py`` is run against that copy. The interesting cases are
 not the obvious ones. Editing a sealed file fails on its hash, which is unsurprising; what has to
-be shown is that there is **no consistent edit** -- that moving a threshold in the manuscript alone
-fails the generated-text check, that moving it in the sealed rules alone fails the hash, and that
-altering a hash recorded in the manifest fails whether or not the manifest's self-hash is
-recomputed to match.
+be shown is that **no single-place edit is consistent** -- that moving a threshold in the
+manuscript alone fails the generated-text check, that moving it in the sealed rules alone fails the
+hash, and that altering a hash recorded in the manifest fails whether or not the manifest's
+self-hash is recomputed to match.
+
+The scope of that phrase is worth pinning down, because it is easy to read as more. Regenerating
+the rules, the renderer, this file and the manifest **together** passes every case below, and is
+supposed to: it is what preparing a seal looks like. Nothing here distinguishes that from the same
+act performed after the results are known. Only a copy held by someone else can, and
+``seal/protocol.md`` section 7 records that no such copy exists yet.
 
 Both families carry **no-op controls** that must *not* fail, so that a checker which simply reports
 failure on everything cannot pass this script. This is not a formality: a green result here means
@@ -34,6 +40,7 @@ Usage:  python analysis/scripts/check_seal_scope.py
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -285,21 +292,42 @@ def _run(tmp: Path, control: dict[str, Any], primary: dict[str, Any] | None) -> 
 # Family 2 -- the seal
 # ================================================================================================ #
 
+#: The sealed set, written out here **independently of the checker**. Importing ``SEALED_PATHS``
+#: is fine for staging files, but it cannot answer "is the sealed set still the intended one":
+#: shrinking that tuple and rebuilding the manifest would make every case below pass again. Two
+#: places have to agree, so shrinking the seal takes two edits and one of them is this list.
+EXPECTED_SEALED_SET: frozenset[str] = frozenset(
+    {
+        "seal/decision-rules.json",
+        "seal/arm-spec.json",
+        "seal/protocol.md",
+        "analysis/scripts/_provenance.py",
+        "analysis/scripts/apply_decision_rules.py",
+        "analysis/scripts/check_seal_scope.py",
+        "analysis/scripts/render_decision_rules.py",
+        "analysis/scripts/verify_seal.py",
+        "analysis/freeze-provenance.json",
+        "repro.sh",
+    }
+)
+
 #: Files the seal checker reads that are not themselves sealed. ``main.md`` is here because the
 #: generated-text check reads it; it is deliberately *not* sealed, since the manuscript grows a
 #: completion report after the run and a seal that forbade that would be a seal nobody could keep.
 UNSEALED_INPUTS: tuple[str, ...] = ("manuscript/main.md",)
 
 #: A run manifest that agrees with ``seal/arm-spec.json`` on every field the spec calls a
-#: not-minor deviation. Written out here as literals rather than read from the arm spec: a fixture
-#: copied from the file it is checking agrees with it whatever either one says. The consequence is
-#: intended -- changing a frozen value in the arm spec breaks this case, which is the correct
-#: outcome for a value that is not supposed to change.
+#: not-minor deviation, for the **primary** arm. Written out here as literals rather than read
+#: from the arm spec: a fixture copied from the file it is checking agrees with it whatever either
+#: one says. The consequence is intended -- changing a frozen value in the arm spec breaks this
+#: case, which is the correct outcome for a value that is not supposed to change.
 CONFORMING_RUN_MANIFEST: dict[str, Any] = {
     "env_pins": {
         "model": "llama3.1:8b",
-        "qwen3_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+        "model_digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+        "think": False,
         "ollama_version": "0.32.12",
+        "python": "3.11.15",
         "uv_lock_sha256": "9cc70f9dc5d61f6c74c08dee4dd73815993861022a80781a75ef5d873860c0f7",
     },
     "run": {
@@ -311,8 +339,27 @@ CONFORMING_RUN_MANIFEST: dict[str, Any] = {
     "bank_checksum": "5e991dd6340778196f79c3ba579224e41b55e27647c64ec3694b0648ca6f71fb",
 }
 
+#: The eleven frozen constants, as the run's verdict.json records them. Independently written for
+#: the same reason as the manifest above.
+CONFORMING_THRESHOLDS: dict[str, Any] = {
+    "alpha": 0.05,
+    "delta_tv_min": 0.1,
+    "h_min_bits": 0.5,
+    "k_contexts": 8.0,
+    "k_min": 8.0,
+    "m_draws": 300.0,
+    "m_min": 300.0,
+    "none_rate_max": 0.5,
+    "power_min": 0.8,
+    "rho_min": 0.5,
+    "seed": 20260708.0,
+}
+
 #: A fragment of the generated rule block, quoted from the rendering rather than from the JSON.
 #: Used to move a threshold in a carrier file without touching the sealed rules.
+BLOCK_BEGIN = "<!-- BEGIN GENERATED FROM seal/decision-rules.json -- DO NOT EDIT BY HAND -->"
+BLOCK_END = "<!-- END GENERATED FROM seal/decision-rules.json -->"
+
 BAND_IN_RENDERED_TEXT = "`rho_hat` ≥ 0.75"
 BAND_MOVED = "`rho_hat` ≥ 0.85"
 
@@ -328,10 +375,19 @@ def _stage(tmp: Path) -> Path:
     return root
 
 
-def _run_seal_checker(root: Path, run_manifest: Path | None = None) -> tuple[int, str]:
+def _run_seal_checker(
+    root: Path,
+    run_manifest: Path | None = None,
+    run_verdict: Path | None = None,
+    witness: Path | None = None,
+) -> tuple[int, str]:
     argv = [sys.executable, str(SEAL_CHECKER), "--repo-root", str(root)]
+    if witness is not None:
+        argv += ["--witness", str(witness)]
     if run_manifest is not None:
-        argv += ["--run-manifest", str(run_manifest)]
+        argv += ["--run-manifest", str(run_manifest), "--arm", "primary"]
+    if run_verdict is not None:
+        argv += ["--run-verdict", str(run_verdict)]
     completed = subprocess.run(argv, capture_output=True, text=True, check=False)
     return completed.returncode, (completed.stdout + completed.stderr)
 
@@ -356,6 +412,27 @@ def _rewrite_manifest(root: Path, mutate: Callable[[dict[str, Any]], None], rese
         encoding="utf-8",
         newline="\n",
     )
+
+
+def _rendered_block(root: Path) -> str:
+    """The block the sealed rules render to, taken from the staged tree's own manuscript."""
+    text = (root / "manuscript" / "main.md").read_text(encoding="utf-8")
+    start = text.index(BLOCK_BEGIN)
+    end = text.index(BLOCK_END) + len(BLOCK_END)
+    return text[start:end]
+
+
+def _drop_a_block_line(root: Path) -> None:
+    """Remove one line from inside the generated block, leaving the markers in place."""
+    path = root / "manuscript" / "main.md"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    first = next(i for i, line in enumerate(lines) if line.startswith(BLOCK_BEGIN))
+    last = next(i for i, line in enumerate(lines) if line.startswith(BLOCK_END))
+    victim = next(
+        i for i in range(first + 1, last) if lines[i].startswith("- **Satisfied when**")
+    )
+    del lines[victim]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
 def _bend_hash(digest: str) -> str:
@@ -466,9 +543,10 @@ SEAL_CASES: tuple[tuple[str, Callable[[Path], None], str | None, str], ...] = (
         )
         and None,
         "seal/protocol.md: sha256",
-        "there is no consistent edit of the carriers alone. The diagnostic named here is the "
-        "hash rather than the drift, because the protocol is sealed and the hash is reached "
-        "first -- the point of the case is that both doors are shut, not which one is nearer",
+        "editing both carriers consistently is still not consistent overall. The diagnostic "
+        "named here is the hash and not the drift, because the protocol is sealed and the hash "
+        "is reached first; this case therefore demonstrates the hash door, and the case above "
+        "demonstrates the drift door. Neither one shows both",
     ),
     (
         "a branch label rewritten in the manuscript",
@@ -483,12 +561,36 @@ SEAL_CASES: tuple[tuple[str, Callable[[Path], None], str | None, str], ...] = (
         lambda root: _rewrite(
             root,
             "manuscript/main.md",
-            "<!-- BEGIN GENERATED FROM seal/decision-rules.json -- DO NOT EDIT BY HAND -->",
+            BLOCK_BEGIN,
             "",
         ),
         "expected exactly one generated block",
         "deleting the block must fail rather than vacuously satisfy a check that only compares "
         "what it happens to find",
+    ),
+    (
+        "the generated block duplicated, the copy altered",
+        lambda root: (root / "manuscript" / "main.md").write_text(
+            (root / "manuscript" / "main.md").read_text(encoding="utf-8")
+            + "\n"
+            + _rendered_block(root).replace(BAND_IN_RENDERED_TEXT, BAND_MOVED)
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        ),
+        "expected exactly one generated block",
+        "appending a second, altered copy leaves the first one intact, so a checker that finds "
+        "the block and compares it would pass. The marker count is what refuses. This branch had "
+        "no case until a review weakened the count test and nothing failed",
+    ),
+    (
+        "a line deleted from inside the generated block",
+        lambda root: _drop_a_block_line(root),
+        "the rule text has drifted",
+        "a deletion inside the block, as opposed to an edit. Any deletion shifts every later "
+        "line, so this is caught by the line-by-line comparison and reports the first shifted "
+        "line -- not by the length comparison, which the first draft of this case expected. That "
+        "branch of _first_difference cannot be reached through the marker extraction at all",
     ),
     (
         "no-op: prose added to the manuscript outside the block",
@@ -504,60 +606,224 @@ SEAL_CASES: tuple[tuple[str, Callable[[Path], None], str | None, str], ...] = (
     ),
 )
 
-#: (name, how to build the run manifest, expected diagnostic, why it matters)
-RUN_MANIFEST_CASES: tuple[
-    tuple[str, Callable[[dict[str, Any], str], None], str | None, str], ...
-] = (
+#: A marker a case can put in the thresholds dict to say "run without --run-verdict at all",
+#: rather than "run with these thresholds". Needed because the branch that refuses to skip the
+#: threshold comparison cannot be reached by supplying any value.
+OMIT_VERDICT_FILE = "__omit_verdict_file__"
+
+def _witness_for(root: Path, **overrides: Any) -> dict[str, Any]:
+    """Build a deposit witness for the staged tree, optionally spoiling one entry."""
+    entries = []
+    for rel in sorted(SEALED_PATHS):
+        digest = hashlib.md5((root / rel).read_bytes()).hexdigest()  # noqa: S324
+        entries.append({"sealed_path": rel, "checksum": f"md5:{digest}"})
+    if "drop" in overrides:
+        entries = [e for e in entries if e["sealed_path"] != overrides["drop"]]
+    if "corrupt" in overrides:
+        for entry in entries:
+            if entry["sealed_path"] == overrides["corrupt"]:
+                entry["checksum"] = "md5:" + "0" * 32
+    if "algorithm" in overrides:
+        entries[0]["checksum"] = f"{overrides['algorithm']}:00"
+    return {"latest_server_time": "2026-09-13T00:00:00Z", "files": entries}
+
+
+#: (name, how to build the witness, expected diagnostic, why it matters)
+#:
+#: ``--witness`` is the external half of the binding, and until these cases existed it had never
+#: run against anything -- not a real deposit, which does not exist, and not a synthetic one. A
+#: review pointed out that the sealed protocol described it in the present tense regardless. The
+#: protocol now says the deposit is absent; these cases at least establish that the code which
+#: would read one is not vacuous.
+WITNESS_CASES: tuple[tuple[str, Callable[[Path], dict[str, Any]], str | None, str], ...] = (
     (
-        "a run manifest that names this seal and matches the arm spec",
-        lambda manifest, seal_hash: manifest.__setitem__("sealed_manifest_sha256", seal_hash),
+        "a witness listing every sealed file with the right checksum",
+        lambda root: _witness_for(root),
         None,
         "the conforming case; without it every rejection below could come from a broken fixture",
     ),
     (
-        "a run manifest naming a different seal",
-        lambda manifest, seal_hash: manifest.__setitem__(
-            "sealed_manifest_sha256", _bend_hash(seal_hash)
-        ),
-        "names seal",
-        "a run that points at some other seal is not this pre-registration",
+        "a witness whose checksum for one file is wrong",
+        lambda root: _witness_for(root, corrupt="seal/protocol.md"),
+        "the deposit holds",
+        "this is the whole purpose of a witness: the deposit and the working tree disagreeing",
     ),
     (
-        "a run manifest that names no seal at all",
-        lambda manifest, seal_hash: None,
-        "it does not name a seal",
-        "silence must not read as agreement",
+        "a witness that omits one sealed file",
+        lambda root: _witness_for(root, drop="seal/arm-spec.json"),
+        "no deposit witness",
+        "a partial deposit attests to part of the seal, and silence about the rest must not read "
+        "as attestation",
     ),
     (
-        "a run under a different backend version",
-        lambda manifest, seal_hash: (
-            manifest.__setitem__("sealed_manifest_sha256", seal_hash),
-            manifest["env_pins"].__setitem__("ollama_version", "0.33.0"),
+        "a witness naming a checksum algorithm that does not exist",
+        lambda root: _witness_for(root, algorithm="notahash"),
+        "unknown checksum algorithm",
+        "a malformed record must be an error rather than an unchecked entry",
+    ),
+    (
+        "a witness with no entries at all",
+        lambda root: {"latest_server_time": "2026-09-13T00:00:00Z", "files": []},
+        "must be a non-empty list",
+        "an empty deposit must fail rather than vacuously agree",
+    ),
+)
+
+
+#: (name, mutation of (manifest, thresholds), expected diagnostic, why it matters)
+#:
+#: The first six cases below are the six categories ``seal/arm-spec.json`` calls not-minor
+#: deviations. Every one of them is here because an independent review found that the checker
+#: compared four of the six: a manifest naming a different model, with a zeroed digest and
+#: ``delta_tv_min = 999``, came back as matching the sealed spec. A list of commitments with no
+#: case per commitment is how that goes unnoticed.
+RUN_MANIFEST_CASES: tuple[
+    tuple[str, Callable[[dict[str, Any], dict[str, Any], str], None], str | None, str], ...
+] = (
+    (
+        "a run manifest that names this seal and matches the arm spec",
+        lambda m, th, seal_hash: m.__setitem__("sealed_manifest_sha256", seal_hash),
+        None,
+        "the conforming case; without it every rejection below could come from a broken fixture",
+    ),
+    (
+        "1/6 a substituted model",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            m["env_pins"].__setitem__("model", "attacker:999b"),
+        )
+        and None,
+        "model at env_pins.model",
+        "substituting a model is the first item on the not-minor-deviations list, and it was one "
+        "of the two the checker used to wave through",
+    ),
+    (
+        "1/6 the same model, a different digest",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            m["env_pins"].__setitem__("model_digest", "0" * 64),
+        )
+        and None,
+        "model_digest at env_pins.model_digest",
+        "a model tag is a mutable label; the digest is what actually pins the weights",
+    ),
+    (
+        "the think regime flipped",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            m["env_pins"].__setitem__("think", True),
+        )
+        and None,
+        "think at env_pins.think",
+        "the completed measurement was made with think disabled, and the estimand is not the "
+        "same quantity with it enabled",
+    ),
+    (
+        "2/6 a different backend version",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            m["env_pins"].__setitem__("ollama_version", "0.33.0"),
         )
         and None,
         "ollama_version at env_pins.ollama_version",
-        "changing the backend version is the second item on the not-minor-deviations list, and "
-        "the whole point of writing that list into a file was that it be checked",
+        "the control arm exists precisely to detect drift across this version change",
     ),
     (
-        "a run at a different seed",
-        lambda manifest, seal_hash: (
-            manifest.__setitem__("sealed_manifest_sha256", seal_hash),
-            manifest["run"].__setitem__("seed", 12345),
+        "3/6 a moved threshold",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            th.__setitem__("delta_tv_min", 999),
+        )
+        and None,
+        "threshold delta_tv_min",
+        "moving the materiality margin after the fact is the single change that most alters what "
+        "the result means, and it was the other one the checker waved through",
+    ),
+    (
+        "3/6 a threshold quietly dropped",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            th.pop("power_min"),
+        )
+        and None,
+        "is sealed but not recorded",
+        "a gate that stops being recorded is a gate that stops being applied",
+    ),
+    (
+        "3/6 a threshold added after the fact",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            th.__setitem__("extra_gate", 1),
+        )
+        and None,
+        "is not in the seal",
+        "the comparison must run in both directions, or a new condition can be introduced with "
+        "the run in hand",
+    ),
+    (
+        "the thresholds recorded as an empty mapping",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            th.clear(),
+        )
+        and None,
+        "is sealed but not recorded",
+        "an empty block must fail per missing key rather than vacuously agree. The diagnostic "
+        "named here is the per-key one, not \"has no 'thresholds' mapping\": an empty dict is "
+        "still a mapping, and the first draft of this case expected the wrong message",
+    ),
+    (
+        "no verdict supplied, so the thresholds go unchecked",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            th.__setitem__(OMIT_VERDICT_FILE, True),
+        )
+        and None,
+        "--run-verdict was not given",
+        "a check that can be skipped does not enforce a commitment. Omitting the verdict must "
+        "fail rather than pass quietly, and nothing else here exercises that branch",
+    ),
+    (
+        "4/6 a different seed",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            m["run"].__setitem__("seed", 12345),
         )
         and None,
         "seed at run.seed",
         "the seed is frozen; a re-run at another seed is a different study",
     ),
     (
-        "a run over a substituted context bank",
-        lambda manifest, seal_hash: (
-            manifest.__setitem__("sealed_manifest_sha256", seal_hash),
-            manifest.__setitem__("bank_checksum", "0" * 64),
+        "5/6 a different M",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            m["run"].__setitem__("m_draws", 30),
+        )
+        and None,
+        "m_draws at run.m_draws",
+        "M and K are what the power worksheet was computed at",
+    ),
+    (
+        "6/6 a substituted context bank",
+        lambda m, th, seal_hash: (
+            m.__setitem__("sealed_manifest_sha256", seal_hash),
+            m.__setitem__("bank_checksum", "0" * 64),
         )
         and None,
         "bank_checksum at bank_checksum",
         "the bank is what makes the contexts frozen rather than merely eight of something",
+    ),
+    (
+        "a run manifest naming a different seal",
+        lambda m, th, seal_hash: m.__setitem__("sealed_manifest_sha256", _bend_hash(seal_hash)),
+        "names seal",
+        "a run that points at some other seal is not this pre-registration",
+    ),
+    (
+        "a run manifest that names no seal at all",
+        lambda m, th, seal_hash: None,
+        "it does not name a seal",
+        "silence must not read as agreement",
     ),
 )
 
@@ -602,15 +868,34 @@ def run_seal_family(tmp: Path) -> list[str]:
         if problem is not None:
             problems.append(problem)
 
+    for index, (name, build_witness, expected, why) in enumerate(WITNESS_CASES):
+        case_dir = tmp / f"witness-{index:02d}"
+        case_dir.mkdir()
+        root = _stage(case_dir)
+        witness_path = case_dir / "witness.json"
+        witness_path.write_text(json.dumps(build_witness(root), indent=2), encoding="utf-8")
+        code, output = _run_seal_checker(root, witness=witness_path)
+        problem = _judge(name, expected, why, code, output)
+        if problem is not None:
+            problems.append(problem)
+
     for index, (name, build, expected, why) in enumerate(RUN_MANIFEST_CASES):
         case_dir = tmp / f"manifest-{index:02d}"
         case_dir.mkdir()
         root = _stage(case_dir)
         manifest = json.loads(json.dumps(CONFORMING_RUN_MANIFEST))
-        build(manifest, _seal_hash_of(root))
+        thresholds = json.loads(json.dumps(CONFORMING_THRESHOLDS))
+        build(manifest, thresholds, _seal_hash_of(root))
         manifest_path = case_dir / "run-manifest.json"
         manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-        code, output = _run_seal_checker(root, manifest_path)
+        if thresholds.pop(OMIT_VERDICT_FILE, False):
+            verdict_path = None
+        else:
+            verdict_path = case_dir / "run-verdict.json"
+            verdict_path.write_text(
+                json.dumps({"thresholds": thresholds}, indent=2), encoding="utf-8"
+            )
+        code, output = _run_seal_checker(root, manifest_path, verdict_path)
         problem = _judge(name, expected, why, code, output)
         if problem is not None:
             problems.append(problem)
@@ -627,6 +912,17 @@ def main() -> int:
         return 1
 
     problems: list[str] = []
+
+    if set(SEALED_PATHS) != EXPECTED_SEALED_SET:
+        missing = sorted(EXPECTED_SEALED_SET - set(SEALED_PATHS))
+        extra = sorted(set(SEALED_PATHS) - EXPECTED_SEALED_SET)
+        problems.append(
+            "the sealed set has changed without this file being updated; "
+            f"dropped from the checker: {missing}; added to the checker: {extra}. "
+            "Both lists are meant to be edited together, so that narrowing the seal cannot be "
+            "done in one place and then blessed by a rebuilt manifest"
+        )
+
     with tempfile.TemporaryDirectory() as raw_tmp:
         tmp = Path(raw_tmp)
         rules_tmp = tmp / "rules"
@@ -658,7 +954,7 @@ def main() -> int:
         return 1
 
     rejected_rules = sum(1 for case in CASES if case[3] is None)
-    seal_family = SEAL_CASES + RUN_MANIFEST_CASES
+    seal_family = SEAL_CASES + RUN_MANIFEST_CASES + WITNESS_CASES
     controls = sum(1 for case in seal_family if case[2] is None)
     print(
         f"[scope] OK: {len(CASES)} decision-rule cases ({rejected_rules} of them required to be "

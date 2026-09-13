@@ -3,7 +3,8 @@
   "description": "Everything about the prospective run that was fixed in advance. The six items the protocol names as changes that would not be minor deviations appear here as machine-checkable fields, so that the commitment survives without an institution to enforce it.",
   "enforcement": {
     "statement": "If any field below differs from the corresponding field of a run manifest, the seal is broken for that run. The run is then reported as a deviation and is not presented as pre-registered.",
-    "note": "Under in-principle acceptance this was 'we will consult the recommender'. That sentence has no force outside the venue that supplied the recommender, so it is replaced by a condition a script can evaluate."
+    "note": "Under in-principle acceptance this was 'we will consult the recommender'. That sentence has no force outside the venue that supplied the recommender, so it is replaced by a condition a script can evaluate.",
+    "scope_note": "An independent review found that this file declared six categories of not-minor deviation while the checker compared only four of them: a run manifest naming a different model, a different model digest and delta_tv_min = 999 was reported as matching this spec. The field map above and analysis/scripts/verify_seal.py now cover all six, and the mutation suite in analysis/scripts/check_seal_scope.py carries a rejection case for each."
   },
   "thresholds": {
     "note": "The eleven constants recorded in the completed run's verdict.json. None is changed for the prospective run and none is added to.",
@@ -26,7 +27,13 @@
     "draws_per_arm": 4800,
     "draws_total": 9600,
     "readout": "pre_bias_destination_zone",
-    "zones": ["agora", "chashitsu", "garden", "peripatos", "study"]
+    "zones": [
+      "agora",
+      "chashitsu",
+      "garden",
+      "peripatos",
+      "study"
+    ]
   },
   "context_bank": {
     "bank_schema_version": "ecl-bank-1",
@@ -79,15 +86,27 @@
     "substituting the frozen context bank"
   ],
   "manifest_field_map": {
-    "note": "How each not-minor-deviation item is located in a run manifest, so the comparison is mechanical rather than a matter of reading.",
-    "model": "env_pins.model",
-    "model_digest": "env_pins.qwen3_model_digest",
-    "ollama_version": "env_pins.ollama_version",
-    "uv_lock_sha256": "env_pins.uv_lock_sha256",
-    "seed": "run.seed",
-    "m_draws": "run.m_draws",
-    "k_contexts": "run.k_contexts",
-    "context_ids": "run.context_ids",
-    "bank_checksum": "bank_checksum"
+    "note": "How each not-minor-deviation item is located, so the comparison is mechanical rather than a matter of reading. Split into three groups because they live in three places: fields that are the same for both arms, fields that differ per arm, and the eleven thresholds, which a run manifest does not carry at all -- they are recorded in the run's verdict.json and are compared from there.",
+    "shared": {
+      "ollama_version": "env_pins.ollama_version",
+      "uv_lock_sha256": "env_pins.uv_lock_sha256",
+      "python": "env_pins.python",
+      "seed": "run.seed",
+      "m_draws": "run.m_draws",
+      "k_contexts": "run.k_contexts",
+      "context_ids": "run.context_ids",
+      "bank_checksum": "bank_checksum"
+    },
+    "per_arm": {
+      "model": "env_pins.model",
+      "model_digest": "env_pins.model_digest",
+      "think": "env_pins.think"
+    },
+    "thresholds_source": {
+      "file": "the run's verdict.json",
+      "path": "thresholds",
+      "note": "All eleven values, compared key by key against the thresholds block of this file. A threshold present in one and absent from the other is a failure, so a threshold cannot be added or dropped silently."
+    },
+    "legacy_note": "The completed run's manifest records the model digest under the model-specific key env_pins.qwen3_model_digest. That key cannot serve two model families, so the prospective driver is required to emit env_pins.model_digest instead. Declaring the field name here, before the driver exists, is part of what is being pre-registered: a run whose manifest does not carry it fails the check rather than skipping it."
   }
 }

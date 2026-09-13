@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
-"""Build the anonymous supplementary bundle, and refuse to build one that still identifies anyone.
+"""Build the de-identified supplementary bundle, and measure what still identifies the author.
+
+**The name of this file overstates what it can deliver, and the output says so.** What it removes
+is every identifying *string*: names, the ORCID, the repository URL, the deposit identifier. What
+it cannot remove is the name of the upstream project the apparatus is vendored from, because the
+provenance checks are byte comparisons against that project's public blobs. So the result is
+de-identified, not anonymous, and the final line of a successful run reports the residual exposure
+rather than printing an unqualified OK.
 
 Double-blind review means the supplement is read by people who must not learn who wrote it. That is
 easy to say and easy to get wrong, because identity leaks out of a research compendium through more
 than the author line: a repository URL names its owner, a deposit identifier resolves to a landing
-page with a name on it, an absolute path carries a username, and a ``.git`` directory carries the
-whole authorship history in a form nobody looks at.
+page with a name on it, an absolute path carries a username, a licence file carries a copyright
+holder, a PDF carries its link targets in a layer no reader sees, and a ``.git`` directory carries
+the whole authorship history in a form nobody looks at. Every one of those was found here by
+something other than the first version of this scanner.
 
 So this is not a redaction pass with a checklist. It is a redaction pass followed by a **scan that
 fails the build**, and the scan is written against patterns rather than against the list of
@@ -151,8 +160,21 @@ EXCLUDED_FILES: frozenset[str] = frozenset(
     {
         "analysis/scripts/make_anonymous_bundle.py",
         "analysis/scripts/check_pdf_identity.py",
+        # The PDF submitted to the registered-report venue, kept in the repository as a record of
+        # what was submitted. It carries the author's name, ORCID and repository URL, and it is a
+        # PDF, so the redaction pass copies it verbatim and the text scan reads compressed streams
+        # as bytes and finds nothing. An independent review caught it: the build reported the
+        # bundle clean while shipping a file that names the author in seventy-four places. The
+        # scan is now fail-closed on PDFs (see BINARY_SUFFIXES below); this line is the reason
+        # there is nothing left for it to reject.
+        "manuscript/powered-null-stage1.pdf",
     }
 )
+
+#: Suffixes whose contents a plain text scan cannot see into. A file with one of these must either
+#: be excluded above or scanned by something that understands the format -- never copied in on the
+#: strength of a scan that could not read it. PDFs were exactly that hole.
+BINARY_SUFFIXES: frozenset[str] = frozenset({".pdf", ".zip", ".gz", ".png", ".jpg", ".woff2"})
 
 #: Paths copied byte for byte whatever their extension, and where a redaction would be an error
 #: rather than a fix. These are the same paths ``.gitattributes`` marks ``-text``, for the same
@@ -270,7 +292,7 @@ def anonymise_citation(path: Path) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
-def build(repo_root: Path, out: Path) -> Path:
+def build(repo_root: Path, out: Path) -> tuple[Path, list[str]]:
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True)
@@ -324,18 +346,41 @@ def build(repo_root: Path, out: Path) -> Path:
 
 
 def check_sealed_unchanged(repo_root: Path, out: Path) -> list[str]:
-    """The sealed files must be the same bytes here as in the public repository."""
+    """Require the sealed files to be shippable unredacted, and to have shipped that way.
+
+    Two checks, and it is worth separating them because the first version of this function ran
+    only the weaker one and read as though it ran both. :func:`build` copies sealed files with
+    ``shutil.copyfile``, so "the bytes differ" is unreachable by construction: the comparison could
+    only ever report a *missing* file, while its diagnostic talked about redaction. A check whose
+    stated purpose is unreachable is worse than no check, because it is quoted as evidence.
+
+    So the byte comparison stays -- it is cheap, and it catches a future build that stops copying
+    verbatim -- and the real question is asked separately: **would the redaction pass have changed
+    this file if it had been allowed to run?** If yes, the sealed bytes and the anonymous bytes
+    cannot both be right, and no amount of copying fixes that. The repair is to move the
+    identifying string out of the sealed file, as ``analysis/upstream-links.json`` records.
+    """
     problems: list[str] = []
     for rel in SEALED_PATHS:
         left = repo_root / rel
         right = out / rel
         if not right.is_file():
             problems.append(f"{rel}: sealed, but missing from the bundle")
-        elif left.read_bytes() != right.read_bytes():
+            continue
+        if left.read_bytes() != right.read_bytes():
             problems.append(
-                f"{rel}: sealed, but the bundle's copy differs. A sealed file that has to be "
-                "redacted cannot be compared with the deposited copy, which is what the seal is "
-                "for. Move the identifying string out of the sealed file instead"
+                f"{rel}: sealed, but the bundle's copy differs. Sealed files are copied verbatim, "
+                "so reaching this means the build stopped doing that"
+            )
+        try:
+            original = left.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, ValueError):
+            continue
+        if redact(original) != original:
+            problems.append(
+                f"{rel}: sealed, but it contains something the redaction list would change. "
+                "It therefore cannot ship unchanged to an anonymous review and also be the file "
+                "a deposit holds. Move the identifying string out of the sealed file instead"
             )
     return problems
 
@@ -403,6 +448,24 @@ def main(argv: list[str] | None = None) -> int:
     if (out / ".git").exists():
         _die("the bundle contains a .git directory")
 
+    # Fail closed on anything the text scan cannot read into. Copying a compressed container and
+    # then reporting "no leak patterns matched" is not a clean result; it is a scan that never
+    # happened. This is the general form of the PDF hole named in EXCLUDED_FILES.
+    opaque = sorted(
+        path.relative_to(out).as_posix()
+        for path in out.rglob("*")
+        if path.is_file() and path.suffix.lower() in BINARY_SUFFIXES
+    )
+    if opaque:
+        print(
+            "[anon] FAIL: the bundle holds files the text scan cannot see into. Exclude them, or "
+            "scan them with something that understands the format:",
+            file=sys.stderr,
+        )
+        for rel in opaque:
+            print(f"  - {rel}", file=sys.stderr)
+        return 1
+
     problems, exposures = scan(out)
     if problems:
         print(f"[anon] FAIL: {len(problems)} thing(s) in the bundle still identify someone",
@@ -423,14 +486,18 @@ def main(argv: list[str] | None = None) -> int:
         f"{reason}\n\nOccurrences in this bundle: {exposures[label]}.\n"
         for label, _, reason in ACCEPTED_EXPOSURES
     )
+    remaining = sum(exposures.values())
     for label, _, _ in ACCEPTED_EXPOSURES:
         print(f"[anon] DISCLOSED: {label} remains in {exposures[label]} place(s); see ANONYMISED.md")
 
     (out / "ANONYMISED.md").write_text(
-        "# Anonymous supplementary bundle\n\n"
+        "# De-identified supplementary bundle\n\n"
         "This is the research compendium with author-identifying strings removed for "
         "double-blind review. Names, the repository URL, the ORCID identifier and the deposit "
         "identifier are replaced by placeholders under `anonymous.invalid`.\n\n"
+        "**It is de-identified, not anonymous, and the difference is stated below rather than "
+        "left for a reviewer to discover.** One identifier cannot be removed without breaking "
+        "the checks this bundle exists to support.\n\n"
         "`bash repro.sh` runs here exactly as it does in the public repository, and reaches the "
         "same result: none of its twelve steps needs the network, an account, or any identifier "
         "that was removed. In particular the seal check -- the one that binds the reported branch "
@@ -461,6 +528,17 @@ def main(argv: list[str] | None = None) -> int:
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
     print(f"[anon] bundle at {out}")
+    # Not "OK". The strings on the redaction list are gone; the bundle is still traceable to its
+    # author by anyone who searches the exposure above, and a bare success line would be read as
+    # denying that.
+    if remaining:
+        print(
+            f"[anon] DE-IDENTIFIED, NOT ANONYMOUS: {remaining} occurrence(s) of an identifier "
+            "that cannot be removed without breaking the provenance checks. Submit this as a "
+            "supplement whose limits are disclosed, not as a bundle that hides authorship."
+        )
+    else:
+        print("[anon] OK: no declared exposure remains")
     return 0
 
 

@@ -31,6 +31,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import sys
@@ -186,8 +187,9 @@ def main() -> int:
     parser.add_argument("--out", type=Path)
     parser.add_argument(
         "--expect-branch",
-        help="Fail unless the branch reached is this one. Used by repro.sh to bind the "
-        "manuscript's stated branch to the rules.",
+        help="Fail unless the branch reached is this one. Step 13 of repro.sh passes the "
+        "branch named in manuscript/reported-branch.txt, which is how the branch this "
+        "repository reports is bound to the sealed rules.",
     )
     args = parser.parse_args()
 
@@ -242,6 +244,9 @@ def main() -> int:
 
     report = {
         "schema": REPORT_SCHEMA,
+        # Which rules produced this. A decision report that does not name the rules it applied
+        # can be read next to any seal at all, which defeats the point of having one.
+        "rules_sha256": hashlib.sha256(args.rules.read_bytes()).hexdigest(),
         "branch": branch,
         "stopped_at": stopped_at,
         "arms_supplied": sorted(sources),

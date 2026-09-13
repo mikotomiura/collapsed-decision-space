@@ -92,13 +92,74 @@ def _mask(text: str) -> str:
     return text
 
 
+def _decode_pdf_string(raw: bytes) -> str:
+    """Decode one PDF string object into text.
+
+    Three encodings have to be handled, and missing any of them turns this scanner into one that
+    reports zero because it could not look:
+
+    * a literal string in parentheses, with backslash escapes and octal byte escapes;
+    * a hexadecimal string in angle brackets, which is what some producers emit;
+    * either of those carrying a UTF-16BE byte-order mark, which is what ``hyperref`` switches to
+      the moment a field contains a single non-ASCII character -- an em dash in a title is enough.
+
+    A review probe found the last two invisible to the previous version: ``/Author <FEFF004D...>``
+    and a UTF-16BE author line both scanned as absent.
+    """
+    if raw.startswith(b"<") and raw.endswith(b">"):
+        digits = re.sub(rb"[^0-9A-Fa-f]", b"", raw[1:-1])
+        if len(digits) % 2:
+            digits += b"0"
+        body = bytes.fromhex(digits.decode("ascii"))
+    else:
+        body = raw[1:-1] if raw.startswith(b"(") else raw
+        body = re.sub(rb"\\([0-7]{1,3})", lambda m: bytes([int(m.group(1), 8) & 0xFF]), body)
+        body = re.sub(rb"\\(.)", rb"\1", body)
+    if body.startswith(b"\xfe\xff"):
+        return body[2:].decode("utf-16-be", "replace")
+    return body.decode("latin-1")
+
+
+def _balanced_string(blob: bytes, start: int) -> bytes | None:
+    """Read one parenthesised PDF string starting at ``start``, honouring nesting and escapes.
+
+    A regular expression cannot do this. ``(Mikoto Miura (ORCID))`` is a single valid string with a
+    balanced pair inside it, and the previous pattern simply failed to match it -- reporting the
+    field as absent rather than as a leak.
+    """
+    if blob[start : start + 1] != b"(":
+        return None
+    depth = 0
+    index = start
+    while index < len(blob):
+        char = blob[index : index + 1]
+        if char == b"\\":
+            index += 2
+            continue
+        if char == b"(":
+            depth += 1
+        elif char == b")":
+            depth -= 1
+            if depth == 0:
+                return blob[start : index + 1]
+        index += 1
+    return None
+
+
 def _bracketed(blob: bytes, key: bytes) -> list[str]:
-    """Every ``key (value)`` pair in ``blob``, with the parentheses stripped."""
-    pattern = re.escape(key) + rb"\s*\((?:[^()\\]|\\.)*\)"
-    return [
-        match.group(0)[len(key) :].strip().strip(b"()").decode("latin-1")
-        for match in re.finditer(pattern, blob)
-    ]
+    """Every ``key <value>`` and ``key (value)`` pair in ``blob``, decoded to text."""
+    values: list[str] = []
+    for match in re.finditer(re.escape(key) + rb"\s*", blob):
+        at = match.end()
+        if blob[at : at + 1] == b"<":
+            end = blob.find(b">", at)
+            if end != -1:
+                values.append(_decode_pdf_string(blob[at : end + 1]))
+        else:
+            literal = _balanced_string(blob, at)
+            if literal is not None:
+                values.append(_decode_pdf_string(literal))
+    return values
 
 
 def uris(blob: bytes) -> list[str]:
@@ -146,6 +207,9 @@ def main(argv: list[str] | None = None) -> int:
     for uri in uris(blob):
         haystacks.append(("link annotation", uri))
     haystacks.append(("raw bytes and inflated streams", blob.decode("latin-1")))
+    # The same bytes read as UTF-16BE. A producer that switched a metadata field to UTF-16 hides
+    # every ASCII pattern above from the latin-1 view; reading both costs nothing.
+    haystacks.append(("raw bytes read as UTF-16BE", blob.decode("utf-16-be", "ignore")))
 
     page_text: str | None = None
     if args.text is not None:

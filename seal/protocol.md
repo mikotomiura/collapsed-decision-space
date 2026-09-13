@@ -179,18 +179,37 @@ rules and carry on.
 manifest's own self-hash is correct under the canonicalisation stated inside it; the rule text in
 the manuscript is a function of the sealed rules; and the branch reported after the run follows
 from these rules applied to the recorded quantities. Every one of those is checkable offline,
-without an account, without resolving any identifier, and without trusting the author — which is
-also why they survive anonymous review intact.
+without an account, without resolving any identifier, and without trusting the author. That last
+property is what lets the checks run inside a de-identified copy of this repository: they need
+nothing that de-identification removes.
+
+**It does not follow that the copy is anonymous.** The apparatus is vendored from a named public
+project, and the provenance checks work by showing that the shipped modules are byte-identical to
+that project's blobs, so the package name is load-bearing and cannot be redacted: proving *which*
+upstream the apparatus came from and concealing *which* upstream it is are not jointly
+satisfiable. A reader who searches the name reaches the author. That is a property of this
+compendium, it is measured rather than estimated — the build reports the count on every run — and
+it is reported to a double-blind venue as a limitation rather than presented as solved.
 
 **Does not establish.** That these files are old. That a sealed file and the manifest were not
 edited together in one commit. That no draw was taken before the seal. No check that lives inside
 this repository can reach any of the three, and this file does not imply otherwise.
 
-The external half is a deposit in a public archive, which publishes a per-file checksum that anyone
-can read without an account; `verify_seal.py --witness` compares those checksums against the local
-sealed files. Its bound is worth stating plainly rather than leaving a reader to discover it:
-**a deposit record remains editable by its owner for a period after publication, with the
-identifier unchanged**, so the deposit's timestamps bound when the files were last touched, not
-when they were first written. Even in the best case, therefore, the external half witnesses *a*
-time, not the absence of an earlier run. The content-binding above is what does the work; the
-deposit is corroboration, and is described as corroboration.
+**The external half does not exist yet, and this file will not pretend otherwise.** At the time
+this protocol is sealed there is no deposit and no `seal/zenodo-witness.json`; `repro.sh` passes no
+`--witness`, and the code path that would compare a deposit's checksums against these files has
+therefore never run against a real record. Everything above is the internal half, and the internal
+half is all a reader currently has.
+
+What the external half *is to be*, stated so that its absence is legible rather than implied away:
+a deposit in a public archive, which publishes a per-file checksum anyone can read without an
+account. `verify_seal.py --witness` compares those checksums against the local sealed files, and
+the completion report will say whether that comparison was made, against which record, and with
+what result — or that it was not made.
+
+Its bound is worth stating in advance, because it is smaller than it sounds. **A deposit record
+remains editable by its owner for a period after publication, with the identifier unchanged**, so
+the deposit's timestamps bound when the files were last touched, not when they were first written.
+Even in the best case the external half witnesses *a* time, not the absence of an earlier run. The
+content-binding above is what does the work; the deposit would be corroboration, and is described
+as corroboration.

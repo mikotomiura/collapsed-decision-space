@@ -11,10 +11,15 @@ of the rules; this module renders it into one canonical markdown block, and ``ve
 requires that block to appear verbatim between the markers in ``manuscript/main.md`` and
 ``seal/protocol.md``. Editing a threshold in the manuscript then fails because the generated text no
 longer matches, and editing it in the sealed file fails because the seal hash no longer matches.
-There is no third place to edit.
 
-The renderer is itself sealed. A renderer that could be changed after the fact could be taught to
-emit whatever the manuscript happens to say.
+The renderer is itself sealed, and so is the module it imports. A renderer that could be changed
+after the fact could be taught to emit whatever the manuscript happens to say.
+
+**What that does and does not close.** Against anyone editing one place, it closes: no single file
+can be changed and left consistent. Against the author, who can regenerate the rules, the renderer,
+the checker and the manifest together in one commit, it closes nothing at all -- and no check
+living inside this repository could. That is the job of a copy held elsewhere, and
+``seal/protocol.md`` section 7 says plainly that no such copy exists yet.
 
 What this establishes: the rule text in the manuscript is a function of the sealed rules.
 What it does not: that the rules are the right rules, or when they were fixed.
@@ -161,6 +166,10 @@ def _first_difference(expected: str, found: str) -> str:
                 f"      the file holds: {right}"
             )
     if len(expected_lines) != len(found_lines):
+        # Defensive, and not reachable through extract_block: a block is delimited by its markers,
+        # so any deletion inside it shifts a later line and the loop above reports that first. Kept
+        # because a future caller might hand this function two blocks obtained some other way, and
+        # returning "they differ in whitespace" for a length mismatch would be wrong.
         return (
             f"The file holds {len(found_lines)} lines; the sealed rules render "
             f"{len(expected_lines)}."

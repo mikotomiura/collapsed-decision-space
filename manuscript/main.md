@@ -1,9 +1,9 @@
 # When the power gate cannot fail: collapsed decision spaces defeat margin-and-power null reporting in LLM agents
 
 **Pre-registered protocol, with a completed preliminary measurement reported in full.**
-The prospective arms have not been run. The decision rules that will read them are sealed before
-they are, in machine-readable form, so that the branch reported afterwards can be re-derived from
-the rules as they stood beforehand (§13).
+At the moment of sealing, the prospective arms had not been run. The decision rules that read them
+are sealed beforehand, in machine-readable form, so that the branch reported afterwards can be
+re-derived from the rules as they stood before it (§13).
 
 | | |
 |---|---|
@@ -473,11 +473,11 @@ Estimate `tv_bar` in the primary arm as defined in §4.1, and evaluate the decis
 Three checks are planned, evaluated on prospectively collected draws, and consequential: each one
 can change what may be concluded. They are part of the analysis plan and are not set aside.
 
-| Check | What it protects | Declared pass criterion (fixed in advance) | Realised outcome at seal time |
-|---|---|---|---|
-| **R5** — control-arm concordance | That a change in backend version between the completed run and this one is not read as a family effect | The control arm reproduces the five quantities of §5.1 within the band given in §8 | **Unknown** |
-| **R4** — apparatus validity | That the estimand is measurable at all in the primary family (absence of a floor) | `rho_hat ≥ 0.5` and the per-cell maximum `none_rate ≤ 0.5` (§4.2) | **Unknown** |
-| **R3** — attained power | That the estimate is not vacated by insufficient power | `power ≥ 0.8` | **Unknown** |
+| Check | What it protects | Declared pass criterion (fixed in advance) | Known at seal time? | Reported after the run |
+|---|---|---|---|---|
+| **R5** — control-arm concordance | That a change in backend version between the completed run and this one is not read as a family effect | The control arm reproduces the five quantities of §5.1 within the band given in §8 | **No** | All five quantities, and which fell outside the band if any did |
+| **R4** — apparatus validity | That the estimand is measurable at all in the primary family (absence of a floor) | `rho_hat ≥ 0.5` and the per-cell maximum `none_rate ≤ 0.5` (§4.2) | **No** | Both quantities, against the R4 condition |
+| **R3** — attained power | That the estimate is not vacated by insufficient power | `power ≥ 0.8` | **No** | The attained `power`, against `power_min` |
 
 The consequence of each failure is fixed here and is not renegotiable after the data exist:
 R5 failing stops interpretation of the primary arm; R4 failing narrows the conclusion to a
@@ -590,7 +590,7 @@ to stay honest.
 
 | Planned analysis | Role | Realised outcome known at seal time? | Reported after the run |
 |---|---|---|---|
-| `tv_bar` in `llama3.1:8b` | A — primary estimand | **No.** Not one draw has been collected from this model under the measurement | The estimate, and the branch of §8 it selects |
+| `tv_bar` in `llama3.1:8b` | A — primary estimand | **No.** At the moment of sealing, not one draw had been collected from this model under the measurement | The estimate, and the branch of §8 it selects |
 | Permutation test in `llama3.1:8b` | A — decision function | **No.** As above | `permutation_p_value` and `permutation_reject`, and their effect on the branch |
 | Control-arm concordance on five quantities (R5) | B — planned QC | **No** — baseline known, band declared, **realised unknown**: whether version drift has occurred has not been observed | All five quantities, and which of them fell outside the band if any did |
 | `rho_hat` and the per-cell maximum `none_rate` (R4) | B — planned QC | **No.** The Phase 0 pilot observed pooled parse and zone bands, which are adjacent information, not the R4 outcome (§5.3) | Both quantities, against the R4 condition |
@@ -669,13 +669,21 @@ the fixture fails the run.
 The two arms together require approximately 5.09 h of compute on the recorded hardware (§5.3), and
 the run is executed once.
 
-Before any prospective draw is collected, four things are sealed: the decision rules in
-machine-readable form, the arm specification, the protocol text, and the code that applies the
-rules to a result. `seal/SEAL-MANIFEST.json` records the SHA-256 of each and a self-hash over
-itself under a stated canonicalisation, and step 12 of `repro.sh` fails if any of them has moved
-since (§13). What that buys is narrow and worth naming exactly: the branch reported after the run
-can be re-derived, by anyone, from the rules as they stood before it. It does not establish that
-the seal is old, and no check that lives inside this repository could.
+Before any prospective draw is collected, ten files are sealed, in five groups:
+
+| Group | Files | Why it has to be fixed |
+|---|---|---|
+| The rules | `seal/decision-rules.json` | The decision itself. Everything else exists to stop this changing quietly |
+| The run | `seal/arm-spec.json` | Every value the list below calls a not-minor deviation |
+| The protocol | `seal/protocol.md` | The part of this manuscript whose alteration would change how the result reads |
+| The code that reads them | `apply_decision_rules.py`, `render_decision_rules.py`, `verify_seal.py`, `check_seal_scope.py`, `_provenance.py` | A checker that can be edited is not a check. The last of these supplies the hashing the others use, and was missing from an earlier version of this list — which is why the seal now also fails if a sealed script imports a local module that is not itself sealed |
+| The record and the command | `analysis/freeze-provenance.json`, `repro.sh` | The provenance of the frozen thresholds, and the twelve-plus-one steps that check all of the above |
+
+`seal/SEAL-MANIFEST.json` records the SHA-256 of each and a self-hash over itself under a stated
+canonicalisation, and step 12 of `repro.sh` fails if any of them has moved since (§13). What that
+buys is narrow and worth naming exactly: the branch reported after the run can be re-derived, by
+anyone, from the rules as they stood before it. It does not establish that the seal is old, and no
+check that lives inside this repository could.
 
 The following are **not** minor deviations:
 
@@ -805,7 +813,7 @@ the upstream source repository. That closure covers the scoring and power machin
 the analyses in this repository exercise; it does not include the live driver that produced the
 draws, since regenerating draws is out of scope here (§6.2).
 
-`bash repro.sh` performs twelve steps, in order: environment installation from the lockfile; a
+`bash repro.sh` performs thirteen steps, in order: environment installation from the lockfile; a
 lint check; verification of the frozen inputs against both `data/data.md` and their upstream blobs;
 verification of the threshold freeze and of the whole apparatus closure; **recomputation of the
 completed run's verdict from the shipped annotation and manifest**; mechanical extraction of the
@@ -813,9 +821,20 @@ quantities quoted in §3 and §5.1; regeneration of the power table of §5.2; de
 support of the decision space and of the null floor reported in §5.1.1; a character-level
 comparison of the numbers quoted in this manuscript against the frozen inputs they come from; the
 claim-boundary check of §10.3; a mutation sweep that measures what the seal and the decision rules
-actually catch; and verification of the seal itself, which includes requiring that the rule text in
-§8 and in `seal/protocol.md` be **generated from** the sealed rules rather than restated alongside
-them. It exits non-zero if any step fails.
+actually catch; verification of the seal itself, which includes requiring that the rule text in §8
+and in `seal/protocol.md` be **generated from** the sealed rules rather than restated alongside
+them; and, last, the evaluator of §8 applied to the recorded quantities. It exits non-zero if any
+step fails.
+
+The thirteenth step is the third of the three checks named in §8, and it does nothing yet: the
+prospective verdicts do not exist, so it reports that it is skipping and why. It is wired in
+anyway, and the reason is the seal. `repro.sh` is itself a sealed file. Adding this step after the
+arms had run would change its bytes, fail step 12, and force the seal to be rebuilt — leaving a
+record of the seal being remade with the results already in hand, which is exactly the sequence the
+seal exists to rule out. The step is guarded on the existence of its inputs rather than on a date,
+so nothing in the sealed bytes asserts that the run has not happened; it simply starts working when
+the files appear. When they do, it re-derives the branch from the sealed rules and fails if the
+branch named in `manuscript/reported-branch.txt` is not the one they give.
 
 The eleventh step deserves a sentence, because a check that is never exercised may be vacuous. It
 mutates the things the seal is supposed to protect — a threshold moved in the sealed rules, a hash

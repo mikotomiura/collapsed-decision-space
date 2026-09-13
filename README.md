@@ -9,11 +9,16 @@ preliminary measurement reported in full** (`manuscript/main.md`). It holds the 
 frozen evidence the protocol builds on, the measurement apparatus, and a single command that
 re-derives every number the protocol quotes.
 
-**No prospective data has been collected.** The decision rules that will read the prospective arms
-are sealed before the arms are run: `seal/` holds them in machine-readable form and
+**At the time of sealing, no prospective data had been collected.** The decision rules that read
+the prospective arms are sealed before the arms are run: `seal/` holds them in machine-readable form and
 `seal/SEAL-MANIFEST.json` fixes their bytes, so the branch reported afterwards can be re-derived
-from the rules as they stood beforehand. Step 12 of `repro.sh` is what checks that, and it needs no
-network, no account and no trust in the author.
+from the rules as they stood beforehand. Steps 12 and 13 of `repro.sh` are what check that, and
+they need no network, no account and no trust in the author.
+
+What they cannot check is that the seal is old. The author can rebuild every sealed file and the
+manifest in one commit, and no check living inside this repository would see it; that half needs a
+copy held by someone else, and there is not one yet. `seal/protocol.md` §7 says so in those words
+rather than leaving a green badge to imply otherwise.
 
 ---
 
@@ -86,7 +91,7 @@ bash repro.sh
 ```
 
 Requires [uv](https://docs.astral.sh/uv/) and network access for the first dependency
-installation. The script runs twelve steps and exits non-zero if any of them fails:
+installation. The script runs thirteen steps and exits non-zero if any of them fails:
 
 1. install the environment from the lockfile
 2. lint
@@ -104,8 +109,13 @@ installation. The script runs twelve steps and exits non-zero if any of them fai
     tree against the seal checker. Each failing case must fail with a diagnostic naming the thing
     that was changed, and three control cases must *not* fail at all
 12. **verify the seal**: the sealed files hash to what the manifest records, the manifest's own
-    self-hash is correct, and the rule text in the protocol and the manuscript is *generated from*
-    the sealed rules rather than restated beside them
+    self-hash is correct, every sealed script imports only sealed local modules, and the rule text
+    in the protocol and the manuscript is *generated from* the sealed rules rather than restated
+    beside them
+13. **re-derive the reported branch** by applying the sealed rules to the prospective verdicts.
+    Skips itself, loudly, while those files do not exist. It is wired in now because `repro.sh` is
+    a sealed file: adding the step after the run would change the seal, with the results already
+    in hand
 
 Both legs of the public CI run exactly this, on Ubuntu and on Windows, and a third job requires the
 generated artefacts to be byte-identical across the two.
