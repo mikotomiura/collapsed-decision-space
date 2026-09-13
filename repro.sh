@@ -25,6 +25,12 @@
 #   7. regenerate the power table                  analysis/scripts/power_curve.py
 #   8. compare quoted numbers with the inputs      analysis/scripts/check_manuscript_numbers.py
 #   9. claim-boundary check and positive control   analysis/scripts/check_claim_boundary.py
+#  10. reach of the sealed decision rules          analysis/scripts/check_decision_rules_scope.py
+#
+# Not yet wired: analysis/scripts/verify_seal.py. It checks seal/SEAL-MANIFEST.json against the
+# sealed files, and the seal is not complete until seal/protocol.md exists. Adding the step
+# before then would mean shipping a placeholder inside the thing whose whole purpose is to be
+# fixed, so the step goes in when the seal is real -- not earlier.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,17 +56,17 @@ export PYTHONPATH="$REPO_ROOT/analysis/apparatus"
 # verbatim beside env/uv.lock so the lockfile the measurement ran under is preserved unmodified. It
 # declares a source root this repository does not have. The analysis scripts read the apparatus
 # through PYTHONPATH, so the project itself never needs installing.
-echo "[repro] 1/9 uv sync"
+echo "[repro] 1/10 uv sync"
 uv sync --frozen --no-install-project --project env
 
 RUN=(uv run --project env --no-sync)
 
 # --- 2. Lint ---
-echo "[repro] 2/9 ruff check"
+echo "[repro] 2/10 ruff check"
 "${RUN[@]}" ruff check analysis/scripts
 
 # --- 3. Integrity of the frozen inputs ---
-echo "[repro] 3/9 verify_data_hashes"
+echo "[repro] 3/10 verify_data_hashes"
 if [ -n "${ERRE_SANDBOX_REPO:-}" ]; then
   "${RUN[@]}" python analysis/scripts/verify_data_hashes.py \
     --upstream-repo "$ERRE_SANDBOX_REPO"
@@ -69,7 +75,7 @@ else
 fi
 
 # --- 4. The threshold freeze ---
-echo "[repro] 4/9 verify_threshold_freeze"
+echo "[repro] 4/10 verify_threshold_freeze"
 if [ -n "${ERRE_SANDBOX_REPO:-}" ]; then
   "${RUN[@]}" python analysis/scripts/verify_threshold_freeze.py \
     --upstream-repo "$ERRE_SANDBOX_REPO"
@@ -80,26 +86,33 @@ fi
 # --- 5. Recompute the recorded verdict from the shipped data ---
 # The strongest check here. Every other step compares a record against a shipped file; this one
 # establishes that the central verdict follows from the shipped data and the shipped apparatus.
-echo "[repro] 5/9 recompute_verdict"
+echo "[repro] 5/10 recompute_verdict"
 "${RUN[@]}" python analysis/scripts/recompute_verdict.py
 
 # --- 6. Extract the quantities the paper quotes ---
-echo "[repro] 6/9 extract_verdict_table -> data/derived/verdict-table.md"
+echo "[repro] 6/10 extract_verdict_table -> data/derived/verdict-table.md"
 "${RUN[@]}" python analysis/scripts/extract_verdict_table.py \
   --out data/derived/verdict-table.md > /dev/null
 
 # --- 7. Regenerate the power table ---
-echo "[repro] 7/9 power_curve -> data/derived/power-curve.md"
+echo "[repro] 7/10 power_curve -> data/derived/power-curve.md"
 "${RUN[@]}" python analysis/scripts/power_curve.py \
   --out data/derived/power-curve.md > /dev/null
 
 # --- 8. Compare the quoted numbers with the frozen inputs ---
 # "Not transcribed by hand" is a policy, not a check. This is the check.
-echo "[repro] 8/9 check_manuscript_numbers"
+echo "[repro] 8/10 check_manuscript_numbers"
 "${RUN[@]}" python analysis/scripts/check_manuscript_numbers.py
 
 # --- 9. Claim boundary ---
-echo "[repro] 9/9 check_claim_boundary"
+echo "[repro] 9/10 check_claim_boundary"
 "${RUN[@]}" python analysis/scripts/check_claim_boundary.py
 
-echo "[repro] DONE: all nine steps passed"
+# --- 10. Reach of the sealed decision rules ---
+# The rules file decides which claim the run licenses. Running it once shows it produces an
+# answer; this shows that a moved threshold, a reordered evaluation, or a malformed input
+# produces a different one -- and that a no-op change does not.
+echo "[repro] 10/10 check_decision_rules_scope"
+"${RUN[@]}" python analysis/scripts/check_decision_rules_scope.py
+
+echo "[repro] DONE: all ten steps passed"

@@ -1,0 +1,126 @@
+{
+  "schema": "powered-null-decision-rules-1",
+  "description": "The decision rules of the prospective study, in machine-readable form. This file is the authority; the prose in the protocol is generated from it. Evaluation is strictly ordered and stops at the first rule whose action is 'stop'.",
+  "estimand": {
+    "quantity": "tv_bar",
+    "definition": "Mean across the K frozen contexts of the total-variation distance between the channel-on and channel-off distributions over the five zones, computed after dropping unparseable draws and renormalising over the five zones.",
+    "materiality_margin": 0.1
+  },
+  "arms": {
+    "control": {
+      "model": "qwen3:8b",
+      "role": "Absorbs the backend version change; evaluated first and gates the primary arm."
+    },
+    "primary": {
+      "model": "llama3.1:8b",
+      "role": "Cross-family replication in a natively non-thinking model."
+    }
+  },
+  "evaluation_order": ["R5", "R4", "R3", "R1", "R2"],
+  "rules": [
+    {
+      "id": "R5",
+      "arm": "control",
+      "role": "outcome_neutral_gate",
+      "label": "control-arm concordance",
+      "combine": "all",
+      "predicates": [
+        { "quantity": "verdict", "op": "eq", "value": "NO_CHANNEL_CONFORMANCE" },
+        { "quantity": "rho_hat", "op": "gte", "value": 0.75 },
+        { "quantity": "power", "op": "gte", "value": 0.8 },
+        { "quantity": "tv_bar", "op": "lt", "value": 0.1 },
+        { "quantity": "tv_bar", "op": "abs_diff_lte", "centre": 0.038065, "value": 0.03 },
+        { "quantity": "permutation_reject", "op": "eq", "value": false }
+      ],
+      "on_pass": {
+        "action": "continue",
+        "states": "The five quantities fall inside the declared band. That is the whole of its content: it is not a statement about whether the backend upgrade changed anything."
+      },
+      "on_fail": {
+        "action": "stop",
+        "states": "The control arm did not reproduce the declared band. Report which of the five quantities fell outside it. The primary arm is not interpreted. Only a differing verdict licenses the stronger statement that the version change moved the verdict."
+      }
+    },
+    {
+      "id": "R4",
+      "arm": "primary",
+      "role": "outcome_neutral_gate",
+      "label": "apparatus validity",
+      "combine": "any",
+      "predicates": [
+        { "quantity": "rho_hat", "op": "lt", "value": 0.5 },
+        { "quantity": "none_rate_max_observed", "op": "gt", "value": 0.5 }
+      ],
+      "on_pass": {
+        "action": "stop",
+        "states": "In the primary family the substrate does not license two or more zones, so this estimand is not measurable in that family. This is NOT read as NO_CHANNEL_CONFORMANCE. The claim narrows to single-model scope."
+      },
+      "on_fail": { "action": "continue" }
+    },
+    {
+      "id": "R3",
+      "arm": "primary",
+      "role": "outcome_neutral_gate",
+      "label": "attained power",
+      "combine": "all",
+      "predicates": [
+        { "quantity": "rho_hat", "op": "gte", "value": 0.5 },
+        { "quantity": "power", "op": "lt", "value": 0.8 }
+      ],
+      "on_pass": {
+        "action": "stop",
+        "states": "INCONCLUSIVE_UNDERPOWERED. No claim changes, the result budget is not consumed, and a re-run at larger M/K is sought separately."
+      },
+      "on_fail": { "action": "continue" }
+    },
+    {
+      "id": "R1",
+      "arm": "primary",
+      "role": "outcome_branch",
+      "label": "replication",
+      "combine": "all",
+      "predicates": [
+        { "quantity": "rho_hat", "op": "gte", "value": 0.5 },
+        { "quantity": "power", "op": "gte", "value": 0.8 },
+        { "quantity": "tv_bar", "op": "lt", "value": 0.1 },
+        { "quantity": "permutation_reject", "op": "eq", "value": false }
+      ],
+      "on_pass": {
+        "action": "stop",
+        "states": "The estimate falls below the materiality margin in a non-Qwen natively non-thinking regime as well. The claim moves from single-model to two tested model families. The confound that stays open, and the possibility that a shared apparatus-level collapse rather than a channel property produces the agreement, are both carried as limitations."
+      },
+      "on_fail": { "action": "continue" }
+    },
+    {
+      "id": "R2",
+      "arm": "primary",
+      "role": "outcome_branch",
+      "label": "non-replication",
+      "combine": "all",
+      "predicates": [
+        { "quantity": "rho_hat", "op": "gte", "value": 0.5 },
+        { "quantity": "power", "op": "gte", "value": 0.8 },
+        {
+          "combine": "any",
+          "predicates": [
+            { "quantity": "tv_bar", "op": "gte", "value": 0.1 },
+            { "quantity": "permutation_reject", "op": "eq", "value": true }
+          ]
+        }
+      ],
+      "on_pass": {
+        "action": "stop",
+        "states": "The result is specific to qwen3:8b under the disabled-think regime. The central claim narrows to that apparatus and model. This is a finding, not a failure."
+      },
+      "on_fail": {
+        "action": "stop",
+        "states": "UNREACHABLE. R1 and R2 partition the space remaining after R4 and R3, so reaching this state indicates a defect in the rules or in the inputs, and must be reported as such rather than interpreted."
+      }
+    }
+  ],
+  "quantity_notes": {
+    "none_rate_max_observed": "The apparatus computes the none-rate per (context, condition) cell and records the maximum across cells. No pooled none-rate is produced anywhere in the run output, so the maximum is the only quantity this predicate can be evaluated on. Recorded here explicitly because the protocol prose said 'pooled'.",
+    "permutation_reject": "From the stratified label-permutation test on tv_bar performed inside the scorer, at alpha = 0.05.",
+    "power": "Monte-Carlo power of a chi-square goodness-of-fit test against an alternative built by moving mass from the largest to the smallest cell of the empirical channel-off distribution. It is NOT the power of the permutation test that produces permutation_reject."
+  }
+}
