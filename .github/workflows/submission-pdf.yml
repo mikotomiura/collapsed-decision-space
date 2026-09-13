@@ -24,10 +24,21 @@ name: Submission PDF
 
 on:
   workflow_dispatch:
+    inputs:
+      anonymous:
+        description: >-
+          Build the anonymised submission PDF instead of the named one, and read it back to check
+          that nothing in it identifies the author.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+# Anonymity is not a property anyone should infer. The named build's own annotations carry the
+# repository URL nine times over, in a layer nobody reading the page can see, so the anonymous
+# build is produced here from the anonymised manuscript and then read back with
+# `check_pdf_identity.py`. Passing `anonymous: true` switches both.
 jobs:
   pdf:
     name: build and check paper.pdf
@@ -36,6 +47,29 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install uv
+        if: inputs.anonymous
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build the anonymous bundle, and take the manuscript from it
+        # `make_anonymous_bundle.py` refuses to run on a dirty tree, produces the redacted
+        # manuscript, and asserts that every sealed file is byte-identical to the public copy.
+        # Swapping the manuscript in place afterwards keeps the rest of this workflow identical
+        # for both builds -- one pipeline, not two, so the anonymous PDF cannot drift from the
+        # named one in any way except the redactions.
+        if: inputs.anonymous
+        run: |
+          set -eux
+          uv run --project env --no-sync python analysis/scripts/make_anonymous_bundle.py \
+            --out build/anonymous
+          for f in manuscript/main.md                    analysis/scripts/make_pdf_source.py                    analysis/scripts/check_pdf_text.py; do
+            cp "build/anonymous/$f" "$f"
+          done
+          # make_pdf_source.py carries the author line for the title block, and
+          # check_pdf_text.py carries the author name and ORCID among the phrases it requires to
+          # survive into the page. Redacted in the manuscript but not in those two, the build
+          # would either print the name or fail looking for it.
 
       - name: Install pandoc, XeTeX and a wide-coverage font
         # `texlive-latex-extra` carries pdflscape; `fonts-dejavu` carries the font chosen for its
@@ -130,6 +164,16 @@ jobs:
         # silent loss, and the quantities read from the frozen inputs by key.
         run: python3 analysis/scripts/check_pdf_text.py build/extracted.txt
 
+      - name: Check that nothing in the anonymous PDF identifies the author
+        # Reads the information dictionary, any XMP packet, every link annotation and every
+        # inflated stream. The annotations are the point: they hold their target URI as plain
+        # text, and the named build carries nine of them.
+        if: inputs.anonymous
+        run: |
+          set -eux
+          uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py \
+            build/collapsed-decision-space-protocol.pdf
+
       - name: Check the PDF against the claim boundary
         # The PDF is published in its own right, so it is a claim surface too. The patterns come
         # from `manuscript/CLAIM-BOUNDARY.md` -- one SSOT, applied to the derived artefact as well
@@ -143,7 +187,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: collapsed-decision-space-protocol-${{ github.sha }}
+          name: collapsed-decision-space-protocol-${{ inputs.anonymous && 'anonymous' || 'named' }}-${{ github.sha }}
           path: |
             build/collapsed-decision-space-protocol.pdf
             build/extracted.txt

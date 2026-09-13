@@ -142,12 +142,17 @@ TEXT_NAMES: frozenset[str] = frozenset({"LICENSE", "LICENSE-MIT", "SEED"})
 #: there and must not contain a previous copy of itself.
 EXCLUDED_PREFIXES: tuple[str, ...] = (".git/", ".github/", "build/", "data/derived/")
 
-#: Files left out one by one rather than by prefix. This script is here for a reason worth
-#: stating: it is the one file in the repository that *has* to contain the strings it removes,
-#: since those strings are its patterns. Shipping it would either put the author's name in the
-#: bundle or redact the patterns into uselessness. It is a tool for preparing a submission, not
-#: part of reproducing the study, and the reviewer needs neither.
-EXCLUDED_FILES: frozenset[str] = frozenset({"analysis/scripts/make_anonymous_bundle.py"})
+#: Files left out one by one rather than by prefix. These two are here for a reason worth
+#: stating: they are the files that *have* to contain the strings they remove, since those
+#: strings are their patterns. Shipping them would either put the author's name in the bundle
+#: or redact the patterns into uselessness. Both are tools for preparing a submission rather
+#: than parts of reproducing the study, and the reviewer needs neither.
+EXCLUDED_FILES: frozenset[str] = frozenset(
+    {
+        "analysis/scripts/make_anonymous_bundle.py",
+        "analysis/scripts/check_pdf_identity.py",
+    }
+)
 
 #: Paths copied byte for byte whatever their extension, and where a redaction would be an error
 #: rather than a fix. These are the same paths ``.gitattributes`` marks ``-text``, for the same
