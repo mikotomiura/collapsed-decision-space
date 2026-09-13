@@ -149,6 +149,21 @@ DERIVED_REQUIRED: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
 )
 
 
+#: Quantities the manuscript quotes from the **deposit witness**. These would otherwise be
+#: transcribed by hand, and `manuscript/CLAIM-BOUNDARY.md` section 4 says plainly that a
+#: hand-transcribed number is covered by nothing -- so the honest options were to add this value
+#: to that disclosure or to bring it under a check. It is mechanically available in a shipped
+#: file, so it is checked.
+#:
+#: The anchor is the one number the manuscript quotes from outside this repository, which is
+#: exactly why leaving it unchecked would be the wrong trade.
+WITNESS_REQUIRED: tuple[tuple[str, tuple[str, ...], str], ...] = (
+    ("witness.latest_server_time", ("latest_server_time",), "str"),
+    ("witness.version_doi", ("version_doi",), "str"),
+    ("witness.concept_doi", ("concept_doi",), "str"),
+)
+
+
 #: The subset of :data:`REQUIRED` that the README quotes in its "Key quantities" tables.
 #: The README asserts that its values come from the extraction output and are enforced by
 #: ``repro.sh``. Until this list existed that assertion was false: the check read only the
@@ -240,6 +255,28 @@ def main(argv: list[str] | None = None) -> int:
                 "in main.md"
             )
 
+    # The deposit witness. Absent before a deposit exists, and its absence is not a failure --
+    # the same existence guard steps 13 and 14 of repro.sh use, for the same reason: a check that
+    # demanded the file would freeze "the deposit has happened" into a script that ran before it
+    # had. Present-but-disagreeing is a failure.
+    witness_path = repo_root / "seal" / "zenodo-witness.json"
+    if witness_path.is_file():
+        witness = load_json(witness_path)
+        for label, keys, how in WITNESS_REQUIRED:
+            node: Any = witness
+            for key in keys:
+                node = node[key]
+            literal = literal_of(node, how)
+            if literal in text:
+                print(f"[numbers] OK {label:<28} = {literal}  (witness)")
+            else:
+                problems.append(
+                    f"{label}: the deposit witness records {literal!r}, which does not appear "
+                    "in main.md"
+                )
+    else:
+        print("[numbers] -- no deposit witness present, so its anchor and DOIs are not compared")
+
     unknown = README_QUANTITIES - {label for label, _, _, _ in REQUIRED}
     if unknown:
         problems.append(
@@ -258,6 +295,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"[numbers] OK: {len(REQUIRED)} frozen and {len(DERIVED_REQUIRED)} derived quantities "
+        f"(plus {len(WITNESS_REQUIRED)} from the deposit witness, when one is present) "
         f"occur in main.md as their sources "
         f"render them, {covered_in_readme} of them also in README.md. The test is "
         "occurrence, not uniqueness: a value that appears more than once is not protected "
