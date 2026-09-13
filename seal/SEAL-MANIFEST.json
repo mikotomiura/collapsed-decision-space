@@ -1,8 +1,8 @@
 {
   "files": {
     "analysis/freeze-provenance.json": {
-      "sha256": "054d66d5015a7ab15d2fb3ba215d70ce1104b4e8b181935c86d831bb6fafc178",
-      "size": 16286
+      "sha256": "3ea660bfc19f6fd134a1cc721ce782ec4db8d1002e0d088c69ec7024e55779d3",
+      "size": 16592
     },
     "analysis/scripts/apply_decision_rules.py": {
       "sha256": "30e3358a00559809293aa55568fc855fa16df6bdabe3d9df1f1c8af6b879355a",
@@ -41,5 +41,5 @@
   "schema": "cds-seal-manifest-1",
   "scope_note": "This document establishes internal consistency only. It cannot show that the files are old, nor that a sealed file and this manifest were not edited together. The external half is the deposit, which publishes a per-file checksum that anyone can read without an account.",
   "self_hash_canonicalisation": "sha256 of json.dumps(manifest_without_self_sha256, sort_keys=True, indent=2, ensure_ascii=False) + \"\\n\", encoded as UTF-8",
-  "self_sha256": "8f0e07fab26bc4108611135b0d40e38e786fe28503fba67d0cce9e7cd8703cc7"
+  "self_sha256": "2c4b253b26393d95a85d636d6e2b0ebaf92cd97607d1bc06f9b8b8a511642557"
 }

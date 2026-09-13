@@ -72,6 +72,7 @@ chi-square の検出力ゲートを膨らませ、距離統計量の帰無床が
 | `analysis/apparatus/` | 測定 apparatus 69 モジュール（上流と byte 一致） |
 | `analysis/scripts/` | 検証・抽出スクリプト |
 | `analysis/freeze-provenance.json` | 証拠を担う同梱ファイルの上流 commit と blob 識別子 |
+| `analysis/upstream-links.json` | その commit を手で辿るための URL。封印ファイルの外に置く |
 | `env/` | 完了済み実走が使った lockfile |
 | `repro.sh` | 上記すべてを走らせる 1 コマンド |
 

@@ -75,6 +75,7 @@ its fixture.
 | `analysis/apparatus/` | The measurement apparatus, 69 modules, byte-identical to the upstream source |
 | `analysis/scripts/` | Verification and extraction scripts |
 | `analysis/freeze-provenance.json` | Upstream commit and blob identifier of every shipped file that carries evidence |
+| `analysis/upstream-links.json` | The URLs for following those commits by hand, kept out of the sealed file |
 | `env/` | The lockfile the completed run was executed under |
 | `repro.sh` | One command that runs all of the above |
 

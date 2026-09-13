@@ -628,8 +628,10 @@ and dated upstream.
 | run artefact `verdict.json` of the completed study | `6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1` — the only commit ever to add this file | 2026-07-10T12:25:06Z |
 
 Both freeze commits are ancestors of the run commit. The records are at
-<https://github.com/mikotomiura/ERRE-Sandbox>, and `analysis/freeze-provenance.json` carries the
-commit identifiers, the times, and the URLs.
+<https://github.com/mikotomiura/ERRE-Sandbox>. `analysis/freeze-provenance.json` carries the
+commit identifiers, the blob identifiers and the times; the URLs for following them by hand are in
+`analysis/upstream-links.json`, kept separate because the provenance file is sealed and a
+repository URL names its owner — see §11 and §13.
 
 `analysis/scripts/verify_threshold_freeze.py` checks two things on every reproduction run:
 
