@@ -1,6 +1,9 @@
-# A powered null on a verified channel: separating effect-absent from low power in embodied LLM agents
+# When the power gate cannot fail: collapsed decision spaces defeat margin-and-power null reporting in LLM agents
 
-**Stage 1 Registered Report protocol** — submitted to PCI Registered Reports (standard track).
+**Pre-registered protocol, with a completed preliminary measurement reported in full.**
+The prospective arms have not been run. The decision rules that will read them are sealed before
+they are, in machine-readable form, so that the branch reported afterwards can be re-derived from
+the rules as they stood beforehand (§13).
 
 | | |
 |---|---|
@@ -17,63 +20,90 @@
 
 ## Abstract
 
-An exponential moving average over an embodied language-model agent's recent movement modulates
-the temperature used for its next generation. A completed forensic study establishes that this
-channel is causal, is separable from the static location channel, and vanishes without residue
-under ablation, while a positive control shows that the same estimator can return zero. A
-completed measurement on a single model then found no shift in a five-way zone decision exceeding
-the materiality margin fixed in advance: a mean total-variation distance of 0.038065 against a
-margin of 0.10, obtained at full nominal power over 4,800 draws. This Stage 1 protocol estimates the
-same quantity in a second model family, with a control arm that re-runs the original model to
-absorb a backend version change. Thresholds, decision rules and outcome-neutral checks are fixed
-before any prospective draw exists, and no directional expectation is stated.
+A common way to report a null in language-model evaluation pairs a materiality margin declared in
+advance with a power gate: the estimate must fall below the margin, and the design must have had
+the power to detect a shift of that size. We show that both guards can stop working at once, and
+in the same direction, when the categorical decision space partially collapses. In a completed
+measurement of an agent-internal channel over 4,800 draws, two of the five available zones are
+never produced at all. The power calculation takes the empirical read-out distribution as its base
+and builds its alternative by moving mass into the smallest cell, so a cell of probability exactly
+zero leaves the gate reporting 0.921 even at a hundredth of the declared margin of 0.10. The null
+floor of the distance statistic meanwhile stands at 0.027813, against an observed 0.038065. The
+channel is separately established as causal, separable and ablatable. This protocol estimates the
+same quantity in a second model family, to find out whether the failure mode belongs to the model
+or to the apparatus.
 
 ---
 
 ## 1. Introduction
 
-An embodied language-model agent is usually built by wiring a mechanism and then assuming the
-mechanism matters. This study takes the assumption apart into two separable questions, and
-addresses only the second.
+Reporting that an intervention had no effect requires two things that reporting an effect does not.
+The estimate must fall below a magnitude fixed in advance as the smallest one that would matter,
+and the design must have had the power to detect a shift of that magnitude had one been there. That
+pairing -- a declared materiality margin and a power gate -- is the standard shape of a defensible
+null, and it is the shape this study set out to use.
 
-The apparatus under study modulates decode-time sampling from an agent's recent movement
-history: an exponential moving average over the agent's moves produces a scalar, and that scalar
-composes into the temperature used for the next generation. The wiring question — *is this a real
-causal channel, or an artefact?* — has already been answered in a completed preliminary study
-(§3): the channel is causal, it is separable from the static location channel, and it vanishes
-bit-for-bit under ablation, while a positive control shows that the same estimator can return
-zero. The propagation question — *does that channel move the agent's downstream discrete
-choices?* — is what this protocol addresses.
+**Our central finding is that both guards can stop working at the same time, and in the same
+direction, in a regime that language-model agents reach easily.** When the categorical decision
+space partially collapses -- when some of the options nominally available are never produced -- the
+usual multinomial power calculation does not report the difficulty this creates. It reports the
+opposite. The alternative it tests against is built by moving probability mass into the least
+likely cell, and when that cell is empty the resulting statistic is enormous, so the gate returns
+values near 1 for effect sizes far below anything the study called material. At the same time the
+null floor of the distance statistic rises, because a non-negative distance between two estimated
+distributions has a positive expectation under the null, and that floor eats much of the declared
+margin. The margin check and the power check then agree, and neither is carrying information.
 
-The subject of every claim in this manuscript is **the channel**. It is not walking, and it is
-not creativity. The estimand is defined over a frozen bank of contexts and a five-way zone
-decision; nothing in the design licenses a statement about human ambulation or about creative
-production.
+We did not set out to make this point. We arrived at it by looking at the support of our own
+read-out after the fact, and §5.1.1 reports what we found: over 4,800 draws two of five zones are
+never produced, the power gate clears `0.8` at a hundredth of the declared margin, and roughly
+three-quarters of the reported estimate is the null floor. The thresholds were fixed before the
+run and are not revised here. What changes is not the numbers but what a pass of them is worth.
 
-A completed run of exactly this measurement on one model returned a null under a pre-declared
-materiality margin while retaining full nominal power (§5.1). A null of that shape is only worth
-reporting if two things are true: that the instrument could have read a non-zero value, and that
-the design could have detected one of the declared size. Both are addressed here by outcome-neutral
-checks that are specified before any prospective draw exists (§10).
+### 1.1 The apparatus, and what the claims are about
 
-### 1.1 What this protocol estimates
+The apparatus modulates decode-time sampling from an agent's recent movement history: an
+exponential moving average over the agent's moves produces a scalar, and that scalar composes into
+the temperature used for the next generation. The wiring question -- *is this a real causal
+channel, or an artefact?* -- was answered in a completed preliminary study (§3): the channel is
+causal, it is separable from the static location channel, and it vanishes bit-for-bit under
+ablation, while a positive control shows that the same estimator can return zero. The propagation
+question -- *does that channel move the agent's downstream discrete choices?* -- is the one
+measured here.
 
-Following PCI RR criterion 1B — *"The inclusion of hypotheses is not required – a Stage 1 RR can
-instead propose estimation or measurement of phenomena without expecting a specific observation"*
-— this is written as an estimation problem. We estimate, in a second model family, the magnitude
-of the channel's downstream effect on a five-way categorical decision, and we compare that
-estimate against a materiality margin that was fixed before any of the data existed. We do not
-state a directional expectation about where the estimate will fall, and the decision rules in §8
-are written so that every outcome category is an acceptable Stage 2 result.
+The subject of every claim in this manuscript is **the channel**. It is not walking, and it is not
+creativity. The estimand is defined over a frozen bank of contexts and a five-way zone decision;
+nothing in the design licenses a statement about human ambulation or about creative production.
+Equally, the failure mode above is a property of a measurement design meeting a collapsed decision
+space. We demonstrate it on one apparatus; we do not claim to have surveyed how often it occurs.
 
-### 1.2 What is new here, and what is not
+### 1.2 What this protocol estimates
 
-Two things in this work are, to our knowledge, not already standard:
+This is written as an estimation problem rather than a hypothesis test. We estimate, in a second
+model family, the magnitude of the channel's downstream effect on a five-way categorical decision,
+and compare that estimate against a materiality margin fixed before any of the data existed. We
+state no directional expectation about where the estimate will fall, and the decision rules in §8
+are written so that every outcome category is an acceptable result.
 
-1. the estimand is *an agent-internal modulation acting on a downstream categorical choice*,
+The second arm has a second purpose given the finding above, and it is worth naming because it
+changes what the arm is for. If the same collapse appears in a different model family running the
+same harness, the collapse is more plausibly a property of the apparatus -- the prompt, the parser,
+the zone vocabulary -- than of any model. If it does not appear, the completed run's numbers are
+specific to that model in a way §5.1.1 could not establish on its own. Either way the second arm
+is informative, which is not something we could have said of a replication attempt whose only
+purpose was to see the null again.
+
+### 1.3 What is new here, and what is not
+
+Three things in this work are, to our knowledge, not already standard:
+
+1. the joint failure of the margin-and-power pairing under a collapsed decision space, stated as a
+   mechanism rather than as an anomaly, and demonstrated on frozen data that a reader can recompute;
+2. the estimand itself -- *an agent-internal modulation acting on a downstream categorical choice*,
    rather than agreement between two models' output distributions; and
-2. the demonstration that a near-uniform categorical substrate does not imply low detection
-   power (§5.2), which runs against a common intuition.
+3. the demonstration that **concentration of the base distribution is not itself what reduces
+   detection power** (§5.2), which runs against a common intuition. What reduces power is a small
+   attainable shift, not a peaked base.
 
 Everything else is the deliberate application of existing practice. In particular, declaring a
 materiality margin in advance for an equivalence-style reading of language-model evaluation is
@@ -194,9 +224,9 @@ alone. They read six quantities:
 |---|---|---|
 | `tv_bar` | R1, R2, R5 | The primary estimand; compared against the materiality margin |
 | `rho_hat` | R1–R5 | Fraction of contexts for which the substrate licenses at least two zones (apparatus validity) |
-| `power` | R1–R3, R5 | Attained detection power of the realised design |
+| `power` | R1–R3, R5 | Monte-Carlo power of a chi-square goodness-of-fit test against an alternative built by moving mass from the largest to the smallest cell of the empirical channel-off distribution. **This is not the power of the permutation test that produces `permutation_reject`**, which is the test the decision actually turns on; the two use different statistics and are not interchangeable (§12.6). §5.1.1 shows what the quantity becomes when a cell of the base is empty |
 | `permutation_reject` | R1, R2, R5 | Outcome of the permutation test at the declared α |
-| pooled `none_rate` | R4 | Fraction of draws yielding no parseable zone; compared against `none_rate_max` |
+| `none_rate_max_observed` | R4 | The apparatus computes the fraction of draws yielding no parseable zone **per (context, condition) cell** and records the maximum across cells. No pooled figure is produced anywhere in the run output, so the maximum is the quantity R4 is evaluated on; earlier drafts of this protocol said "pooled", which named nothing that exists. The scorer independently returns `INCONCLUSIVE` if any single cell exceeds `none_rate_max`, so R4's second condition partly duplicates a gate upstream of it |
 | `verdict` | R5 | The categorical verdict emitted by the scorer for the control arm |
 
 No threshold is added by listing these: `none_rate_max` is already among the values in §6.3, and
@@ -264,7 +294,70 @@ value of this record does enter §8, and we state it rather than leave it implic
 settled before any prospective draw exists, not as data to be re-analysed, and no other quantity
 of this record is read by any rule in §8.
 
-### 5.2 Power worksheet: a near-uniform substrate does not imply low power
+#### 5.1.1 The support of the read-out, and what it does to the power gate
+
+The table above is the record as the scorer wrote it. Two further properties of the same draws are
+not in that record, are not visible from it, and bear directly on how the two lines of §5.1 should
+be read. Both are recomputed from the shipped annotation by
+`analysis/scripts/collapse_and_floor.py` on every reproduction run, and are tabulated in
+`data/derived/collapse-and-floor.md`.
+
+**Two of the five zones are never produced.** Pooled over the channel-off condition (2,276 draws
+that parsed), the read-out distribution is:
+
+| Zone | Count | Probability |
+|---|---|---|
+| `agora` | 0 | `0.0` |
+| `chashitsu` | 0 | `0.0` |
+| `garden` | 295 | `0.129613` |
+| `peripatos` | 32 | `0.01406` |
+| `study` | 1949 | `0.856327` |
+
+`chashitsu` is not produced once in the whole run, under either condition; `agora` appears three
+times, all in one context. Seven of the eight contexts have a combined support of three zones. The
+estimand is defined over five categories and the apparatus offers five, but the decision space the
+draws actually occupy is narrower than that, and the design was fixed without knowing it would be.
+
+**This is what produces `power = 1.0`, and it does so in the unhelpful direction.** The gate takes
+the empirical channel-off distribution above as its base and builds the alternative it tests
+against by moving probability mass from the largest cell to the *smallest*. Here the smallest cell
+has probability exactly zero, and the chi-square statistic divides by the expected count, which the
+implementation floors at a small positive constant to avoid dividing by zero. A single draw landing
+in a cell the base says is impossible therefore produces an enormous statistic, against a null
+critical value of about 5.9. The gate has effectively become a test of whether any draw lands in a
+zone that has never been seen:
+
+| `delta_tv` | as a fraction of the 0.10 margin | power | passes the `0.8` gate |
+|---|---|---|---|
+| `0.1` | 1 | `1.0` | yes |
+| `0.01` | 1/10 | `1.0` | yes |
+| `0.002` | 1/50 | `0.993` | yes |
+| `0.001` | 1/100 | `0.921` | yes |
+| `0.0005` | 1/200 | `0.708` | no |
+| `0.0002` | 1/500 | `0.39` | no |
+
+The consequence is not that the reported power is wrong. It is that **the power gate is close to
+unfalsifiable in this regime**: it clears `0.8` for effect sizes two orders of magnitude below the
+margin the study declared material, so passing it is nearly uninformative about whether the design
+could detect a shift anyone would care about. §12.6 states what this costs the reading of §5.1, and
+§7.2 records that R3 is retained as a planned check even so.
+
+**The estimand has a null floor of `0.027813`.** Total variation is a non-negative distance, so its
+expected value under the null is not zero. Permuting the condition labels within each context --
+the same null the scorer's own permutation test uses -- 2,000 times at seed `20260708` gives a mean
+`tv_bar` of `0.027813` and a 95th percentile of `0.038839`. The observed `0.038065` is 1.37 times
+the null mean and falls **below** that 95th percentile, which is the same fact the recorded
+`permutation_p_value` of `0.057986` reports from the other side.
+
+Two things follow, and we state both rather than the more comfortable one. First, roughly
+three-quarters of the reported estimate is the floor rather than any shift: reading `0.038065` as
+"the effect is about 0.038" is not supported. Second, the margin of `0.10` that the design declared
+material is only about 3.6 times that floor, so the margin and the noise level of the estimator
+are the same order of magnitude. Neither observation changes any threshold or any decision rule --
+they were fixed before this was computed and are not being revised -- but both change what a pass
+of those rules is worth, and that is the subject of this paper.
+
+### 5.2 Power worksheet: concentration is not what reduces power
 
 An a-priori categorical-multinomial power calculation, reproduced by
 `analysis/scripts/power_curve.py` at the frozen seed, gives:
@@ -442,7 +535,7 @@ altering any condition.
 
 | Branch | Condition | Consequence for this paper |
 |---|---|---|
-| **R1 — replication** | `rho_hat >= 0.5` ∧ `power >= 0.8` ∧ `tv_bar < 0.10` ∧ `permutation_reject == False` | The null also holds in a non-Qwen natively non-thinking regime. The claim moves from "single model only" to "reproduced across two model families". The generality in the title is supported. **The gate that stays open (§12.1) is stated as a limitation.** |
+| **R1 — replication** | `rho_hat >= 0.5` ∧ `power >= 0.8` ∧ `tv_bar < 0.10` ∧ `permutation_reject == False` | The estimate falls below the materiality margin in a non-Qwen natively non-thinking regime as well. The claim moves from "single model only" to "observed in the two tested model families". **Two gates stay open and are stated as limitations, not resolved**: the confound of §12.1, and the possibility named in §12.7 that a shared apparatus-level collapse rather than a property of the channel produces the agreement. |
 | **R2 — non-replication** | `rho_hat >= 0.5` ∧ `power >= 0.8` ∧ (`tv_bar >= 0.10` ∨ `permutation_reject == True`) | The null is specific to `qwen3:8b` under the disabled-`think` regime. The central claim narrows to that apparatus and model, and "in embodied LLM agents" is removed from the title, which PCI RR §2.10 permits at Stage 2. **This is a finding, not a failure.** |
 | **R3 — insufficient power** | `rho_hat >= 0.5` ∧ `power < 0.8` | `INCONCLUSIVE_UNDERPOWERED`. The result budget is not consumed. A re-run at larger *M*/*K* is sought separately. **No claim changes under this branch.** |
 | **R4 — invalid apparatus** | `rho_hat < 0.5` ∨ pooled `none_rate > 0.5` | This is **not** read as `NO_CHANNEL_CONFORMANCE`. In the primary family the substrate does not license two or more zones, so **this estimand is not measurable in that family**. The claim narrows to single-model scope. |
@@ -456,7 +549,7 @@ statistic, or claim appears here that is not already fixed there. Where the two 
 as differing, the numbered sections govern.
 
 **The hypothesis column is deliberately absent, not omitted by oversight.** PCI RR states that the
-hypothesis column *"can be omitted where the study is not hypothesis-driven"*, and §1.1 writes this
+hypothesis column *"can be omitted where the study is not hypothesis-driven"*, and §1.2 writes this
 study as an estimation problem under criterion 1B. No directional expectation is stated anywhere in
 this protocol, so a hypothesis column could only be filled with something the design does not
 contain.
@@ -644,6 +737,37 @@ in `analysis/freeze-provenance.json` and is printed by the verification script r
 the reader to discover.
 
 All three gaps are stated rather than worked around.
+
+### 12.6 The reported power is not the power of the test the decision turns on
+
+Two different tests appear in this design and it matters that they are not confused. The decision
+rests on the margin comparison and, for `permutation_reject`, on a stratified label-permutation
+test of `tv_bar`. The quantity called `power` is the Monte-Carlo power of a **chi-square
+goodness-of-fit** test against a constructed alternative. The statistics differ, the tests differ,
+and the power of the permutation test is not evaluated anywhere in this work. Earlier drafts
+described `power` as the attained power of the realised design, which overstated the connection.
+
+§5.1.1 shows the further consequence: because the gate's base distribution has empty cells, it
+clears its `0.8` threshold at effect sizes two orders of magnitude below the declared margin. R3 is
+retained as a planned check, and its failure would still be consequential, but a **pass** of R3
+should be read as close to uninformative in this regime rather than as evidence that the design was
+adequately powered. We state that here rather than let the word "powered" carry a weight the number
+cannot bear.
+
+### 12.7 A shared collapse would not be a replication of the channel result
+
+Under R1 the two arms agree. §12.1 records that family and think regime move together and that
+neither can be credited. A second and distinct gate stays open, and the finding of §5.1.1 is what
+opens it: the collapse of the decision space is at least as plausibly a property of the harness --
+the prompt, the parser, the zone vocabulary, the frozen bank -- as of any model. Both arms run the
+same harness on the same bank. If the same two zones go unproduced in both, the agreement between
+them is evidence that the apparatus behaves consistently, not that the channel fails to propagate
+in two model families.
+
+The prospective design does not resolve this, and no rule in §8 attributes the agreement either
+way. We name it in advance so that an R1 outcome is not read as more than it is. Distinguishing the
+two would need the read-out varied -- a different zone vocabulary, a different parser, a different
+bank -- which is outside this protocol and is not a change we may make to it (§11).
 
 ---
 

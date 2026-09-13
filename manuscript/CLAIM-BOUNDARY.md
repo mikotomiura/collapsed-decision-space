@@ -18,8 +18,15 @@
 - The channel is wired non-degenerately (from the channel study and the determinism study),
   **including that the positive control is able to return zero**.
 - The channel's downstream effect was not detected under a materiality margin declared in advance.
-- A near-uniform categorical substrate does not imply low detection power — which runs against a
-  common intuition.
+- **Concentration of the base distribution is not itself what reduces detection power** — what
+  reduces it is a small attainable shift. This runs against a common intuition. Stated this way
+  because the worksheet's own near-uniform row reaches `power = 0.1842` at `delta_tv = 0.01`, so
+  "a near-uniform substrate does not imply low power", which earlier drafts wrote here, is
+  contradicted by the table it was meant to summarise.
+- **The margin-and-power pairing fails in both directions at once when the decision space
+  collapses**: the chi-square power gate is inflated by empty cells, and the null floor of the
+  total-variation estimand consumes much of the declared margin. Demonstrated on this apparatus and
+  recomputed on every run; **not** surveyed for how often it occurs elsewhere.
 - Effect-absent, low-power and apparatus-invalid are kept apart as **three distinct outcomes**.
 - The envelope is bounded and stated: one apparatus, one sampling regime, one model in the
   completed measurement.
@@ -81,9 +88,14 @@ failure.
 
 ## 4. Conventions for sourcing
 
-- Numbers in the manuscript come from `analysis/scripts/extract_verdict_table.py`. They are not
-  transcribed by hand, and `analysis/scripts/check_manuscript_numbers.py` compares them against the
-  frozen inputs character for character.
+- Numbers the manuscript draws from the frozen inputs, and from the derived artefacts regenerated
+  on every run, are checked by `analysis/scripts/check_manuscript_numbers.py` against those sources.
+  Two limits on that, both of which earlier drafts of this file omitted. **The check tests
+  occurrence, not uniqueness**: a value appearing in several places is not protected against one of
+  them being altered. And **its scope is the listed quantities only** — in particular the pilot
+  figures in §5.3 (timings, digests, peak memory, the projected run length) exist in no frozen input
+  and are covered by nothing. They are transcribed by hand, and saying otherwise here would be the
+  same error this file exists to prevent.
 - Sources cited in published files must be reachable by a reader of this repository. Working
   directories that are not shipped here are not citable sources.
 - When `power ≈ 0.18` is quoted, the base distribution and the `delta_tv` it belongs to are quoted
