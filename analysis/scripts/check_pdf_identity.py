@@ -12,10 +12,12 @@ enough either, because the two places identity actually survives a build are nei
   watch, and it is the one a reader of the page never sees.
 
 Text drawn on the page is a third case and the least legible one: a subsetted font maps glyphs
-through a custom encoding, so an author's name can be perfectly visible on the page while the
-byte string ``Mikoto`` appears nowhere in the file. Searching for names in the raw bytes therefore
-proves nothing on its own, and this script says so rather than counting a zero as a pass. What it
-can do exhaustively is the metadata and the annotations, and those are where the leaks were.
+through a custom encoding, so an author's name can be perfectly visible on the page while the byte
+string ``Mikoto`` appears nowhere in the file. **So pass ``--text`` with the ``pdftotext`` output.**
+Without it this script cannot see the page at all, and the failure is worse than a gap: it reports
+a count of zero, which reads as *absent* when it means *invisible from here*. That happened. The
+first anonymous build reported the upstream project name appearing zero times in the file while
+the page carried it plainly, and only reading the extracted text by hand caught it.
 
 **Everything is searched after inflating.** A PDF of version 1.5 or later puts most indirect
 objects -- the information dictionary and the annotation dictionaries included -- inside compressed
@@ -27,7 +29,7 @@ The patterns come from ``make_anonymous_bundle`` so that the bundle and the PDF 
 list. Both scripts are kept out of the bundle they build: they are the two files that must contain
 the strings they remove.
 
-Usage:  python analysis/scripts/check_pdf_identity.py build/paper.pdf
+Usage:  python analysis/scripts/check_pdf_identity.py build/paper.pdf --text build/extracted.txt
 """
 
 from __future__ import annotations
@@ -40,7 +42,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from make_anonymous_bundle import ACCEPTED_EXPOSURES, ALLOWED, LEAK_PATTERNS  # noqa: E402
+from make_anonymous_bundle import (  # noqa: E402
+    ACCEPTED_EXPOSURES,
+    ALLOWED,
+    CITED_DOIS,
+    LEAK_PATTERNS,
+)
 
 #: Keys of the document information dictionary that carry free text.
 INFO_KEYS: tuple[str, ...] = (
@@ -74,7 +81,13 @@ def _decompressed(raw: bytes) -> bytes:
 
 
 def _mask(text: str) -> str:
-    for allowed in ALLOWED:
+    """Blank the strings that are allowed to match, so the patterns can stay broad.
+
+    ``CITED_DOIS`` is here for the same reason it is in the bundle builder: the DOI pattern cannot
+    tell the author's own deposit from a reference, so every reference is declared by hand instead
+    of the pattern being narrowed. Both lists come from that module, so there is one of each.
+    """
+    for allowed in (*ALLOWED, *CITED_DOIS):
         text = text.replace(allowed, "")
     return text
 
@@ -107,6 +120,13 @@ def xmp_packets(blob: bytes) -> list[str]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pdf", type=Path)
+    parser.add_argument(
+        "--text",
+        type=Path,
+        help="The pdftotext output for this PDF. Without it the page itself is unreadable here, "
+        "because a subsetted font encodes its own glyphs, and the counts below would understate "
+        "what a reader can see.",
+    )
     args = parser.parse_args(argv)
 
     if not args.pdf.is_file():
@@ -127,6 +147,14 @@ def main(argv: list[str] | None = None) -> int:
         haystacks.append(("link annotation", uri))
     haystacks.append(("raw bytes and inflated streams", blob.decode("latin-1")))
 
+    page_text: str | None = None
+    if args.text is not None:
+        if not args.text.is_file():
+            print(f"[pdf-identity] FAIL: no extracted text at {args.text}", file=sys.stderr)
+            return 1
+        page_text = args.text.read_text(encoding="utf-8", errors="replace")
+        haystacks.append(("the page, as pdftotext reads it", page_text))
+
     problems: list[str] = []
     for where, text in haystacks:
         masked = _mask(text)
@@ -138,6 +166,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[pdf-identity]   info dictionary fields: {len(info_fields(blob))}")
     print(f"[pdf-identity]   XMP packets: {len(xmp_packets(blob))}")
     print(f"[pdf-identity]   link annotations: {len(uris(blob))}")
+    print(
+        "[pdf-identity]   page text: "
+        + (f"{len(page_text):,} characters" if page_text is not None else "NOT READ (--text absent)")
+    )
 
     if problems:
         print(f"[pdf-identity] FAIL: {len(problems)} identifying item(s)", file=sys.stderr)
@@ -147,15 +179,26 @@ def main(argv: list[str] | None = None) -> int:
 
     inflated = blob.decode("latin-1")
     for label, pattern, _ in ACCEPTED_EXPOSURES:
-        hits = len(re.findall(pattern, inflated, re.IGNORECASE))
-        print(f"[pdf-identity]   DISCLOSED: {label} appears {hits} time(s) in the file")
+        in_bytes = len(re.findall(pattern, inflated, re.IGNORECASE))
+        if page_text is None:
+            on_page = "unknown, --text not given"
+        else:
+            on_page = str(len(re.findall(pattern, page_text, re.IGNORECASE)))
+        print(
+            f"[pdf-identity]   DISCLOSED: {label} -- {in_bytes} occurrence(s) in the file's "
+            f"bytes, {on_page} on the page"
+        )
 
-    print(
-        "[pdf-identity] OK: no leak pattern in the metadata, the XMP, the link annotations, or "
-        "the inflated streams. Note the bound: page text is drawn through a subsetted font's own "
-        "encoding, so an absence of a name in the bytes is not evidence that the page does not "
-        "show it -- for that, read the page."
-    )
+    where = "the metadata, the XMP, the link annotations, and the inflated streams"
+    if page_text is None:
+        print(
+            f"[pdf-identity] OK: no leak pattern in {where}. **The page itself was not read.** "
+            "Pass --text with the pdftotext output; a subsetted font encodes its own glyphs, so "
+            "the absence of a name in these bytes says nothing about what the page shows.",
+        )
+    else:
+        print(f"[pdf-identity] OK: no leak pattern in {where}, nor in the page as pdftotext "
+              "reads it")
     return 0
 
 

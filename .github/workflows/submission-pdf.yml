@@ -172,7 +172,8 @@ jobs:
         run: |
           set -eux
           uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py \
-            build/collapsed-decision-space-protocol.pdf
+            build/collapsed-decision-space-protocol.pdf \
+            --text build/extracted.txt
 
       - name: Check the PDF against the claim boundary
         # The PDF is published in its own right, so it is a claim surface too. The patterns come

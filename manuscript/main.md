@@ -873,13 +873,17 @@ counting method is stated so that a reader can reproduce the figures:
 
 | Repository | Commits | Commits carrying at least one `Co-Authored-By` trailer naming the model |
 |---|---|---|
-| Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit `f23f179` | 301 | **201** |
-| This repository, at commit `02a40c0` | 7 | **6** |
+| Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit `a2a19f9` | 305 | **205** |
+| This repository, at commit `326facc` | 28 | **27** |
 
-Trailers are counted **case-insensitively, as commits rather than as trailer lines**. The
-distinction is not pedantry: the upstream history carries 276 such lines across those 201 commits,
-because a single commit may carry more than one, and a count of lines reported as a count of commits
-would overstate the figure by a third.
+Trailers are counted **case-insensitively, as commits rather than as trailer lines**, over the
+history reachable from the commit named in each row. Both halves of that sentence are load-bearing.
+A single commit may carry more than one trailer, so the upstream history holds 286 such lines
+across those 205 commits, and a count of lines reported as a count of commits would overstate the
+figure by two fifths. And a count with no commit pinned beside it cannot be reproduced at all,
+because the next commit changes it -- these two rows were both wrong by the time anyone read them
+once before, for exactly that reason. The figures for this repository are measured at its parent
+commit, since the commit that records them cannot count itself.
 
 All AI-assisted output was reviewed, edited and validated by the human author, who made the
 decisions that determine what this protocol claims: the choice of estimand and of the materiality
