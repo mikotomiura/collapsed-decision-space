@@ -684,8 +684,14 @@ derivable from this repository rather than merely quoted from it. It takes under
 
 The eighth step is what turns "these numbers were not transcribed by hand" from an assurance into
 a check: it reads each quantity from the frozen JSON by key and requires the resulting literal to
-appear in this manuscript, so a single altered digit fails the run. Its scope is the quantities
-obtainable mechanically from the frozen inputs; numbers outside that set are not covered by it.
+appear in this manuscript, and -- for the subset the repository README quotes -- in that README
+too. Its scope is bounded twice over, and we state both bounds rather than let the check sound
+stronger than it is. It covers only the quantities obtainable mechanically from the frozen
+inputs; numbers outside that set are not covered at all. And within that set it tests
+**occurrence, not uniqueness**: several of these values appear at more than one point in this
+manuscript, so altering one occurrence while leaving another intact would not fail the run. An
+earlier version of this section said that a single altered digit fails the run, which is true
+only of a quantity that occurs exactly once, and the check does not determine which those are.
 
 What none of this reproduces is the generation of the draws themselves. Language-model draws do not
 recur when regenerated, so the per-draw record is treated as a frozen input rather than as

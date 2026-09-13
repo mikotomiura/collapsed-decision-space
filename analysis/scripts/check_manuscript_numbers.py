@@ -10,11 +10,15 @@ The method is plain. Each quantity is read from the frozen JSON **by key** -- di
 never a default -- so a key absent from the file raises rather than returning something plausible.
 The resulting literal must then appear in the manuscript.
 
-What this establishes: for the quantities listed below, the literal in the manuscript matches the
-frozen record character for character, and a single altered digit fails the run.
+What this establishes: for the quantities listed below, the literal produced from the frozen record
+**occurs** in the manuscript, and in the README for the subset the README quotes.
 
-What it does not: the correctness of every number in the manuscript. Its scope is the quantities
-obtainable mechanically from the frozen inputs; anything outside that list is not covered.
+What it does not, stated precisely because an earlier version of this file overstated it: the test
+is occurrence, not uniqueness. Several of these values appear at more than one place in the
+manuscript, so altering one occurrence while leaving another intact does **not** fail the run. The
+claim "a single altered digit fails the run" holds only for a quantity that occurs exactly once,
+and this script does not check which those are. Nor does it cover the correctness of every number
+in the document: its scope is the quantities obtainable mechanically from the frozen inputs.
 
 Usage:  python analysis/scripts/check_manuscript_numbers.py
 """
@@ -129,6 +133,27 @@ def literal_of(value: Any, how: str) -> str:
     return repr(value)
 
 
+#: The subset of :data:`REQUIRED` that the README quotes in its "Key quantities" tables.
+#: The README asserts that its values come from the extraction output and are enforced by
+#: ``repro.sh``. Until this list existed that assertion was false: the check read only the
+#: manuscript, so the README's numbers were covered by nothing.
+README_QUANTITIES: frozenset[str] = frozenset(
+    {
+        "d_loco",
+        "ci_lower",
+        "amp_floor",
+        "zone_function_d_loco",
+        "ablation_max_abs_diff",
+        "verdict",
+        "tv_bar",
+        "rho_hat",
+        "power",
+        "permutation_p_value",
+        "thresholds.delta_tv_min",
+    }
+)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -146,8 +171,15 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     text = main_md.read_text(encoding="utf-8")
 
+    readme_md = repo_root / "README.md"
+    if not readme_md.is_file():
+        print(f"[numbers] FAIL: the README is missing: {readme_md}", file=sys.stderr)
+        return 1
+    readme_text = readme_md.read_text(encoding="utf-8")
+
     sources: dict[str, dict[str, Any]] = {}
     problems: list[str] = []
+    covered_in_readme = 0
 
     for label, filename, keys, how in REQUIRED:
         if filename not in sources:
@@ -163,6 +195,19 @@ def main(argv: list[str] | None = None) -> int:
                 f"{label}: the frozen value {literal!r} from {filename} does not appear "
                 "in main.md. Bring the prose in line with the extraction output"
             )
+        if label in README_QUANTITIES:
+            covered_in_readme += 1
+            if literal not in readme_text:
+                problems.append(
+                    f"{label}: the frozen value {literal!r} from {filename} does not "
+                    "appear in README.md, which claims its quantities are enforced here"
+                )
+
+    unknown = README_QUANTITIES - {label for label, _, _, _ in REQUIRED}
+    if unknown:
+        problems.append(
+            f"README_QUANTITIES names quantities that are not in REQUIRED: {sorted(unknown)}"
+        )
 
     for label, forbidden in MISLABEL_CHECKS:
         if forbidden in text:
@@ -175,8 +220,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(
-        f"[numbers] OK: {len(REQUIRED)} quantities match the frozen inputs character for "
-        "character (numbers outside this list are not covered)"
+        f"[numbers] OK: {len(REQUIRED)} quantities occur in main.md as the frozen inputs "
+        f"render them, {covered_in_readme} of them also in README.md. The test is "
+        "occurrence, not uniqueness: a value that appears more than once is not protected "
+        "against one of its occurrences being altered. Numbers outside this list are not "
+        "covered at all."
     )
     return 0
 

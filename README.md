@@ -109,7 +109,9 @@ The distinction matters more than the green badge, so it is stated here rather t
 - The verdict of the completed run is **re-derivable** from the shipped annotation and the shipped
   apparatus: the verdict string, all nine gate read-outs and all four per-context maps are
   recomputed and required to match.
-- Every quantity the protocol quotes from the frozen inputs matches it character for character.
+- Every quantity in the list below occurs, as the frozen inputs render it, in the protocol -- and
+  for the subset the README quotes, in this README too. The test is occurrence, not uniqueness: a
+  value that appears in several places is not protected against one of them being altered.
 
 **Not established**
 
@@ -125,7 +127,10 @@ The distinction matters more than the green badge, so it is stated here rather t
 ## Key quantities
 
 Every value below is produced by `analysis/scripts/extract_verdict_table.py`; none is transcribed
-by hand, and step 8 of `repro.sh` enforces that.
+by hand. Step 8 of `repro.sh` checks these values against the frozen inputs here as well as in the
+protocol. Until 2026-09-13 that step read the protocol only, so this sentence claimed a coverage
+the check did not have; the list it now enforces is `README_QUANTITIES` in
+`analysis/scripts/check_manuscript_numbers.py`.
 
 **The channel study** (`data/raw/es3-verdict-forensic.json`)
 

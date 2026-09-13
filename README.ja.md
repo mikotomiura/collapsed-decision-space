@@ -122,7 +122,10 @@ ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 ## 主要な数値
 
 以下はすべて `analysis/scripts/extract_verdict_table.py` が生成したものです。手写しは
-しておらず、`repro.sh` の 8 ステップ目がそれを強制します。数値そのものは英語版と同一なので、
+しておらず、`repro.sh` の 8 ステップ目が protocol と README の両方で凍結入力と照合します。
+2026-09-13 までこのステップは protocol しか読んでおらず、この文は検査が持っていない射程を
+主張していました。照合対象は `check_manuscript_numbers.py` の `README_QUANTITIES` です。
+なお照合は「出現するか」であって「一意か」ではありません。数値そのものは英語版と同一なので、
 表は [`README.md`](README.md#key-quantities) を参照してください。要点だけ再掲します。
 
 - チャネル研究: 点推定 `d_loco` は事前登録 floor の 2.3 倍、ablation は bit-equal、
