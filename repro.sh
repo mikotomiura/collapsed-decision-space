@@ -26,7 +26,7 @@
 #   8. support of the decision space + null floor  analysis/scripts/collapse_and_floor.py
 #   9. compare quoted numbers with the inputs      analysis/scripts/check_manuscript_numbers.py
 #  10. claim-boundary check and positive control   analysis/scripts/check_claim_boundary.py
-#  11. reach of the sealed decision rules          analysis/scripts/check_decision_rules_scope.py
+#  11. reach of the rules and of the seal         analysis/scripts/check_seal_scope.py
 #  12. the seal, and that the rule text is generated  analysis/scripts/verify_seal.py
 #
 # Step 12 was deliberately absent until seal/protocol.md existed. Wiring it earlier would have
@@ -118,8 +118,8 @@ echo "[repro] 10/12 check_claim_boundary"
 # The rules file decides which claim the run licenses. Running it once shows it produces an
 # answer; this shows that a moved threshold, a reordered evaluation, or a malformed input
 # produces a different one -- and that a no-op change does not.
-echo "[repro] 11/12 check_decision_rules_scope"
-"${RUN[@]}" python analysis/scripts/check_decision_rules_scope.py
+echo "[repro] 11/12 check_seal_scope"
+"${RUN[@]}" python analysis/scripts/check_seal_scope.py
 
 # --- 12. The seal ---
 # The bytes of the sealed files against the manifest, the manifest's own self-hash, and -- the

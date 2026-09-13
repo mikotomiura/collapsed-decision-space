@@ -98,8 +98,10 @@ installation. The script runs twelve steps and exits non-zero if any of them fai
 9. compare the numbers quoted in the protocol and in this README against the frozen inputs,
    character for character
 10. run the claim-boundary check together with its positive control
-11. **measure what the sealed decision rules catch**, by mutating their inputs — including a no-op
-    case that must *not* change the outcome
+11. **measure what the seal and the decision rules actually catch**, by mutating what they are
+    supposed to protect: synthetic arm records against the rules, and a staged copy of the sealed
+    tree against the seal checker. Each failing case must fail with a diagnostic naming the thing
+    that was changed, and three control cases must *not* fail at all
 12. **verify the seal**: the sealed files hash to what the manifest records, the manifest's own
     self-hash is correct, and the rule text in the protocol and the manuscript is *generated from*
     the sealed rules rather than restated beside them

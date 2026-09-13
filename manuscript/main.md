@@ -810,10 +810,20 @@ completed run's verdict from the shipped annotation and manifest**; mechanical e
 quantities quoted in §3 and §5.1; regeneration of the power table of §5.2; derivation of the
 support of the decision space and of the null floor reported in §5.1.1; a character-level
 comparison of the numbers quoted in this manuscript against the frozen inputs they come from; the
-claim-boundary check of §10.3; a mutation sweep that measures what the sealed decision rules
+claim-boundary check of §10.3; a mutation sweep that measures what the seal and the decision rules
 actually catch; and verification of the seal itself, which includes requiring that the rule text in
 §8 and in `seal/protocol.md` be **generated from** the sealed rules rather than restated alongside
 them. It exits non-zero if any step fails.
+
+The eleventh step deserves a sentence, because a check that is never exercised may be vacuous. It
+mutates the things the seal is supposed to protect — a threshold moved in the sealed rules, a hash
+altered in the manifest with and without recomputing the manifest's self-hash, the band moved in §8
+of this manuscript while every sealed byte stays put — and requires each case to fail **with a
+diagnostic naming what was changed**, not merely to fail. Three control cases must not fail at all,
+including an edit to this manuscript outside the generated block: a seal that forbade that would be
+a seal nobody could keep. Requiring the diagnostic rather than the exit code is not fastidiousness.
+While the sweep was being written every mutation was failing for one unrelated reason, and on exit
+code alone the sweep reported success.
 
 The recomputation step is the strongest of these. Every other step compares a record against a
 shipped file; this one runs the scorer on the shipped per-draw annotation, at the sealed

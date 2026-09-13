@@ -65,7 +65,7 @@ SEALED_PATHS: tuple[str, ...] = (
     "seal/arm-spec.json",
     "seal/protocol.md",
     "analysis/scripts/apply_decision_rules.py",
-    "analysis/scripts/check_decision_rules_scope.py",
+    "analysis/scripts/check_seal_scope.py",
     "analysis/scripts/render_decision_rules.py",
     "analysis/scripts/verify_seal.py",
     "analysis/freeze-provenance.json",
