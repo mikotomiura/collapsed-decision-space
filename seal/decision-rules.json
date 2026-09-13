@@ -1,5 +1,5 @@
 {
-  "schema": "powered-null-decision-rules-1",
+  "schema": "cds-decision-rules-1",
   "description": "The decision rules of the prospective study, in machine-readable form. This file is the authority; the prose in the protocol is generated from it. Evaluation is strictly ordered and stops at the first rule whose action is 'stop'.",
   "estimand": {
     "quantity": "tv_bar",

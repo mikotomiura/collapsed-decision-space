@@ -1,5 +1,5 @@
 {
-  "schema": "powered-null-arm-spec-1",
+  "schema": "cds-arm-spec-1",
   "description": "Everything about the prospective run that was fixed in advance. The six items the protocol names as changes that would not be minor deviations appear here as machine-checkable fields, so that the commitment survives without an institution to enforce it.",
   "enforcement": {
     "statement": "If any field below differs from the corresponding field of a run manifest, the seal is broken for that run. The run is then reported as a deviation and is not presented as pre-registered.",

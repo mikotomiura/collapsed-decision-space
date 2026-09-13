@@ -114,15 +114,15 @@ jobs:
             --toc \
             --toc-depth=2 \
             --metadata link-citations=true \
-            --output=build/powered-null-stage1.pdf
-          ls -l build/powered-null-stage1.pdf
+            --output=build/collapsed-decision-space-stage1.pdf
+          ls -l build/collapsed-decision-space-stage1.pdf
 
       - name: Read the PDF back
         run: |
           set -eux
-          pdftotext build/powered-null-stage1.pdf build/extracted.txt
+          pdftotext build/collapsed-decision-space-stage1.pdf build/extracted.txt
           wc -c build/extracted.txt
-          pdfinfo build/powered-null-stage1.pdf | sed -n '1,12p'
+          pdfinfo build/collapsed-decision-space-stage1.pdf | sed -n '1,12p'
 
       - name: Check what the PDF actually contains
         # Required phrases, every column header of the study design table, the characters at risk of
@@ -142,9 +142,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: powered-null-stage1-${{ github.sha }}
+          name: collapsed-decision-space-stage1-${{ github.sha }}
           path: |
-            build/powered-null-stage1.pdf
+            build/collapsed-decision-space-stage1.pdf
             build/extracted.txt
           if-no-files-found: error
           retention-days: 90

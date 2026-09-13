@@ -41,8 +41,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _provenance import load_json  # noqa: E402
 
-REPORT_SCHEMA: str = "powered-null-decision-report-1"
-RULES_SCHEMA: str = "powered-null-decision-rules-1"
+REPORT_SCHEMA: str = "cds-decision-report-1"
+RULES_SCHEMA: str = "cds-decision-rules-1"
 
 #: Comparison operators. Each takes (observed, predicate) and returns a bool.
 #: ``abs_diff_lte`` is the only two-parameter form: it reads ``centre`` as well as ``value``.

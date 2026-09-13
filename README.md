@@ -2,7 +2,7 @@
 
 *Separating effect-absent from low power in embodied LLM agents*
 
-[![repro](https://github.com/mikotomiura/powered-null/actions/workflows/repro.yml/badge.svg)](https://github.com/mikotomiura/powered-null/actions/workflows/repro.yml)
+[![repro](https://github.com/mikotomiura/collapsed-decision-space/actions/workflows/repro.yml/badge.svg)](https://github.com/mikotomiura/collapsed-decision-space/actions/workflows/repro.yml)
 
 This repository is the research compendium for a **Stage 1 Registered Report** submitted to
 [PCI Registered Reports](https://rr.peercommunityin.org/). It contains the protocol

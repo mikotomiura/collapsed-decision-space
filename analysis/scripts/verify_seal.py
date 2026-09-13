@@ -40,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _provenance import load_json, sha256_of  # noqa: E402
 
-MANIFEST_SCHEMA: str = "powered-null-seal-manifest-1"
+MANIFEST_SCHEMA: str = "cds-seal-manifest-1"
 
 #: The sealed set, declared here rather than read from the manifest.
 #: Taking the list from the document being checked would let a dropped entry pass unnoticed;

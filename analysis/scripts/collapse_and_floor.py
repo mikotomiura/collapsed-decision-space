@@ -168,7 +168,7 @@ def main() -> int:
     )
 
     summary: dict[str, Any] = {
-        "schema": "powered-null-collapse-and-floor-1",
+        "schema": "cds-collapse-and-floor-1",
         "seed": SEED,
         "n_replicates": N_REPLICATES,
         "off_total_draws": off_total,
