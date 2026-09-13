@@ -13,24 +13,24 @@
       "size": 11668
     },
     "analysis/scripts/check_seal_scope.py": {
-      "sha256": "b53e3ce25d4855559af1f92be7b197ee223f9e1a2fbb149a30582e5512632a8f",
-      "size": 46448
+      "sha256": "bb0f66488fda8f4f4059c84bbf2c85ab23373176065e17167147205dc5ba044d",
+      "size": 62223
     },
     "analysis/scripts/collect_zenodo_witness.py": {
-      "sha256": "fe10a902eb4f3a65cb2d9006e02b49983c546a5813f7c35a6fc799be9b5cb59b",
-      "size": 15783
+      "sha256": "4f031df3ee8716a752ff5310f55a1aedeca4528b6a90e9acb0cd84baa6141d98",
+      "size": 17672
     },
     "analysis/scripts/render_decision_rules.py": {
-      "sha256": "da9d19c0c832af6c0d3fd916f31486e3240a44f6ed3d858db26c6308f35676d5",
-      "size": 9202
+      "sha256": "09b98073921a6b4467415febc60894ad4df29c4056e93821671a889dfd00e046",
+      "size": 9314
     },
     "analysis/scripts/verify_seal.py": {
-      "sha256": "5df012ff0ff48be031a2fb3b8392b8f3d184f09df7489754c11ee4c352cbf69f",
-      "size": 27663
+      "sha256": "dd617f044a121135ec0d80595b14ed8a27aa652d751cc07558d20bdbf37884dc",
+      "size": 34853
     },
     "repro.sh": {
-      "sha256": "c4b0fd2036466f111214e296982ebed71ea1bcdb2808caa42d1ecc3ff345e1c6",
-      "size": 10347
+      "sha256": "1c650ef688309c7d747138011c2e91a972eb2d8687139bc38892fb5278bfd6b1",
+      "size": 12039
     },
     "seal/arm-spec.json": {
       "sha256": "3840db48acf3c3295a141c3e5b038e8566f91931a841ee78d0270896dcbce9d5",
@@ -49,5 +49,5 @@
   "schema": "cds-seal-manifest-1",
   "scope_note": "This document establishes internal consistency only. It cannot show that the files are old, nor that a sealed file and this manifest were not edited together. The external half is the deposit, which publishes a per-file checksum that anyone can read without an account.",
   "self_hash_canonicalisation": "sha256 of json.dumps(manifest_without_self_sha256, sort_keys=True, indent=2, ensure_ascii=False) + \"\\n\", encoded as UTF-8",
-  "self_sha256": "2e9cc0513015d50c5d283ed96a5793e92c9c416ba5b807eb893c2d785ffa81f5"
+  "self_sha256": "a1fa1f5dc610b67fd643d90e84e5c626155da6eec8f4ef64ab2b7bca0599b4c5"
 }

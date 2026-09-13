@@ -19,7 +19,7 @@ after the fact could be taught to emit whatever the manuscript happens to say.
 can be changed and left consistent. Against the author, who can regenerate the rules, the renderer,
 the checker and the manifest together in one commit, it closes nothing at all -- and no check
 living inside this repository could. That is the job of a copy held elsewhere, and
-``seal/protocol.md`` section 7 says plainly that no such copy exists yet.
+``seal/protocol.md`` section 7 says plainly that there was no such copy at the time of sealing, and leaves whether there is one now to be read off the run rather than off this sentence.
 
 What this establishes: the rule text in the manuscript is a function of the sealed rules.
 What it does not: that the rules are the right rules, or when they were fixed.

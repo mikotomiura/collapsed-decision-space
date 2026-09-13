@@ -35,8 +35,10 @@ fails, and a threshold edited in the sealed file fails the hash above. Prose and
 apart, because there is only one of them.
 
 What this establishes: the sealed bytes are internally consistent, the rule text the reader sees is
-a function of them, and -- with ``--witness`` -- the bytes are identical to those the deposit holds.
-What it does not: when they were written, or that no unreported run preceded them.
+a function of them, and -- with ``--witness`` -- a recorded deposit witness agrees with these bytes
+and is closed against itself. What it does not: when they were written, that no unreported run
+preceded them, or that the witness is what the archive returned. The last of those is reachable,
+but only by re-reading the record, which is an online act and therefore not one of these steps.
 
 Usage:
     python analysis/scripts/verify_seal.py
@@ -96,6 +98,18 @@ SEALED_PATHS: tuple[str, ...] = (
     "analysis/freeze-provenance.json",
     "repro.sh",
 )
+
+#: The witness contract lives here, in the checker, rather than in the collector that writes the
+#: file. The checker is what a reader runs; a collector that drifted from these names would then
+#: produce a document the run rejects, which is the direction the mistake should fall in.
+WITNESS_SCHEMA: str = "cds-deposit-witness-1"
+
+#: The digest algorithm the archive publishes per file, and therefore the only one a witness may
+#: record. Accepting any algorithm ``hashlib`` knows was a real hole rather than a hypothetical
+#: one: a witness recording SHA-256 digests, computed locally and never published anywhere,
+#: passed the comparison in full. The property being established is agreement with an outside
+#: party, so the digest has to be in the form that party publishes.
+DEPOSIT_ALGORITHM: str = "md5"
 
 #: Time sources a witness may **not** use as part of its anchor, because the depositor supplies
 #: them. A publication date is chosen when the record is filled in; treating it as a
@@ -330,40 +344,94 @@ def main() -> int:
         print(f"[seal] OK: {line}")
     return 0
 
-
 def _check_witness(root: Path, witness_path: Path, files: dict[str, Any]) -> list[str]:
     """Compare a recorded deposit witness with the local sealed files.
 
-    Two questions, and they fail independently. Whether the deposit holds these bytes -- every
-    sealed file has an entry, and every entry's checksum is the digest of the local file. And
-    whether the time the witness reports is the time the times it carries imply: the anchor is a
-    maximum over the server-assigned timestamps recorded in ``time_sources``, recomputed here
-    rather than taken on trust, because a number written beside a list nobody re-adds is not
-    evidence of anything.
+    **What this can and cannot reach, stated before the checks rather than after.** This runs
+    offline. It reads a file in this repository and compares it with other files in this
+    repository. It therefore establishes that *the recorded witness and these bytes agree* -- and
+    not that the witness transcribes anything an archive said. An independent review made the
+    point by writing a witness out of nothing, with digests computed locally and invented
+    timestamps, and watching it pass. The checks below are the repair for the part of that which
+    is repairable offline; the wording in the manuscript is the repair for the part that is not.
+
+    What is repairable offline is the witness's **internal closure**. The anchor must be the
+    maximum of the times the witness carries; the times it carries must be exactly the ones the
+    deposit listing it also carries would produce, one created and one updated per deposited file,
+    with no invented name and no duplicate; and each sealed file's entry must agree with that
+    listing on both the digest and the size. A hand edit can then no longer drop the latest real
+    timestamp, invent a file to anchor to, or quietly narrow the maximum. It would have to forge
+    the listing as well, consistently -- which leaves a document saying one thing and an archive
+    saying another to anyone who looks.
+
+    Looking is the step this cannot take. The witness records the public URL it was read from, and
+    re-running ``collect_zenodo_witness.py`` against that URL reproduces the file; that is what
+    turns a *recorded* external half into a *checked* one.
     """
     if not witness_path.is_file():
         return [f"the witness file is missing: {witness_path}"]
     witness = load_json(witness_path)
-    problems = _check_witness_files(root, witness_path, witness, files)
-    problems.extend(_check_witness_anchor(witness_path, witness))
+    name = witness_path.name
+
+    if witness.get("schema") != WITNESS_SCHEMA:
+        return [
+            f"{name}: schema is {witness.get('schema')!r}, expected {WITNESS_SCHEMA!r}. The "
+            "structure below is checked as a whole, so a document of some other shape is "
+            "rejected rather than read for whichever parts happen to fit"
+        ]
+
+    deposited, problems = _deposit_listing(name, witness)
+    problems.extend(_check_witness_files(root, name, witness, files, deposited))
+    problems.extend(_check_witness_anchor(name, witness, deposited))
     if not problems:
-        # ``files`` is the sealed set. Reaching here means every one of them was witnessed with
-        # the digest of its local bytes, so counting the seal is counting the agreement.
-        latest = witness.get("latest_server_time")
         print(
-            f"[seal] OK: {len(files)} sealed files match the deposit's own checksums; "
-            f"latest server-assigned time {latest}"
+            f"[seal] OK: the recorded witness agrees with all {len(files)} sealed files on the "
+            f"{DEPOSIT_ALGORITHM} digest an archive publishes for them, and its anchor "
+            f"{witness.get('latest_server_time')} is the latest of the "
+            f"{len(witness.get('time_sources', []))} server times it carries"
         )
         print(
-            "[seal]     that time bounds when the deposit last changed, not when the "
-            "protocol was written, and not that no run preceded it"
+            "[seal]     This check is offline. It says the record and these bytes agree, not "
+            "that the record is what the archive returned; re-run collect_zenodo_witness.py "
+            f"against {witness.get('record_api_url')} to check that half"
         )
     return problems
 
 
-def _check_witness_anchor(witness_path: Path, witness: dict[str, Any]) -> list[str]:
-    """Require the reported anchor to be the maximum of the times the witness carries."""
-    name = witness_path.name
+def _deposit_listing(name: str, witness: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
+    """Return the deposit listing the witness carries, keyed by deposited file name.
+
+    The listing is what makes the rest of the witness answerable to something: the time sources
+    have to be the ones it implies, and the per-file digests have to be the ones it records. A
+    witness without it could assert any set of times it liked.
+    """
+    entries = witness.get("deposit_files")
+    if not isinstance(entries, list) or not entries:
+        return {}, [
+            f"{name}: 'deposit_files' must be a non-empty list. It is the archive's own listing, "
+            "and without it the times and digests below answer to nothing"
+        ]
+    listing: dict[str, Any] = {}
+    problems: list[str] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            problems.append(f"{name}: a deposit_files entry is not an object: {entry!r}")
+            continue
+        key = entry.get("key")
+        if not isinstance(key, str) or not key:
+            problems.append(f"{name}: a deposit_files entry has no name: {entry!r}")
+            continue
+        if key in listing:
+            problems.append(f"{name}: the deposit listing names {key!r} more than once")
+            continue
+        listing[key] = entry
+    return listing, problems
+
+
+def _check_witness_anchor(
+    name: str, witness: dict[str, Any], deposited: dict[str, Any]
+) -> list[str]:
+    """Require the anchor to be the maximum of exactly the times the deposit listing implies."""
     sources = witness.get("time_sources")
     if not isinstance(sources, list) or not sources:
         return [
@@ -372,9 +440,17 @@ def _check_witness_anchor(witness_path: Path, witness: dict[str, Any]) -> list[s
             "reports a time nothing can check"
         ]
 
+    # The names the listing implies, built here rather than read out of the witness. A set taken
+    # from the document being checked agrees with whatever that document happens to contain,
+    # which is the failure this whole file is arranged to avoid.
+    expected_names = {"record.created", "record.updated"}
+    for key in deposited:
+        expected_names.add(f"{FILE_TIME_PREFIX}{key}.created")
+        expected_names.add(f"{FILE_TIME_PREFIX}{key}.updated")
+
     problems: list[str] = []
     parsed: list[tuple[datetime, str]] = []
-    named: set[str] = set()
+    counted: dict[str, int] = {}
     for entry in sources:
         if not isinstance(entry, dict):
             problems.append(f"{name}: a time source is not an object: {entry!r}")
@@ -384,11 +460,17 @@ def _check_witness_anchor(witness_path: Path, witness: dict[str, Any]) -> list[s
         if not isinstance(source, str) or not isinstance(value, str):
             problems.append(f"{name}: a time source lacks a string source or value: {entry!r}")
             continue
-        named.add(source)
+        counted[source] = counted.get(source, 0) + 1
         if source in DEPOSITOR_SUPPLIED_TIME_SOURCES:
             problems.append(
                 f"{name}: the time source {source!r} is supplied by the depositor rather than "
                 "assigned by the server, so it cannot be part of the anchor"
+            )
+            continue
+        if source != REGISTRY_TIME_SOURCE and source not in expected_names:
+            problems.append(
+                f"{name}: the time source {source!r} answers to nothing in the deposit listing. "
+                "An invented name is how an anchor is moved without any real time changing"
             )
             continue
         try:
@@ -407,23 +489,27 @@ def _check_witness_anchor(witness_path: Path, witness: dict[str, Any]) -> list[s
             continue
         parsed.append((moment, value))
 
-    absent = [source for source in REQUIRED_TIME_SOURCES if source not in named]
+    repeated = sorted(source for source, count in counted.items() if count > 1)
+    if repeated:
+        problems.append(
+            f"{name}: these time sources appear more than once: {repeated}. A listing that "
+            "disagrees with itself about one field cannot be read as an archive's answer"
+        )
+    absent = sorted(expected_names - set(counted))
     if absent:
         problems.append(
-            f"{name}: the anchor omits the time sources {absent}. A maximum taken over a "
-            "subset is a narrower claim than the one the anchor is defined to make"
+            f"{name}: the anchor omits the time sources {absent}. The deposit listing implies "
+            "one created and one updated time per deposited file; a maximum over a chosen "
+            "subset is a narrower claim than the anchor is defined to make"
         )
-    if not any(source.startswith(FILE_TIME_PREFIX) for source in named):
-        problems.append(
-            f"{name}: the anchor carries no per-file time. The record's own timestamps do not "
-            "move when a file inside it is replaced, which is the case the anchor has to bound"
-        )
-    if REGISTRY_TIME_SOURCE not in named and not witness.get(REGISTRY_ABSENT_KEY):
-        problems.append(
-            f"{name}: neither a {REGISTRY_TIME_SOURCE!r} time source nor a "
-            f"{REGISTRY_ABSENT_KEY!r} explaining its absence. An anchor may be narrower than "
-            "the design allows for, but not silently"
-        )
+    if REGISTRY_TIME_SOURCE not in counted:
+        reason = witness.get(REGISTRY_ABSENT_KEY)
+        if not isinstance(reason, str) or not reason.strip():
+            problems.append(
+                f"{name}: neither a {REGISTRY_TIME_SOURCE!r} time source nor a non-empty "
+                f"{REGISTRY_ABSENT_KEY!r} explaining its absence. An anchor may be narrower than "
+                "the design allows for, but not silently"
+            )
 
     if parsed:
         expected = max(parsed, key=lambda pair: pair[0])[1]
@@ -437,38 +523,86 @@ def _check_witness_anchor(witness_path: Path, witness: dict[str, Any]) -> list[s
 
 
 def _check_witness_files(
-    root: Path, witness_path: Path, witness: dict[str, Any], files: dict[str, Any]
+    root: Path,
+    name: str,
+    witness: dict[str, Any],
+    files: dict[str, Any],
+    deposited: dict[str, Any],
 ) -> list[str]:
-    """Require every sealed file to be witnessed, with the digest of its local bytes."""
+    """Require every sealed file to be witnessed, and to agree with the deposit listing.
+
+    Four things have to line up for one entry: the digest is in the algorithm the archive
+    publishes; it is the digest of the local bytes; the deposited file it names is in the listing;
+    and the listing records the same digest and size for that file. The third is what stops a
+    digest floating free of any particular deposited file, and the fourth is what stops the entry
+    and the listing being edited apart.
+    """
     entries = witness.get("files")
     if not isinstance(entries, list) or not entries:
-        return [f"{witness_path.name}: 'files' must be a non-empty list"]
+        return [f"{name}: 'files' must be a non-empty list"]
 
     problems: list[str] = []
     seen: set[str] = set()
+    claimed: dict[str, str] = {}
     for entry in entries:
+        if not isinstance(entry, dict):
+            problems.append(f"{name}: a files entry is not an object: {entry!r}")
+            continue
         rel = entry.get("sealed_path")
         checksum = entry.get("checksum")
         if rel is None or checksum is None:
-            problems.append(f"{witness_path.name}: an entry lacks sealed_path or checksum")
+            problems.append(f"{name}: an entry lacks sealed_path or checksum")
             continue
         seen.add(rel)
         if rel not in files:
-            problems.append(f"{witness_path.name}: {rel} is deposited but not sealed")
+            problems.append(f"{name}: {rel} is deposited but not sealed")
             continue
         algo, _, digest = str(checksum).partition(":")
+        if algo != DEPOSIT_ALGORITHM:
+            problems.append(
+                f"{name}: {rel} is recorded as {algo!r}, but the archive publishes "
+                f"{DEPOSIT_ALGORITHM!r}. A digest in another algorithm cannot have come from the "
+                "listing this witness claims to transcribe, whatever it agrees with locally"
+            )
+            continue
         target = root / rel
         if not target.is_file():
             problems.append(f"{rel}: in the witness but not present locally")
             continue
-        try:
-            local = hashlib.new(algo, target.read_bytes()).hexdigest()
-        except ValueError:
-            problems.append(f"{witness_path.name}: unknown checksum algorithm {algo!r}")
-            continue
+        local = hashlib.new(algo, target.read_bytes(), usedforsecurity=False).hexdigest()
         if local != digest:
             problems.append(
                 f"{rel}: the deposit holds {algo}:{digest} but the local file is {algo}:{local}"
+            )
+            continue
+
+        key = entry.get("deposit_key")
+        if not isinstance(key, str) or key not in deposited:
+            problems.append(
+                f"{name}: {rel} names the deposited file {key!r}, which the deposit listing does "
+                "not hold. Every witnessed file has to be some particular file in the record"
+            )
+            continue
+        if key in claimed:
+            problems.append(
+                f"{name}: the deposited file {key!r} is claimed by both {claimed[key]} and "
+                f"{rel}. One deposited file cannot be the witness for two sealed paths"
+            )
+            continue
+        claimed[key] = str(rel)
+        listed = deposited[key]
+        if listed.get("checksum") != checksum:
+            problems.append(
+                f"{name}: {rel} records {checksum!r} while the deposit listing records "
+                f"{listed.get('checksum')!r} for {key!r}. The entry and the listing were edited "
+                "apart"
+            )
+        listed_size = listed.get("size")
+        actual_size = target.stat().st_size
+        if listed_size != actual_size:
+            problems.append(
+                f"{name}: the deposit listing gives {key!r} a size of {listed_size!r}, but "
+                f"{rel} is {actual_size} bytes"
             )
 
     unwitnessed = sorted(set(files) - seen)
@@ -477,7 +611,6 @@ def _check_witness_files(
             "these sealed files have no deposit witness, so nothing outside this "
             f"repository attests to them: {unwitnessed}"
         )
-
     return problems
 
 

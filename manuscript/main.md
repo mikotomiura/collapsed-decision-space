@@ -806,8 +806,9 @@ manuscript, which has since been rewritten.
 
 The upstream source repository the apparatus and the provenance records come from is
 <https://github.com/mikotomiura/ERRE-Sandbox>, and §10.2 gives the commit identifiers within it.
-There is no separate supplementary archive: the data, the analysis scripts, the apparatus and the
-reproduction command are all in the repository named here.
+Apart from the archival deposit of the sealed files described in §13, there is no separate
+supplementary archive: the data, the analysis scripts, the apparatus and the reproduction command
+are all in the repository named here.
 
 This repository contains the frozen inputs of the completed studies (`data/raw/`, each pinned by
 SHA-256 and size in `data/data.md`), the analysis scripts (`analysis/scripts/`), and the measurement
@@ -827,8 +828,9 @@ claim-boundary check of §10.3; a mutation sweep that measures what the seal and
 actually catch; verification of the seal itself, which includes requiring that the rule text in §8
 and in `seal/protocol.md` be **generated from** the sealed rules rather than restated alongside
 them; the evaluator of §8 applied to the recorded quantities; and, last, a comparison of the
-sealed files against the per-file checksums an archive publishes for its own copy of them. It
-exits non-zero if any step fails.
+sealed files against a recorded copy of the per-file checksums an archive publishes for them. It
+exits non-zero if any step fails, and its closing line names any step that was skipped rather than
+reporting a count of steps that passed.
 
 The thirteenth step is the third of the three checks named in §8, and it does nothing yet: the
 prospective verdicts do not exist, so it reports that it is skipping and why. It is wired in
@@ -840,36 +842,51 @@ so nothing in the sealed bytes asserts that the run has not happened; it simply 
 the files appear. When they do, it re-derives the branch from the sealed rules and fails if the
 branch named in `manuscript/reported-branch.txt` is not the one they give.
 
-The fourteenth step is the only one that compares this repository against something the author does
-not control, and it is wired in early for the same reason and with the same guard. Steps 3 to 13
-compare records inside this repository against one another; anyone with write access can change
-both sides of any one of them in a single commit, which is why §11 says what it says. An archive
-publishes, for every file it holds, a checksum that anyone can read without an account. Step 14
-compares those published checksums against the sealed files, so its passing is a statement about a
-third party holding these bytes rather than about the repository agreeing with itself. It runs
-offline: the comparison is between a recorded answer and local bytes, so it works inside a
-de-identified copy exactly as every step above does. The record is read by
-`analysis/scripts/collect_zenodo_witness.py`, which is sealed, and which pairs deposited files with
-sealed paths **by content** — each sealed file is hashed locally and matched against the published
-checksums — so the correspondence between the two sets is not something we assert. The step is
-guarded on the existence of `seal/zenodo-witness.json` and reports, when the file is absent, that
-the external half should be taken as absent rather than as passed.
+The fourteenth step is the one that reaches outside this repository, and it is wired in early for
+the same reason and with the same guard. Steps 3 to 13 compare records inside this repository
+against one another; anyone with write access can change both sides of any one of them in a single
+commit, which is why §11 says what it says. An archive publishes, for every file it holds, a
+checksum that anyone can read without an account. `analysis/scripts/collect_zenodo_witness.py`,
+which is sealed, reads that listing and records it as `seal/zenodo-witness.json`, pairing deposited
+files with sealed paths **by content** — each sealed file is hashed locally and matched against the
+published checksums — so the correspondence between the two sets is not something we assert. Step
+14 then compares the recorded listing against the sealed files, and is guarded on the existence of
+that file.
 
-Two limits on that step, stated here rather than left to be discovered. A deposit record **remains
-editable by its owner for a period after publication, with the identifier unchanged**, so the times
-the archive assigns bound when the deposit was last touched and not when these files were written.
-And no timestamp of any kind can establish that no draw preceded it. What step 14 adds is narrow
-and real: someone other than the author holds bytes identical to these, and said so at a time they
-recorded. The work of binding the reported branch to the sealed rules is done by steps 11 to 13,
-which need neither the archive nor an account nor any identifier.
+**What step 14 establishes is less than its name suggests, and we would rather say so than be
+found out.** The step is offline. It establishes two things: that the recorded witness agrees with
+these bytes, and that the witness is closed against itself — its anchor is the maximum of the
+server-assigned times it carries, and those times are exactly the ones its own deposit listing
+implies, one created and one updated per deposited file, with no invented name and no duplicate.
+It does *not* establish that the witness is what the archive returned. It cannot: a file in this
+repository is a file in this repository, whatever it describes. An independent review demonstrated
+the gap by writing a witness from nothing — digests computed locally in an algorithm no archive
+publishes, timestamps from the year 2000, a per-file time naming a file that did not exist — and an
+earlier version of this check reported no problems at all. The closure requirements above are the
+repair for what an offline check can repair; this paragraph is the repair for the rest.
+
+Turning a *recorded* external half into a *checked* one takes one online act, and it is the
+reader's: the witness records the public URL it was read from, and re-running the collector against
+that URL reproduces the file. That is deliberately not a step in `repro.sh`, which has to run with
+no network and inside a de-identified copy where the identifier is removed. A reviewer who wants
+the outside half performs it; a reviewer who does not still gets steps 1 to 13, which need neither
+the archive nor an account nor any identifier, and which are where the binding of the reported
+branch to the sealed rules actually lives.
+
+Two further limits, stated here rather than left to be discovered. The checksums an archive
+publishes per file are MD5, so agreement is agreement on that digest. And a deposit record
+**remains editable by its owner for a period after publication, with the identifier unchanged**,
+so the times the archive assigns bound when the deposit was last touched, not when these files were
+written — and no timestamp of any kind can establish that no draw preceded it.
 
 The eleventh step deserves a sentence, because a check that is never exercised may be vacuous. It
 mutates the things the seal is supposed to protect — a threshold moved in the sealed rules, a hash
 altered in the manifest with and without recomputing the manifest's self-hash, the band moved in §8
 of this manuscript while every sealed byte stays put — and requires each case to fail **with a
-diagnostic naming what was changed**, not merely to fail. Three control cases must not fail at all,
-including an edit to this manuscript outside the generated block: a seal that forbade that would be
-a seal nobody could keep. Requiring the diagnostic rather than the exit code is not fastidiousness.
+diagnostic naming what was changed**, not merely to fail. Five control cases must not fail at all,
+including an edit to this manuscript outside the generated block — a seal that forbade that would
+be a seal nobody could keep — and a witness that honestly declares a missing registry timestamp
+rather than supplying one. Requiring the diagnostic rather than the exit code is not fastidiousness.
 While the sweep was being written every mutation was failing for one unrelated reason, and on exit
 code alone the sweep reported success.
 

@@ -17,8 +17,10 @@ they need no network, no account and no trust in the author.
 
 What they cannot check is that the seal is old. The author can rebuild every sealed file and the
 manifest in one commit, and no check living inside this repository would see it; that half needs a
-copy held by someone else, and there is not one yet. `seal/protocol.md` §7 says so in those words
-rather than leaving a green badge to imply otherwise.
+copy held by someone else. Step 14 is the comparison against a recorded copy, and it says in its
+own output whether there is one to compare — and even when it passes, it bounds when that copy was
+last touched rather than when these files were written. `seal/protocol.md` §7 states that instead
+of leaving a green badge to imply otherwise.
 
 ---
 
@@ -105,9 +107,10 @@ installation. The script runs fourteen steps and exits non-zero if any of them f
    character for character
 10. run the claim-boundary check together with its positive control
 11. **measure what the seal and the decision rules actually catch**, by mutating what they are
-    supposed to protect: synthetic arm records against the rules, and a staged copy of the sealed
-    tree against the seal checker. Each failing case must fail with a diagnostic naming the thing
-    that was changed, and three control cases must *not* fail at all
+    supposed to protect: synthetic arm records against the rules, a staged copy of the sealed
+    tree against the seal checker, and the witness collector driven end to end against a
+    synthetic archive response. Each failing case must fail with a diagnostic naming the thing
+    that was changed, and five control cases must *not* fail at all
 12. **verify the seal**: the sealed files hash to what the manifest records, the manifest's own
     self-hash is correct, every sealed script imports only sealed local modules, and the rule text
     in the protocol and the manuscript is *generated from* the sealed rules rather than restated
@@ -116,15 +119,22 @@ installation. The script runs fourteen steps and exits non-zero if any of them f
     Skips itself, loudly, while those files do not exist. It is wired in now because `repro.sh` is
     a sealed file: adding the step after the run would change the seal, with the results already
     in hand
-14. **compare the sealed files with an archive's own checksums.** Steps 3 to 13 compare records
-    inside this repository against one another, and one person can change both sides of any of
-    them; this is the only step that compares them against a copy held by somebody else. It runs
-    offline -- a recorded answer against local bytes -- and skips itself, loudly, until
-    `seal/zenodo-witness.json` exists, which is wired early for the same reason as step 13. What
-    it adds is narrow: an archive holds bytes identical to these and recorded a time when it said
-    so. A deposit stays editable by its owner for a period after publication with the identifier
-    unchanged, so that time bounds when the deposit was last touched -- not when these files were
-    written, and not that no run preceded them
+14. **compare the sealed files with a recorded copy of an archive's own checksums.** Steps 3 to
+    13 compare records inside this repository against one another, and one person can change both
+    sides of any of them; this step reaches for a copy held by somebody else. It skips itself,
+    loudly, until `seal/zenodo-witness.json` exists, and is wired early for the same reason as
+    step 13.
+
+    **It is offline, and that bounds it.** It establishes that the recorded witness agrees with
+    these bytes, and that the witness is closed against itself: its anchor is the maximum of the
+    server times it carries, and those times are exactly the ones its own deposit listing implies.
+    It does *not* establish that the witness is what the archive returned — an independent review
+    wrote a witness from nothing and an earlier version of this check passed it. Re-reading the
+    record is what closes that, it is an online act, and the witness records the URL to re-read;
+    `repro.sh` stays offline so that it also runs inside a de-identified copy. Two further limits:
+    the published checksums are MD5, and a deposit stays editable by its owner for a period after
+    publication with the identifier unchanged, so its times bound when it was last touched — not
+    when these files were written, and not that no run preceded them
 
 Both legs of the public CI run exactly this, on Ubuntu and on Windows, and a third job requires the
 generated artefacts to be byte-identical across the two.
@@ -166,10 +176,12 @@ The distinction matters more than the green badge, so it is stated here rather t
   recorded in `analysis/freeze-provenance.json` and disclosed in the protocol.
 - **That the seal is old.** Step 12 shows the sealed files are the bytes the manifest records. It
   cannot show that a sealed file and the manifest were not edited together, and no check living
-  inside this repository could. That half needs a third party holding a copy: step 14 is the
-  comparison against one, it says so in its own output when no such copy is recorded yet, and even
-  when it passes it bounds when the copy was last touched rather than when these files were
-  written. The protocol states that rather than letting a green badge imply otherwise.
+  inside this repository could. That half needs a third party holding a copy. Step 14 compares
+  these files against a *recorded* copy of what an archive publishes, and says in its own output
+  when there is none; being offline, it cannot establish that the record is what the archive
+  returned, which takes re-reading the record at the URL the witness names. Even then it bounds
+  when the copy was last touched rather than when these files were written. The protocol states
+  all of that rather than letting a green badge imply otherwise.
 
 ## Key quantities
 

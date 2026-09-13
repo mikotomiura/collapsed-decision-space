@@ -34,13 +34,14 @@
 # Step 12 was deliberately absent until seal/protocol.md existed. Wiring it earlier would have
 # meant shipping a placeholder inside the thing whose whole purpose is to be fixed.
 #
-# Steps 13 and 14 are wired now and do nothing yet, which is the opposite decision, for a reason
-# worth stating. This file is sealed. Adding either step later would change these bytes, fail step
-# 12, and force the seal to be rebuilt -- leaving a record of the seal being remade after the fact,
-# which is precisely the story the seal exists to rule out. Step 13 would be added with the results
-# in hand; step 14 with the deposit already made, so that the deposited copy of this file would be
-# the copy without the check. So both are wired while neither input exists, and each activates
-# itself when its own input appears.
+# Steps 13 and 14 were wired while neither of their inputs existed, which is the opposite
+# decision, for a reason worth stating. This file is sealed. Adding either step later would change
+# these bytes, fail step 12, and force the seal to be rebuilt -- leaving a record of the seal being
+# remade after the fact, which is precisely the story the seal exists to rule out. Step 13 would
+# have been added with the results in hand; step 14 with the deposit already made, so that the
+# deposited copy of this file would be the copy without the check. So both went in beforehand, and
+# each activates itself when its own input appears. Whether either has anything to read is
+# reported by the step, on every run; nothing here asserts it either way.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -164,26 +165,38 @@ if [ -f "$CONTROL_VERDICT" ] && [ -f "$PRIMARY_VERDICT" ]; then
     --out data/derived/decision-report.json \
     "${EXPECT[@]}"
 else
-  echo "[repro] 13/14 apply_decision_rules: SKIPPED -- no prospective verdict yet"
+  echo "[repro] 13/14 apply_decision_rules: SKIPPED -- no prospective verdict present"
   echo "[repro]       (expects $CONTROL_VERDICT and $PRIMARY_VERDICT; the branch this repository"
   echo "[repro]        reports is re-derived here the moment they exist)"
+  SKIP_13=1
 fi
 
-# --- 14. The deposit's own checksums, once there is a deposit ---
-# Steps 3 to 13 are internal: they compare records inside this repository against each other, and
-# an author with write access can change both sides of any one of them in a single commit. This is
-# the only step that compares something here against something held by a party that is not the
-# author -- an archive publishes a checksum for every file it holds, readable without an account --
-# and it is therefore the only step whose green says anything about a third party having these
-# bytes. It also re-runs the internal checks of step 12, which cost under a second, so that a
-# failure here is unambiguous about which half disagreed.
+# --- 14. The deposit's own checksums, as recorded ---
+# Steps 3 to 13 compare records inside this repository against one another, and an author with
+# write access can change both sides of any one of them in a single commit. This step reaches for
+# a copy held by somebody else -- an archive publishes a checksum for every file it holds,
+# readable without an account -- but it reaches for it through a *recorded* answer, and it is
+# worth being exact about what that buys.
+#
+# This step is offline. It establishes that the recorded witness and these bytes agree, and that
+# the witness is closed against itself: its anchor is the maximum of the server times it carries,
+# and those times are exactly the ones its own deposit listing implies, one created and one
+# updated per deposited file. It does **not** establish that the witness is what the archive
+# returned. An independent review made that concrete by writing a witness out of nothing --
+# locally computed digests, invented timestamps -- and watching an earlier version of this check
+# report no problems.
+#
+# Turning a recorded external half into a checked one is an online act, and it is the reader's to
+# perform: the witness records the public URL it was read from, and re-running
+# analysis/scripts/collect_zenodo_witness.py against that URL reproduces the file. That is
+# deliberately not a step here. This script has to run with no network and inside a de-identified
+# copy, where the URL is redacted; a step that needed either would make the reproduction depend on
+# the thing the de-identification removes.
 #
 # Guarded on the witness file, for the same reason step 13 is guarded on the verdicts: a condition
-# does not freeze "this has not happened yet" into a sealed file. The witness is written by
-# analysis/scripts/collect_zenodo_witness.py, which reads the archive's public API. Nothing in this
-# step touches the network -- it compares a recorded answer with local bytes -- so it runs offline
-# and inside a de-identified copy of this repository just as every step above does.
+# does not freeze "this has not happened yet" into a sealed file.
 WITNESS="seal/zenodo-witness.json"
+SKIPPED=""
 
 if [ -f "$WITNESS" ]; then
   echo "[repro] 14/14 verify_seal --witness $WITNESS"
@@ -192,6 +205,27 @@ else
   echo "[repro] 14/14 verify_seal --witness: SKIPPED -- no deposit witness present"
   echo "[repro]       (expects $WITNESS. Every check above is internal to this repository;"
   echo "[repro]        until this file exists, take the external half as absent, not as passed)"
+  SKIP_14=1
 fi
 
-echo "[repro] DONE: all fourteen steps passed"
+# --- What the last line is allowed to say ---
+# "All fourteen steps passed" was printed here unconditionally, including on runs where steps 13
+# and 14 had skipped. An independent review caught it. The line is the one a reader quotes, and a
+# summary that overstates a guarded run is worse than no summary: it turns two honest skips into a
+# claim that two checks were made. So the summary reports which steps actually ran.
+# Written as `if` blocks rather than `test && assign`: under `set -e` a short-circuiting `&&`
+# list is a documented ambiguity, and this script must not exit 0 early or non-zero late because
+# of one.
+if [ -n "${SKIP_13:-}" ]; then
+  SKIPPED="$SKIPPED 13"
+fi
+if [ -n "${SKIP_14:-}" ]; then
+  SKIPPED="$SKIPPED 14"
+fi
+
+if [ -z "$SKIPPED" ]; then
+  echo "[repro] DONE: all fourteen steps ran and passed"
+else
+  echo "[repro] DONE: every step that ran passed. Skipped, as reported above:$SKIPPED"
+  echo "[repro]       (a skipped step is a check that was not made, not a check that succeeded)"
+fi

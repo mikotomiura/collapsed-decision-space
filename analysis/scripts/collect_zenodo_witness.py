@@ -7,7 +7,8 @@ no authenticated endpoint -- and writes down two things a reader cannot get from
 alone: the per-file checksums the archive holds, and the times the archive's own server assigned
 to the record and to its files. ``verify_seal.py --witness`` then compares those checksums against
 the local sealed files, offline, and ``repro.sh`` runs that comparison whenever the witness file
-exists.
+exists. Because that comparison is offline, it checks the recorded answer against these bytes and
+not the archive against anything; re-running this script is what checks the record itself.
 
 **Why the mapping is done by content and not by name.** A deposit's file names are flat and are
 chosen by whoever uploaded them, so a witness that paired "this deposited file is that sealed
@@ -19,12 +20,21 @@ If any sealed file has no counterpart in the deposit, nothing is written at all 
 witness that reads as a complete one is worse than none, and ``verify_seal.py`` would in any case
 refuse it.
 
-**What this establishes, and what it does not.** It establishes that an archive, which is not the
-author, holds bytes identical to the sealed files, and that its server assigned the times recorded
-here. It does not establish that the sealed files are old: a deposit record remains editable by
-its owner for a period after publication with the identifier unchanged, so these times bound when
-the deposit was last touched, not when the protocol was written, and certainly not that no run
-preceded it. The manuscript states that bound rather than leaving a reader to find it.
+**What running this establishes, and what merely reading its output does not.** Running it reads
+a public record and writes down what that record said. A reader who runs it again against the URL
+in the output, and gets the same file, has checked the outside half. A reader who only reads the
+output has a document written by the author, and ``verify_seal.py --witness`` -- which is offline
+-- can go no further than the internal consistency of that document. The distinction is not a
+quibble: an independent review produced a witness out of thin air, with locally computed digests
+and invented timestamps, and watched it pass. The repair has two parts, and both are needed. The
+checker closes the document against itself. The manuscript says plainly that a recorded external
+half is not a checked one until somebody re-reads the record.
+
+What even a re-read establishes is bounded. The digests are the archive's **MD5**, so agreement is
+agreement on that digest rather than a proof of identical bytes. And a deposit record remains
+editable by its owner for a period after publication with the identifier unchanged, so these times
+bound when the deposit was last touched -- not when the protocol was written, and certainly not
+that no run preceded it. The manuscript states both rather than leaving a reader to find them.
 
 **The anchor is a maximum, not a pick.** ``latest_server_time`` is the latest of every
 server-assigned time this witness carries: the record's creation and modification times, the
@@ -62,24 +72,26 @@ import sys
 import urllib.error
 import urllib.request
 from datetime import datetime
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from verify_seal import SEALED_PATHS  # noqa: E402
-
-#: Written into the witness for a reader. The checker validates the structure rather than trusting
-#: this string, so it is a label and not a contract.
-WITNESS_SCHEMA: str = "cds-deposit-witness-1"
-
-#: The digest algorithm the witness records. The archive publishes MD5 per file; it is used here
-#: because it is what the outside party publishes, and the property being established is agreement
-#: with that party rather than collision resistance. The sealed manifest's SHA-256 is what fixes
-#: the bytes; this only has to match what the archive says about the same bytes.
-DEPOSIT_ALGORITHM: str = "md5"
+#: The schema label and the digest algorithm are imported from the checker rather than declared
+#: here. They are the contract, and the checker is what enforces it; keeping one copy means this
+#: script cannot drift into writing a document the run will refuse.
+from verify_seal import DEPOSIT_ALGORITHM, SEALED_PATHS, WITNESS_SCHEMA  # noqa: E402
 
 USER_AGENT: str = "collapsed-decision-space-witness/1 (+repro.sh)"
+
+#: How a JSON endpoint is read. Injectable for one reason only: the mutation suite drives this
+#: script end to end against a synthetic archive response and then hands the result to the sealed
+#: checker. Without that round-trip, a tightening of the checker could leave this script writing
+#: a document the run refuses -- and the place that would surface is after the deposit, where
+#: nothing can be changed. The default is the real reader; nothing in production passes anything
+#: else.
+Fetcher = Callable[[str, float], dict[str, Any]]
 
 
 def _die(message: str) -> None:
@@ -119,14 +131,16 @@ def digest_of(path: Path) -> str:
     return digest.hexdigest()
 
 
-def deposit_files(record_api_url: str, timeout: float) -> list[dict[str, Any]]:
+def deposit_files(
+    record_api_url: str, timeout: float, fetch: Fetcher = fetch_json
+) -> list[dict[str, Any]]:
     """Return one entry per file the record holds, as the archive reports them.
 
     Only the fields the witness needs are kept, and they are kept verbatim: the checksum the
     archive publishes, its own size, and the two times it assigned. Nothing is recomputed, because
     the point of these values is that they come from somewhere else.
     """
-    payload = fetch_json(f"{record_api_url.rstrip('/')}/files", timeout)
+    payload = fetch(f"{record_api_url.rstrip('/')}/files", timeout)
     entries = payload.get("entries")
     if not isinstance(entries, list) or not entries:
         _die("the files endpoint returned no entries, so the record holds nothing to witness")
@@ -177,6 +191,16 @@ def match_by_content(
         if deposit_entry is None:
             unmatched.append(rel)
             continue
+        # The digest already agreed, so a size that does not is either an archive reporting
+        # something inconsistent about its own file or a bug here. Either way it is not a witness
+        # worth writing, and the checker compares these two as well.
+        local_size = local.stat().st_size
+        if deposit_entry["size"] != local_size:
+            _die(
+                f"the record reports {deposit_entry['size']!r} bytes for "
+                f"{deposit_entry['key']!r} but {rel} is {local_size} bytes, although the "
+                f"{DEPOSIT_ALGORITHM} digests agree"
+            )
         entries.append(
             {
                 "sealed_path": rel,
@@ -207,9 +231,9 @@ def time_sources(record: dict[str, Any], deposited: list[dict[str, Any]]) -> lis
     return sources
 
 
-def registry_time(base: str, doi: str, timeout: float) -> str:
+def registry_time(base: str, doi: str, timeout: float, fetch: Fetcher = fetch_json) -> str:
     """The registration time the DOI registry reports, read from its public API."""
-    payload = fetch_json(f"{base.rstrip('/')}/{doi}", timeout)
+    payload = fetch(f"{base.rstrip('/')}/{doi}", timeout)
     registered = payload.get("data", {}).get("attributes", {}).get("registered")
     if not isinstance(registered, str) or not registered:
         _die(f"the registry returned no 'registered' time for {doi}")
@@ -237,7 +261,7 @@ def latest(sources: list[dict[str, str]]) -> str:
     return max(parsed, key=lambda pair: pair[0])[1]
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, fetch: Fetcher = fetch_json) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     repo_root = Path(__file__).resolve().parents[2]
     parser.add_argument("--repo-root", type=Path, default=repo_root)
@@ -262,8 +286,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     root: Path = args.repo_root
 
-    record = fetch_json(args.record_api_url.rstrip("/"), args.timeout)
-    deposited = deposit_files(args.record_api_url, args.timeout)
+    record = fetch(args.record_api_url.rstrip("/"), args.timeout)
+    deposited = deposit_files(args.record_api_url, args.timeout, fetch)
     print(f"[witness] the record holds {len(deposited)} file(s)")
 
     entries, unmatched = match_by_content(root, deposited)
@@ -291,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
         sources.append(
             {
                 "source": "datacite.registered",
-                "value": registry_time(args.datacite_api_base, doi, args.timeout),
+                "value": registry_time(args.datacite_api_base, doi, args.timeout, fetch),
             }
         )
 
