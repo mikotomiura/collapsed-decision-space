@@ -91,7 +91,7 @@ bash repro.sh
 ```
 
 Requires [uv](https://docs.astral.sh/uv/) and network access for the first dependency
-installation. The script runs thirteen steps and exits non-zero if any of them fails:
+installation. The script runs fourteen steps and exits non-zero if any of them fails:
 
 1. install the environment from the lockfile
 2. lint
@@ -116,6 +116,15 @@ installation. The script runs thirteen steps and exits non-zero if any of them f
     Skips itself, loudly, while those files do not exist. It is wired in now because `repro.sh` is
     a sealed file: adding the step after the run would change the seal, with the results already
     in hand
+14. **compare the sealed files with an archive's own checksums.** Steps 3 to 13 compare records
+    inside this repository against one another, and one person can change both sides of any of
+    them; this is the only step that compares them against a copy held by somebody else. It runs
+    offline -- a recorded answer against local bytes -- and skips itself, loudly, until
+    `seal/zenodo-witness.json` exists, which is wired early for the same reason as step 13. What
+    it adds is narrow: an archive holds bytes identical to these and recorded a time when it said
+    so. A deposit stays editable by its owner for a period after publication with the identifier
+    unchanged, so that time bounds when the deposit was last touched -- not when these files were
+    written, and not that no run preceded them
 
 Both legs of the public CI run exactly this, on Ubuntu and on Windows, and a third job requires the
 generated artefacts to be byte-identical across the two.
@@ -157,8 +166,10 @@ The distinction matters more than the green badge, so it is stated here rather t
   recorded in `analysis/freeze-provenance.json` and disclosed in the protocol.
 - **That the seal is old.** Step 12 shows the sealed files are the bytes the manifest records. It
   cannot show that a sealed file and the manifest were not edited together, and no check living
-  inside this repository could. That half needs a third party holding a copy, and the protocol says
-  so rather than letting the green badge imply otherwise.
+  inside this repository could. That half needs a third party holding a copy: step 14 is the
+  comparison against one, it says so in its own output when no such copy is recorded yet, and even
+  when it passes it bounds when the copy was last touched rather than when these files were
+  written. The protocol states that rather than letting a green badge imply otherwise.
 
 ## Key quantities
 

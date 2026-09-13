@@ -304,6 +304,7 @@ EXPECTED_SEALED_SET: frozenset[str] = frozenset(
         "analysis/scripts/_provenance.py",
         "analysis/scripts/apply_decision_rules.py",
         "analysis/scripts/check_seal_scope.py",
+        "analysis/scripts/collect_zenodo_witness.py",
         "analysis/scripts/render_decision_rules.py",
         "analysis/scripts/verify_seal.py",
         "analysis/freeze-provenance.json",
@@ -611,8 +612,29 @@ SEAL_CASES: tuple[tuple[str, Callable[[Path], None], str | None, str], ...] = (
 #: threshold comparison cannot be reached by supplying any value.
 OMIT_VERDICT_FILE = "__omit_verdict_file__"
 
+#: The server-assigned times a conforming witness carries, written out as literals.
+#:
+#: Three properties are deliberate. They are in **three different ISO-8601 spellings** -- a
+#: fractional-second offset, a whole-second offset, and ``Z`` -- because that is what the two
+#: services actually return. One of them, the ``+10:00`` entry, is **later as a string and earlier
+#: as an instant** than the true maximum: a checker that compared these as text rather than as
+#: moments would pick it, and the control case below would fail. And the source names are spelled
+#: out here rather than imported, so the fixture cannot agree with the checker by construction.
+FIXTURE_TIMES: tuple[tuple[str, str], ...] = (
+    ("record.created", "2026-09-13T08:00:00.123456+00:00"),
+    ("record.updated", "2026-09-13T08:05:00+00:00"),
+    ("files.protocol.md.created", "2026-09-13T08:01:00+00:00"),
+    ("files.protocol.md.updated", "2026-09-13T09:30:00Z"),
+    ("files.repro.sh.updated", "2026-09-13T18:45:00+10:00"),
+    ("datacite.registered", "2026-09-13T08:10:00Z"),
+)
+
+#: The latest of the above **as an instant**: 09:30Z beats 18:45+10:00, which is 08:45Z.
+FIXTURE_LATEST: str = "2026-09-13T09:30:00Z"
+
+
 def _witness_for(root: Path, **overrides: Any) -> dict[str, Any]:
-    """Build a deposit witness for the staged tree, optionally spoiling one entry."""
+    """Build a deposit witness for the staged tree, optionally spoiling one part of it."""
     entries = []
     for rel in sorted(SEALED_PATHS):
         digest = hashlib.md5((root / rel).read_bytes()).hexdigest()  # noqa: S324
@@ -625,7 +647,31 @@ def _witness_for(root: Path, **overrides: Any) -> dict[str, Any]:
                 entry["checksum"] = "md5:" + "0" * 32
     if "algorithm" in overrides:
         entries[0]["checksum"] = f"{overrides['algorithm']}:00"
-    return {"latest_server_time": "2026-09-13T00:00:00Z", "files": entries}
+
+    sources = [{"source": name, "value": value} for name, value in FIXTURE_TIMES]
+    if "drop_time_source" in overrides:
+        sources = [s for s in sources if s["source"] != overrides["drop_time_source"]]
+    if overrides.get("drop_file_times"):
+        sources = [s for s in sources if not s["source"].startswith("files.")]
+    if "retime" in overrides:
+        name, value = overrides["retime"]
+        for source in sources:
+            if source["source"] == name:
+                source["value"] = value
+    if "add_time_source" in overrides:
+        name, value = overrides["add_time_source"]
+        sources.append({"source": name, "value": value})
+
+    witness: dict[str, Any] = {
+        "latest_server_time": overrides.get("anchor", FIXTURE_LATEST),
+        "time_sources": sources,
+        "files": entries,
+    }
+    if "registry_reason" in overrides:
+        witness["datacite_absent_reason"] = overrides["registry_reason"]
+    if overrides.get("no_time_sources"):
+        del witness["time_sources"]
+    return witness
 
 
 #: (name, how to build the witness, expected diagnostic, why it matters)
@@ -666,6 +712,84 @@ WITNESS_CASES: tuple[tuple[str, Callable[[Path], dict[str, Any]], str | None, st
         lambda root: {"latest_server_time": "2026-09-13T00:00:00Z", "files": []},
         "must be a non-empty list",
         "an empty deposit must fail rather than vacuously agree",
+    ),
+    # --- the anchor, rather than the checksums ---------------------------------------------- #
+    # The cases above ask whether the deposit holds these bytes. These ask whether the time the
+    # witness reports is the time its own contents imply. The two are independent: a witness can
+    # be perfectly right about every file and still carry an anchor nobody computed.
+    (
+        "a witness reporting an anchor later than every time it carries",
+        lambda root: _witness_for(root, anchor="2027-01-01T00:00:00Z"),
+        "the latest time this witness carries",
+        "the anchor is the one number the manuscript quotes from the deposit. If it is copied "
+        "rather than recomputed, a witness whose files all agree can still date the deposit "
+        "to whenever suits the claim",
+    ),
+    (
+        "a witness carrying no server times at all",
+        lambda root: _witness_for(root, no_time_sources=True),
+        "'time_sources' must be a non-empty list",
+        "an anchor with nothing under it is an assertion. Requiring the raw times is what lets "
+        "the maximum be re-taken by someone else",
+    ),
+    (
+        "a witness whose anchor includes the depositor-supplied publication date",
+        lambda root: _witness_for(
+            root, add_time_source=("publication_date", "2027-06-01T00:00:00Z")
+        ),
+        "supplied by the depositor",
+        "the publication date is typed in by whoever fills the record in. Admitting it to the "
+        "anchor would let the deposit be dated by its depositor, which is the whole property "
+        "the outside half is supposed to supply",
+    ),
+    (
+        "a witness carrying a time with no timezone",
+        # A non-maximal source is retimed on purpose: stripping the offset from the latest one
+        # would also invalidate the anchor, and the case would then pass on either diagnostic.
+        lambda root: _witness_for(root, retime=("record.updated", "2026-09-13T08:05:00")),
+        "has no timezone",
+        "the two services answer in different ISO-8601 spellings, so the anchor is a maximum "
+        "over parsed instants. A value that cannot be placed on that line has to be an error "
+        "rather than an entry that quietly sorts as text",
+    ),
+    (
+        "a witness that omits the record's own creation time",
+        lambda root: _witness_for(root, drop_time_source="record.created"),
+        "the anchor omits the time sources",
+        "an anchor taken over a chosen subset is narrower than the one the design defines, and "
+        "a narrower anchor reads as a stronger claim than was earned",
+    ),
+    (
+        "a witness that carries no per-file time",
+        # The anchor is restated because dropping the file times moves the true maximum to the
+        # registry time. A case that also got the anchor wrong would be two mutations at once,
+        # and the diagnostic it was written to provoke would no longer be the only one available.
+        lambda root: _witness_for(
+            root, drop_file_times=True, anchor="2026-09-13T08:10:00Z"
+        ),
+        "no per-file time",
+        "the editable window after publication allows a file to be replaced without the "
+        "record's own timestamps moving, so a record-level anchor would miss exactly the "
+        "change it exists to bound",
+    ),
+    (
+        "a witness whose registry time is neither present nor accounted for",
+        lambda root: _witness_for(root, drop_time_source="datacite.registered"),
+        "nor a 'datacite_absent_reason'",
+        "a registry that was not consulted is a legitimate state and a silently missing anchor "
+        "is not. The difference is whether the reader is told",
+    ),
+    (
+        "a witness with no registry time but a stated reason for its absence",
+        lambda root: _witness_for(
+            root,
+            drop_time_source="datacite.registered",
+            registry_reason="the DOI had not been registered when this was collected",
+        ),
+        None,
+        "the declared-absence path is a control, not an afterthought: if it failed, the only way "
+        "to pass would be to consult the registry, and the honest narrower witness would be "
+        "unshippable",
     ),
 )
 
