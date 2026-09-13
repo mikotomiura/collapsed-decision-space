@@ -1,6 +1,6 @@
 name: Submission PDF
 
-# Build the PDF that is submitted to PCI RR, from `manuscript/main.md`.
+# Build the PDF that is submitted, from `manuscript/main.md`.
 #
 # **Manual only.** Producing a PDF is not part of reproducing the study, and `repro.sh` deliberately
 # needs nothing but `uv`. Adding a LaTeX toolchain to the reproduction path would make the central
@@ -15,9 +15,10 @@ name: Submission PDF
 #
 #   * XeTeX sets *nothing* for a character its font lacks, and does not fail. A narrow-coverage font
 #     would quietly delete the logical connectives that join the branch conditions of section 8.
-#   * A `longtable` row cannot break across a page. The study design table is four times wider than
-#     any other table here, so it is rotated onto its own page; if that goes wrong, the right-hand
-#     columns are what disappears.
+#   * A `longtable` row cannot break across a page. If a table is set too wide, the right-hand
+#     columns are what disappears. The acute case used to be the six-column study design table,
+#     which was rotated onto its own page; that table is gone and the rotation with it, so the
+#     check now watches the column headers of the widest table left.
 #
 # Neither is visible from a page count, so the PDF is read back with `pdftotext` and checked.
 
@@ -114,18 +115,18 @@ jobs:
             --toc \
             --toc-depth=2 \
             --metadata link-citations=true \
-            --output=build/collapsed-decision-space-stage1.pdf
-          ls -l build/collapsed-decision-space-stage1.pdf
+            --output=build/collapsed-decision-space-protocol.pdf
+          ls -l build/collapsed-decision-space-protocol.pdf
 
       - name: Read the PDF back
         run: |
           set -eux
-          pdftotext build/collapsed-decision-space-stage1.pdf build/extracted.txt
+          pdftotext build/collapsed-decision-space-protocol.pdf build/extracted.txt
           wc -c build/extracted.txt
-          pdfinfo build/collapsed-decision-space-stage1.pdf | sed -n '1,12p'
+          pdfinfo build/collapsed-decision-space-protocol.pdf | sed -n '1,12p'
 
       - name: Check what the PDF actually contains
-        # Required phrases, every column header of the study design table, the characters at risk of
+        # Required phrases, every column header of the widest table, the characters at risk of
         # silent loss, and the quantities read from the frozen inputs by key.
         run: python3 analysis/scripts/check_pdf_text.py build/extracted.txt
 
@@ -142,9 +143,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: collapsed-decision-space-stage1-${{ github.sha }}
+          name: collapsed-decision-space-protocol-${{ github.sha }}
           path: |
-            build/collapsed-decision-space-stage1.pdf
+            build/collapsed-decision-space-protocol.pdf
             build/extracted.txt
           if-no-files-found: error
           retention-days: 90

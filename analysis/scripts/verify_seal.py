@@ -17,8 +17,15 @@ owner for a period after publication, with the identifier unchanged, so the depo
 bound when the files were *last touched*, not when they were first written. The manuscript states
 this rather than leaving the reader to discover it.
 
-What this establishes: the sealed bytes are internally consistent, and -- with ``--witness`` --
-identical to those the deposit holds.
+One further check runs here rather than in a step of its own, because it is part of the same
+question. The decision rules exist once, in ``seal/decision-rules.json``; the protocol and the
+manuscript carry a *generated* rendering of them between markers, and this script requires both
+renderings to be exactly what the sealed file produces. A threshold edited in prose therefore
+fails, and a threshold edited in the sealed file fails the hash above. Prose and rules cannot drift
+apart, because there is only one of them.
+
+What this establishes: the sealed bytes are internally consistent, the rule text the reader sees is
+a function of them, and -- with ``--witness`` -- the bytes are identical to those the deposit holds.
 What it does not: when they were written, or that no unreported run preceded them.
 
 Usage:
@@ -39,6 +46,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _provenance import load_json, sha256_of  # noqa: E402
+from render_decision_rules import check as check_rule_text  # noqa: E402
 
 MANIFEST_SCHEMA: str = "cds-seal-manifest-1"
 
@@ -48,12 +56,17 @@ MANIFEST_SCHEMA: str = "cds-seal-manifest-1"
 #: There is no separate JSON-Schema file. The evaluator validates the rules structurally and
 #: aborts on anything malformed, and the evaluator is itself sealed below; a schema document that
 #: nothing executes would add a file to the seal without adding a check to the run.
+#:
+#: The renderer is sealed for the same reason the evaluator is. A renderer that could be changed
+#: after the fact could be taught to emit whatever the manuscript happens to say, and the drift
+#: check below would then pass against rules nobody follows.
 SEALED_PATHS: tuple[str, ...] = (
     "seal/decision-rules.json",
     "seal/arm-spec.json",
     "seal/protocol.md",
     "analysis/scripts/apply_decision_rules.py",
     "analysis/scripts/check_decision_rules_scope.py",
+    "analysis/scripts/render_decision_rules.py",
     "analysis/scripts/verify_seal.py",
     "analysis/freeze-provenance.json",
     "repro.sh",
@@ -158,6 +171,16 @@ def main() -> int:
         return 1
 
     print(f"[seal] OK: {len(SEALED_PATHS)} sealed files match, self-hash verified")
+
+    # The rules are sealed as bytes above. This asks the separate question of whether what a
+    # reader reads is those rules: the protocol and the manuscript carry a generated rendering,
+    # and it must be the one the sealed file produces.
+    drift = check_rule_text(root)
+    if drift:
+        problems.extend(drift)
+    else:
+        print("[seal] OK: the rule text in the protocol and the manuscript is generated from "
+              "seal/decision-rules.json, not restated beside it")
 
     if args.witness is not None:
         problems.extend(_check_witness(root, args.witness, files))

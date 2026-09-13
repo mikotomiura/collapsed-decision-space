@@ -34,7 +34,7 @@ license:
   - MIT
   - CC-BY-4.0
 repository-code: "https://github.com/mikotomiura/collapsed-decision-space"
-version: "0.1.0-stage1"
+version: "0.2.0-sealed-protocol"
 date-released: "2026-09-13"
 # doi: to be filled in once a DOI is minted. The key is omitted until then, because an
 #      empty value would be rendered as-is by the GitHub citation widget.
@@ -45,5 +45,5 @@ keywords:
   - LLM agents
   - preregistration
   - reproducibility
-  - registered report
+  - statistical power
   - equivalence margin

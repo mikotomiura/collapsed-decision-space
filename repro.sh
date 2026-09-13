@@ -27,11 +27,10 @@
 #   9. compare quoted numbers with the inputs      analysis/scripts/check_manuscript_numbers.py
 #  10. claim-boundary check and positive control   analysis/scripts/check_claim_boundary.py
 #  11. reach of the sealed decision rules          analysis/scripts/check_decision_rules_scope.py
+#  12. the seal, and that the rule text is generated  analysis/scripts/verify_seal.py
 #
-# Not yet wired: analysis/scripts/verify_seal.py. It checks seal/SEAL-MANIFEST.json against the
-# sealed files, and the seal is not complete until seal/protocol.md exists. Adding the step
-# before then would mean shipping a placeholder inside the thing whose whole purpose is to be
-# fixed, so the step goes in when the seal is real -- not earlier.
+# Step 12 was deliberately absent until seal/protocol.md existed. Wiring it earlier would have
+# meant shipping a placeholder inside the thing whose whole purpose is to be fixed.
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -57,17 +56,17 @@ export PYTHONPATH="$REPO_ROOT/analysis/apparatus"
 # verbatim beside env/uv.lock so the lockfile the measurement ran under is preserved unmodified. It
 # declares a source root this repository does not have. The analysis scripts read the apparatus
 # through PYTHONPATH, so the project itself never needs installing.
-echo "[repro] 1/11 uv sync"
+echo "[repro] 1/12 uv sync"
 uv sync --frozen --no-install-project --project env
 
 RUN=(uv run --project env --no-sync)
 
 # --- 2. Lint ---
-echo "[repro] 2/11 ruff check"
+echo "[repro] 2/12 ruff check"
 "${RUN[@]}" ruff check analysis/scripts
 
 # --- 3. Integrity of the frozen inputs ---
-echo "[repro] 3/11 verify_data_hashes"
+echo "[repro] 3/12 verify_data_hashes"
 if [ -n "${ERRE_SANDBOX_REPO:-}" ]; then
   "${RUN[@]}" python analysis/scripts/verify_data_hashes.py \
     --upstream-repo "$ERRE_SANDBOX_REPO"
@@ -76,7 +75,7 @@ else
 fi
 
 # --- 4. The threshold freeze ---
-echo "[repro] 4/11 verify_threshold_freeze"
+echo "[repro] 4/12 verify_threshold_freeze"
 if [ -n "${ERRE_SANDBOX_REPO:-}" ]; then
   "${RUN[@]}" python analysis/scripts/verify_threshold_freeze.py \
     --upstream-repo "$ERRE_SANDBOX_REPO"
@@ -87,39 +86,47 @@ fi
 # --- 5. Recompute the recorded verdict from the shipped data ---
 # The strongest check here. Every other step compares a record against a shipped file; this one
 # establishes that the central verdict follows from the shipped data and the shipped apparatus.
-echo "[repro] 5/11 recompute_verdict"
+echo "[repro] 5/12 recompute_verdict"
 "${RUN[@]}" python analysis/scripts/recompute_verdict.py
 
 # --- 6. Extract the quantities the paper quotes ---
-echo "[repro] 6/11 extract_verdict_table -> data/derived/verdict-table.md"
+echo "[repro] 6/12 extract_verdict_table -> data/derived/verdict-table.md"
 "${RUN[@]}" python analysis/scripts/extract_verdict_table.py \
   --out data/derived/verdict-table.md > /dev/null
 
 # --- 7. Regenerate the power table ---
-echo "[repro] 7/11 power_curve -> data/derived/power-curve.md"
+echo "[repro] 7/12 power_curve -> data/derived/power-curve.md"
 "${RUN[@]}" python analysis/scripts/power_curve.py \
   --out data/derived/power-curve.md > /dev/null
 
 # --- 8. Support of the decision space, and the null floor of the estimand ---
 # Two properties the reframed claim rests on. Derived here rather than quoted, for the same
 # reason the verdict is recomputed rather than copied.
-echo "[repro] 8/11 collapse_and_floor -> data/derived/collapse-and-floor.md"
+echo "[repro] 8/12 collapse_and_floor -> data/derived/collapse-and-floor.md"
 "${RUN[@]}" python analysis/scripts/collapse_and_floor.py --out data/derived/collapse-and-floor.md --json-out data/derived/collapse-and-floor.json > /dev/null
 
 # --- 9. Compare the quoted numbers with the frozen inputs ---
 # "Not transcribed by hand" is a policy, not a check. This is the check.
-echo "[repro] 9/11 check_manuscript_numbers"
+echo "[repro] 9/12 check_manuscript_numbers"
 "${RUN[@]}" python analysis/scripts/check_manuscript_numbers.py
 
-# --- 9. Claim boundary ---
-echo "[repro] 10/11 check_claim_boundary"
+# --- 10. Claim boundary ---
+echo "[repro] 10/12 check_claim_boundary"
 "${RUN[@]}" python analysis/scripts/check_claim_boundary.py
 
-# --- 10. Reach of the sealed decision rules ---
+# --- 11. Reach of the sealed decision rules ---
 # The rules file decides which claim the run licenses. Running it once shows it produces an
 # answer; this shows that a moved threshold, a reordered evaluation, or a malformed input
 # produces a different one -- and that a no-op change does not.
-echo "[repro] 11/11 check_decision_rules_scope"
+echo "[repro] 11/12 check_decision_rules_scope"
 "${RUN[@]}" python analysis/scripts/check_decision_rules_scope.py
 
-echo "[repro] DONE: all eleven steps passed"
+# --- 12. The seal ---
+# The bytes of the sealed files against the manifest, the manifest's own self-hash, and -- the
+# half that is easy to miss -- that the decision rules a reader reads in the protocol and in the
+# manuscript are *generated* from the sealed file rather than written out a second time beside it.
+# Two statements of the same rules drift; one statement and a renderer cannot.
+echo "[repro] 12/12 verify_seal"
+"${RUN[@]}" python analysis/scripts/verify_seal.py
+
+echo "[repro] DONE: all twelve steps passed"

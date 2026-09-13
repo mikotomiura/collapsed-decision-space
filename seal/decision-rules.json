@@ -17,12 +17,14 @@
     }
   },
   "evaluation_order": ["R5", "R4", "R3", "R1", "R2"],
+  "order_note": "R4 is evaluated before R1-R3. The conditions are stated exactly as pre-registered and are not mutually exclusive as written; fixing the evaluation order removes the ambiguity without altering any condition.",
   "rules": [
     {
       "id": "R5",
       "arm": "control",
       "role": "outcome_neutral_gate",
       "label": "control-arm concordance",
+      "rationale": "The rho_hat bound of 0.75 is tighter than the rho_min of 0.5 used inside the verdict logic, and tolerates variation in at most two of the eight contexts. The tv_bar tolerance of 0.03 is set against the distance of 0.062 between the completed run's value and the materiality floor: a movement larger than 0.03 consumes more than 48% of the margin's interpretive room and is treated as a sign of version drift.",
       "combine": "all",
       "predicates": [
         { "quantity": "verdict", "op": "eq", "value": "NO_CHANNEL_CONFORMANCE" },
@@ -46,6 +48,7 @@
       "arm": "primary",
       "role": "outcome_neutral_gate",
       "label": "apparatus validity",
+      "rationale": "rho_min = 0.5 and none_rate_max = 0.5 are among the constants frozen before the completed run and checked mechanically. Evaluated ahead of the estimate so that a floor effect cannot be read as an absent effect.",
       "combine": "any",
       "predicates": [
         { "quantity": "rho_hat", "op": "lt", "value": 0.5 },
@@ -62,6 +65,7 @@
       "arm": "primary",
       "role": "outcome_neutral_gate",
       "label": "attained power",
+      "rationale": "power_min = 0.8 is frozen with the other constants. The completed run attained power 1.0 at these same values of M and K, which is why the prospective design is run at those values rather than smaller ones. See the limitation recorded in the manuscript: this quantity is the power of a chi-square goodness-of-fit test, not of the permutation test the branch turns on.",
       "combine": "all",
       "predicates": [
         { "quantity": "rho_hat", "op": "gte", "value": 0.5 },
@@ -78,6 +82,7 @@
       "arm": "primary",
       "role": "outcome_branch",
       "label": "replication",
+      "rationale": "The materiality margin of 0.10 is exclusive here: an estimate of exactly 0.10 is not below it and falls to R2.",
       "combine": "all",
       "predicates": [
         { "quantity": "rho_hat", "op": "gte", "value": 0.5 },
@@ -96,6 +101,7 @@
       "arm": "primary",
       "role": "outcome_branch",
       "label": "non-replication",
+      "rationale": "R1 and R2 partition the space that remains after R4 and R3, so the on_fail state of R2 is unreachable by construction and is recorded as a defect condition rather than as an outcome.",
       "combine": "all",
       "predicates": [
         { "quantity": "rho_hat", "op": "gte", "value": 0.5 },

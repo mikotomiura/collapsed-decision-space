@@ -7,9 +7,12 @@ real rather than theoretical, and both are silent:
 * XeTeX does not stop on a character its font lacks. It emits a warning and sets *nothing*, so a
   symbol such as the logical `and` joining the branch conditions of section 8 can vanish from the
   page while the build reports success.
-* A ``longtable`` row cannot be broken across a page. The study design table is far wider than any
-  other table here; if its columns are set too narrow the row overflows instead of reflowing, and
-  content can be pushed off the page.
+* A ``longtable`` row cannot be broken across a page. If a table's columns are set too narrow the
+  row overflows instead of reflowing, and content can be pushed off the page. The six-column study
+  design table used to be the acute case and was rotated onto a landscape page; it has been removed
+  from the manuscript, and the widest table left is three columns. The column-header check below is
+  retained and retargeted at that table rather than deleted, because the failure mode is a property
+  of ``longtable``, not of the table that first exposed it.
 
 So the PDF is read back with ``pdftotext`` and checked against what it is supposed to contain. The
 numeric half of that is **not hardcoded here**: it imports the same ``REQUIRED`` table that
@@ -49,30 +52,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _provenance import load_json  # noqa: E402
 from check_manuscript_numbers import REQUIRED, literal_of  # noqa: E402
 
-#: Headings that must survive into the PDF. Section 8.1, 14 and 15 are the ones added for PCI RR
-#: compliance; if the landscape wrapping or the title-block transformation drops one, the
-#: submission would be non-compliant in exactly the way those sections exist to prevent.
+#: Headings and title-block fields that must survive into the PDF. Each is load-bearing for the
+#: submission rather than decorative: the title and the author block come from a transformation
+#: this repository performs (``make_pdf_source.py``) and would be absent if it silently failed, the
+#: disclosure and ethics sections are what a venue checks for, and the two sections named after
+#: them are where the pre-registration itself lives.
+#:
+#: These are compared against the extracted text, so they must be the headings the manuscript
+#: actually carries. An earlier version of this tuple still named the previous title and two
+#: sections that had been removed, which would have failed the build for the right reason but the
+#: wrong cause; keeping it in step with ``main.md`` is part of editing ``main.md``.
 REQUIRED_PHRASES: tuple[str, ...] = (
-    "A powered null on a verified channel",
+    "When the power gate cannot fail",
     "Mikoto Miura",
     "0009-0000-4196-0508",
-    "Study design table",
-    "Level declaration and eligibility self-audit",
+    "Decision rules",
+    "Eligibility: what is known at seal time, and what is not",
+    "What the seal covers, and what breaks it",
     "AI usage disclosure",
     "Ethics, funding and competing interests",
     "Data, code and reproducibility",
 )
 
-#: Every column header of the study design table. The table is rotated onto its own page and set
-#: small; losing the right-hand columns is the specific way that goes wrong, and it would not be
-#: visible from a page count.
-DESIGN_TABLE_COLUMNS: tuple[str, ...] = (
-    "Question",
-    "Sampling plan",
-    "Analysis plan",
-    "Rationale for the sensitivity of the design",
-    "Interpretation given different outcomes",
-    "What the outcome bears on",
+#: Every column header of the widest table in the manuscript -- the eligibility audit of section 9.
+#: Losing the right-hand columns of a wide table is the specific way ``longtable`` goes wrong, and
+#: it would not be visible from a page count. This table is the one to watch because its two
+#: right-hand columns are the ones that carry the audit: the third says what was unknown at seal
+#: time and the fourth says what is reported after the run, and a page that dropped them would
+#: still look like a complete table.
+WIDEST_TABLE_COLUMNS: tuple[str, ...] = (
+    "Planned analysis",
+    "Role",
+    "Realised outcome known at seal time?",
+    "Reported after the run",
 )
 
 #: Characters the body depends on that a text font may not carry. Each is load-bearing: the
@@ -145,10 +157,10 @@ def main(argv: list[str] | None = None) -> int:
         if normalise(phrase) not in flat:
             problems.append(f"a required phrase is absent: {phrase!r}")
 
-    for column in DESIGN_TABLE_COLUMNS:
+    for column in WIDEST_TABLE_COLUMNS:
         if normalise(column) not in flat:
             problems.append(
-                f"a study design table column header is absent: {column!r} "
+                f"a column header of the section 9 table is absent: {column!r} "
                 "(the table may have been set too wide and lost its right-hand columns)"
             )
 
@@ -183,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"[pdf-text] OK: {len(REQUIRED_PHRASES)} required phrases, "
-        f"all {len(DESIGN_TABLE_COLUMNS)} study design table columns, "
+        f"all {len(WIDEST_TABLE_COLUMNS)} column headers of the widest table, "
         f"{len(REQUIRED_GLYPHS)} glyphs at risk of silent loss, and "
         f"{len(REQUIRED)} quantities read from the frozen inputs are present in the PDF "
         f"({len(flat)} characters of text)"

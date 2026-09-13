@@ -1,0 +1,45 @@
+{
+  "files": {
+    "analysis/freeze-provenance.json": {
+      "sha256": "054d66d5015a7ab15d2fb3ba215d70ce1104b4e8b181935c86d831bb6fafc178",
+      "size": 16286
+    },
+    "analysis/scripts/apply_decision_rules.py": {
+      "sha256": "30e3358a00559809293aa55568fc855fa16df6bdabe3d9df1f1c8af6b879355a",
+      "size": 11297
+    },
+    "analysis/scripts/check_decision_rules_scope.py": {
+      "sha256": "3d12ca7438c21e29f9b34469bbc388f5ecced57bd3c02721c5bc37f053f8a2e4",
+      "size": 10893
+    },
+    "analysis/scripts/render_decision_rules.py": {
+      "sha256": "6968345dc3fc4d6d144ac22020a153513d16570d738bf2f1a14f3986e96cbf0a",
+      "size": 8367
+    },
+    "analysis/scripts/verify_seal.py": {
+      "sha256": "04ded7209e5a258101cad083e30c33c46da071475e36689122b867251c6ccbab",
+      "size": 12580
+    },
+    "repro.sh": {
+      "sha256": "a6e58b1eb5648276c731688b22e5e59e97a95163862dc5be8e402fea2b6a4fa2",
+      "size": 6366
+    },
+    "seal/arm-spec.json": {
+      "sha256": "b6fa539263694023f925574e1f5a298a48497198bbef57fced4cc39f7965abd0",
+      "size": 4039
+    },
+    "seal/decision-rules.json": {
+      "sha256": "22ba8b7b4d5903b745f1bab67e27d0bb2a0411a227c6557115a987a8035cffbc",
+      "size": 7625
+    },
+    "seal/protocol.md": {
+      "sha256": "e924f5b5ff23dbc706fcd8ad27438014d547863979deffceceda02e7ca2a2118",
+      "size": 14228
+    }
+  },
+  "purpose": "Fixes the bytes of the decision rules, the arm specification, the protocol, and the code that applies them, so that the branch reported after the run can be re-derived from the rules as they stood before it.",
+  "schema": "cds-seal-manifest-1",
+  "scope_note": "This document establishes internal consistency only. It cannot show that the files are old, nor that a sealed file and this manifest were not edited together. The external half is the deposit, which publishes a per-file checksum that anyone can read without an account.",
+  "self_hash_canonicalisation": "sha256 of json.dumps(manifest_without_self_sha256, sort_keys=True, indent=2, ensure_ascii=False) + \"\\n\", encoded as UTF-8",
+  "self_sha256": "caaeb2bc6409089bde6b97751c0d926a17611266655c9b73d686cc610a3f56d3"
+}
