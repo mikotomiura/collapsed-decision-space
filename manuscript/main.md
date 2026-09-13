@@ -893,7 +893,7 @@ counting method is stated so that a reader can reproduce the figures:
 | Repository | Commits | Commits carrying at least one `Co-Authored-By` trailer naming the model |
 |---|---|---|
 | Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit `a2a19f9` | 305 | **205** |
-| This repository, at commit `609ac48` | 30 | **29** |
+| This repository, at commit `a32bcf3` | 20 | **18** |
 
 Trailers are counted **case-insensitively, as commits rather than as trailer lines**, over the
 history reachable from the commit named in each row. Both halves of that sentence are load-bearing.
@@ -904,7 +904,10 @@ because the next commit changes it -- these two rows were both wrong by the time
 once before, for exactly that reason. Each row is therefore true of the commit it names and of no
 other, which is the most a count of this kind can be: the commit that records a figure cannot be
 included in it, so the row for this repository names the last commit before the one that wrote the
-row. Anyone can recompute both with `git log --format=%H%x01%B%x02` over the named commit and count
+row. It also has to name a commit a reader can still reach. The figure here was briefly pinned to a
+commit on a feature branch, which the squash-merge of that branch left unreachable from `main`; the
+row now names a commit on `main`, and the count fell from 30 to 20 because squashing is what the
+public history actually records. Anyone can recompute both with `git log --format=%H%x01%B%x02` over the named commit and count
 the entries whose body matches `co-authored-by:.*claude`, case-insensitively.
 
 All AI-assisted output was reviewed, edited and validated by the human author, who made the
