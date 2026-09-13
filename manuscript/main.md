@@ -677,7 +677,7 @@ Before any prospective draw is collected, ten files are sealed, in five groups:
 | The run | `seal/arm-spec.json` | Every value the list below calls a not-minor deviation |
 | The protocol | `seal/protocol.md` | The part of this manuscript whose alteration would change how the result reads |
 | The code that reads them | `apply_decision_rules.py`, `render_decision_rules.py`, `verify_seal.py`, `check_seal_scope.py`, `_provenance.py` | A checker that can be edited is not a check. The last of these supplies the hashing the others use, and was missing from an earlier version of this list — which is why the seal now also fails if a sealed script imports a local module that is not itself sealed |
-| The record and the command | `analysis/freeze-provenance.json`, `repro.sh` | The provenance of the frozen thresholds, and the twelve-plus-one steps that check all of the above |
+| The record and the command | `analysis/freeze-provenance.json`, `repro.sh` | The provenance of the frozen thresholds, and the thirteen steps that check all of the above |
 
 `seal/SEAL-MANIFEST.json` records the SHA-256 of each and a self-hash over itself under a stated
 canonicalisation, and step 12 of `repro.sh` fails if any of them has moved since (§13). What that
@@ -893,7 +893,7 @@ counting method is stated so that a reader can reproduce the figures:
 | Repository | Commits | Commits carrying at least one `Co-Authored-By` trailer naming the model |
 |---|---|---|
 | Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit `a2a19f9` | 305 | **205** |
-| This repository, at commit `326facc` | 28 | **27** |
+| This repository, at commit `609ac48` | 30 | **29** |
 
 Trailers are counted **case-insensitively, as commits rather than as trailer lines**, over the
 history reachable from the commit named in each row. Both halves of that sentence are load-bearing.
@@ -901,8 +901,11 @@ A single commit may carry more than one trailer, so the upstream history holds 2
 across those 205 commits, and a count of lines reported as a count of commits would overstate the
 figure by two fifths. And a count with no commit pinned beside it cannot be reproduced at all,
 because the next commit changes it -- these two rows were both wrong by the time anyone read them
-once before, for exactly that reason. The figures for this repository are measured at its parent
-commit, since the commit that records them cannot count itself.
+once before, for exactly that reason. Each row is therefore true of the commit it names and of no
+other, which is the most a count of this kind can be: the commit that records a figure cannot be
+included in it, so the row for this repository names the last commit before the one that wrote the
+row. Anyone can recompute both with `git log --format=%H%x01%B%x02` over the named commit and count
+the entries whose body matches `co-authored-by:.*claude`, case-insensitively.
 
 All AI-assisted output was reviewed, edited and validated by the human author, who made the
 decisions that determine what this protocol claims: the choice of estimand and of the materiality
