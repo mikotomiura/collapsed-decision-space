@@ -1,6 +1,6 @@
 # When the power gate cannot fail: collapsed decision spaces defeat margin-and-power null reporting in LLM agents
 
-**Pre-registered protocol, with a completed preliminary measurement reported in full.**
+**Pre-registered protocol, with a completed preliminary measurement reported in full, and the outcome of the prospective arms reported against the sealed rules.**
 At the moment of sealing, the prospective arms had not been run. The decision rules that read them
 are sealed beforehand, in machine-readable form, so that the branch reported afterwards can be
 re-derived from the rules as they stood before it (§13).
@@ -13,7 +13,7 @@ re-derived from the rules as they stood before it (§13).
 | Correspondence | via the submission system of the venue this manuscript is submitted to |
 | Code and data | <https://github.com/mikotomiura/collapsed-decision-space>. Development continues on the default branch; what pins the protocol against later change is the seal of §11 and §13, not a branch name |
 | Licence | Code: Apache-2.0 OR MIT. Manuscript and figures: CC BY 4.0 |
-| Protocol status | No prospective draw has been collected. The two arms are run once, after the protocol is sealed; §11 states what the seal covers and what breaks it |
+| Protocol status | The protocol was sealed before any prospective draw was collected. The two arms have since been run once each, on 2026-09-14 and 2026-09-15, and the branch their verdicts reach is reported in the results section; §11 states what the seal covers and what breaks it |
 
 ---
 
@@ -707,6 +707,52 @@ place of the authority that is absent. The rule is a forfeit: should any of the 
 deviation in the completion report, and **that run is not presented as pre-registered.** Making the
 claim again would require a fresh seal and a fresh run. This is a condition under which the
 pre-registration lapses — not a licence to change the rules and carry on.
+
+---
+
+## Results of the prospective run
+
+<!-- REPORTED-BRANCH: R4 -->
+
+Both arms were run on 2026-09-14 and 2026-09-15 at the sealed sampling plan of §6.2 — *M* = 300
+draws per condition over the same *K* = 8 frozen contexts, 4,800 model calls per arm and 9,600 in
+total. Each bundle was checked against the seal before its verdict was landed, and the branch below
+was derived by hand from the two landed verdicts and `seal/decision-rules.json`, quantity by
+quantity, in `manuscript/REPORTED-BRANCH.md`.
+
+**Control arm (`qwen3:8b`).** The recorded quantities are `verdict` = NO_CHANNEL_CONFORMANCE,
+`rho_hat` = 1.0, `power` = 1.0, `tv_bar` = 0.030575 and `permutation_reject` = false at
+permutation *p* = 0.43989, with `none_rate_max_observed` = 0.086667 across the arm's cells and all
+eight contexts passing the per-context gate. R5 is satisfied on all six of its predicates: the
+estimate sits 0.007490 from the centre of a tolerance of 0.03. What that states is band
+membership, and §12.2 records that it states nothing further about the backend upgrade.
+Evaluation continues to the primary arm.
+
+**Primary arm (`llama3.1:8b`).** `rho_hat` = 0.0 with `effective_k` = 0 of 8. No context reaches
+the per-context entropy floor of `h_min_bits` = 0.5: the per-context values run from 0.165654 to
+0.274008. Draws are being produced and parsed — `none_rate_max_observed` = 0.066667, the same
+order as the other arm — so what is absent is not output but variation across zones. Because no
+context is admitted, the scorer stops before forming the channel-on and channel-off contrast, and
+`tv_bar`, `power` and `permutation_reject` are not produced at all. They are absent from the
+verdict rather than small in it.
+
+**The branch is R4, apparatus validity.** R4 is evaluated ahead of the estimate precisely so that
+a floor effect cannot be read as an absent effect, and `rho_hat` < 0.5 satisfies it. The sealed
+rule states the reading: in the primary family the substrate does not license two or more zones,
+so this estimand is not measurable in that family; this is **not** read as NO_CHANNEL_CONFORMANCE;
+and the claim narrows to single-model scope. The `verdict` field of the primary bundle does carry
+the string NO_CHANNEL_CONFORMANCE, because the scorer has one exit for a read-out it cannot score,
+and it must not be quoted as though the comparison had been made. R3, R1 and R2 were not reached:
+evaluation stops at the first rule whose action is `stop`.
+
+Two consequences are worth stating plainly. The question §1 puts — whether the failure mode
+belongs to the model or to the apparatus — is not answered in the primary family by this run,
+because the quantity that would answer it was not estimable there. And the decision space of that
+family collapsed further than the one this manuscript is about: the completed run loses two of
+five zones and still admits every context, whereas here no context clears the floor. That is a
+statement about what could be measured, not about a channel; §12.7 already carries the reason a
+shared collapse would not be a replication, and the same reasoning forbids reading an
+unmeasurable arm as agreement.
 
 ---
 

@@ -120,21 +120,21 @@ check repairs.
 
 ## Record of the hand derivation
 
-> Empty until the arms have run. It is filled in at step 3 above, **before** `repro.sh` is run
-> with both verdicts in place.
+> Filled in at step 3 above on 2026-09-15, from the two landed verdicts and
+> `seal/decision-rules.json`, before `repro.sh` was run with both verdicts in place.
 
 | | |
 |---|---|
-| Date | |
-| `control` verdict: `verdict` / `rho_hat` / `power` / `tv_bar` / `permutation_reject` | |
-| `primary` verdict: `rho_hat` / `power` / `tv_bar` / `permutation_reject` / `none_rate_max_observed` | |
-| R5 (control) — satisfied? | |
-| R4 (primary) — satisfied? | |
-| R3 (primary) — satisfied? | |
-| R1 (primary) — satisfied? | |
-| R2 (primary) — satisfied? | |
-| **Branch reached by hand** | |
-| **If the branch is R2, its condition evaluated by hand** | |
+| Date | 2026-09-15 |
+| `control` verdict: `verdict` / `rho_hat` / `power` / `tv_bar` / `permutation_reject` | `NO_CHANNEL_CONFORMANCE` / `1.0` / `1.0` / `0.030575` / `false` (permutation `p` = `0.43989`; `none_rate_max_observed` = `0.086667`; `effective_k` = 8 of 8) |
+| `primary` verdict: `rho_hat` / `power` / `tv_bar` / `permutation_reject` / `none_rate_max_observed` | `0.0` / `null` / `null` / `null` / `0.066667` (`effective_k` = 0 of 8; every context fails the per-context gate, so the scorer stops before the on/off contrast and the three middle quantities are not produced) |
+| R5 (control) — satisfied? | Yes, and `combine` is `all`, so each of the six was checked: `verdict` is `NO_CHANNEL_CONFORMANCE`; `rho_hat` 1.0 ≥ 0.75; `power` 1.0 ≥ 0.8; `tv_bar` 0.030575 < 0.1; abs diff from the centre 0.038065 is 0.007490 ≤ 0.03; `permutation_reject` is `false`. Action `continue`, so the primary arm is interpreted |
+| R4 (primary) — satisfied? | Yes. `combine` is `any`: `rho_hat` 0.0 < 0.5 is true, `none_rate_max_observed` 0.066667 > 0.5 is false. One true is enough. Action `stop` |
+| R3 (primary) — satisfied? | Not reached. Evaluation stops at the first rule whose action is `stop`, and R4 is that rule. Its first predicate would in any case be false, since `rho_hat` 0.0 is not ≥ 0.5, and `power` was not produced |
+| R1 (primary) — satisfied? | Not reached, for the same reason. `tv_bar` was not produced, so the rule has no value to read |
+| R2 (primary) — satisfied? | Not reached, for the same reason |
+| **Branch reached by hand** | R4 |
+| **If the branch is R2, its condition evaluated by hand** | Not applicable: the branch is R4 |
 
 The last two rows are **machine-checked**. Their labels are checked on every run, so this template
 and the checker cannot drift apart — an independent review found them already drifted, because the
