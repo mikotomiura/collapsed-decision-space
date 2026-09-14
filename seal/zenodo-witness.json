@@ -1,0 +1,278 @@
+{
+  "anchor": "latest_server_time is the maximum of the values in time_sources, taken verbatim. It bounds when the deposit was last touched, not when the sealed files were written, and not that no run preceded them.",
+  "collected_by": "analysis/scripts/collect_zenodo_witness.py",
+  "concept_doi": "10.5281/zenodo.22735436",
+  "deposit_files": [
+    {
+      "checksum": "md5:409e0a683c3d0c0d782b450a18abfc0d",
+      "created": "2026-09-13T23:44:26.330563+00:00",
+      "key": "collect_zenodo_witness.py",
+      "size": 17672,
+      "updated": "2026-09-13T23:44:26.362980+00:00"
+    },
+    {
+      "checksum": "md5:c5f9dc914bac89cb59701b9a46774612",
+      "created": "2026-09-13T23:44:26.372424+00:00",
+      "key": "decision-rules.json",
+      "size": 7625,
+      "updated": "2026-09-13T23:44:26.387725+00:00"
+    },
+    {
+      "checksum": "md5:f26f346bf192afbe8883954d8faaf655",
+      "created": "2026-09-13T23:44:26.395437+00:00",
+      "key": "arm-spec.json",
+      "size": 5660,
+      "updated": "2026-09-13T23:44:26.410345+00:00"
+    },
+    {
+      "checksum": "md5:bee779988d923b03dff045f154501a95",
+      "created": "2026-09-13T23:44:26.417923+00:00",
+      "key": "protocol.md",
+      "size": 15610,
+      "updated": "2026-09-13T23:44:26.440657+00:00"
+    },
+    {
+      "checksum": "md5:bba1e3e82c4983f6744c6dce0b296301",
+      "created": "2026-09-13T23:44:26.448487+00:00",
+      "key": "SEAL-MANIFEST.json",
+      "size": 2458,
+      "updated": "2026-09-13T23:44:26.461912+00:00"
+    },
+    {
+      "checksum": "md5:b2da836ea2af9a44374e968669cbb669",
+      "created": "2026-09-13T23:44:26.469919+00:00",
+      "key": "_provenance.py",
+      "size": 3780,
+      "updated": "2026-09-13T23:44:26.484437+00:00"
+    },
+    {
+      "checksum": "md5:83712605b3a9285e790cbc5f84056a37",
+      "created": "2026-09-13T23:44:26.491907+00:00",
+      "key": "apply_decision_rules.py",
+      "size": 11668,
+      "updated": "2026-09-13T23:44:26.506490+00:00"
+    },
+    {
+      "checksum": "md5:9b538bf87fa1bf079aa694613276a413",
+      "created": "2026-09-13T23:44:26.513987+00:00",
+      "key": "check_seal_scope.py",
+      "size": 62849,
+      "updated": "2026-09-13T23:44:26.528723+00:00"
+    },
+    {
+      "checksum": "md5:7a01e28129e890be7f260d8aa97315a3",
+      "created": "2026-09-13T23:44:26.535783+00:00",
+      "key": "repro.sh",
+      "size": 12039,
+      "updated": "2026-09-13T23:44:26.549981+00:00"
+    },
+    {
+      "checksum": "md5:5058d1650cb075ec80ba3786d89a93e7",
+      "created": "2026-09-13T23:44:26.556987+00:00",
+      "key": "freeze-provenance.json",
+      "size": 16592,
+      "updated": "2026-09-13T23:44:26.570746+00:00"
+    },
+    {
+      "checksum": "md5:e5336c0a866322d102445eeaac0c6866",
+      "created": "2026-09-13T23:44:26.578633+00:00",
+      "key": "render_decision_rules.py",
+      "size": 9314,
+      "updated": "2026-09-13T23:44:26.593401+00:00"
+    },
+    {
+      "checksum": "md5:37833c9795114df0f3af9cd188f54ea3",
+      "created": "2026-09-13T23:44:26.602738+00:00",
+      "key": "verify_seal.py",
+      "size": 34853,
+      "updated": "2026-09-13T23:44:26.619199+00:00"
+    }
+  ],
+  "depositor_supplied_not_part_of_the_anchor": {
+    "note": "The depositor chooses this date and it carries no time of day. It is recorded so that its exclusion is visible, and the checker refuses to read it as an anchor.",
+    "publication_date": "2026-09-13"
+  },
+  "files": [
+    {
+      "checksum": "md5:5058d1650cb075ec80ba3786d89a93e7",
+      "deposit_key": "freeze-provenance.json",
+      "sealed_path": "analysis/freeze-provenance.json",
+      "size": 16592
+    },
+    {
+      "checksum": "md5:b2da836ea2af9a44374e968669cbb669",
+      "deposit_key": "_provenance.py",
+      "sealed_path": "analysis/scripts/_provenance.py",
+      "size": 3780
+    },
+    {
+      "checksum": "md5:83712605b3a9285e790cbc5f84056a37",
+      "deposit_key": "apply_decision_rules.py",
+      "sealed_path": "analysis/scripts/apply_decision_rules.py",
+      "size": 11668
+    },
+    {
+      "checksum": "md5:9b538bf87fa1bf079aa694613276a413",
+      "deposit_key": "check_seal_scope.py",
+      "sealed_path": "analysis/scripts/check_seal_scope.py",
+      "size": 62849
+    },
+    {
+      "checksum": "md5:409e0a683c3d0c0d782b450a18abfc0d",
+      "deposit_key": "collect_zenodo_witness.py",
+      "sealed_path": "analysis/scripts/collect_zenodo_witness.py",
+      "size": 17672
+    },
+    {
+      "checksum": "md5:e5336c0a866322d102445eeaac0c6866",
+      "deposit_key": "render_decision_rules.py",
+      "sealed_path": "analysis/scripts/render_decision_rules.py",
+      "size": 9314
+    },
+    {
+      "checksum": "md5:37833c9795114df0f3af9cd188f54ea3",
+      "deposit_key": "verify_seal.py",
+      "sealed_path": "analysis/scripts/verify_seal.py",
+      "size": 34853
+    },
+    {
+      "checksum": "md5:7a01e28129e890be7f260d8aa97315a3",
+      "deposit_key": "repro.sh",
+      "sealed_path": "repro.sh",
+      "size": 12039
+    },
+    {
+      "checksum": "md5:f26f346bf192afbe8883954d8faaf655",
+      "deposit_key": "arm-spec.json",
+      "sealed_path": "seal/arm-spec.json",
+      "size": 5660
+    },
+    {
+      "checksum": "md5:c5f9dc914bac89cb59701b9a46774612",
+      "deposit_key": "decision-rules.json",
+      "sealed_path": "seal/decision-rules.json",
+      "size": 7625
+    },
+    {
+      "checksum": "md5:bee779988d923b03dff045f154501a95",
+      "deposit_key": "protocol.md",
+      "sealed_path": "seal/protocol.md",
+      "size": 15610
+    }
+  ],
+  "latest_server_time": "2026-09-13T23:44:39.000Z",
+  "record_api_url": "https://zenodo.org/api/records/22735437",
+  "record_id": 22735437,
+  "schema": "cds-deposit-witness-1",
+  "time_sources": [
+    {
+      "source": "record.created",
+      "value": "2026-09-13T23:44:26.295397+00:00"
+    },
+    {
+      "source": "record.updated",
+      "value": "2026-09-13T23:44:26.779378+00:00"
+    },
+    {
+      "source": "files.collect_zenodo_witness.py.created",
+      "value": "2026-09-13T23:44:26.330563+00:00"
+    },
+    {
+      "source": "files.collect_zenodo_witness.py.updated",
+      "value": "2026-09-13T23:44:26.362980+00:00"
+    },
+    {
+      "source": "files.decision-rules.json.created",
+      "value": "2026-09-13T23:44:26.372424+00:00"
+    },
+    {
+      "source": "files.decision-rules.json.updated",
+      "value": "2026-09-13T23:44:26.387725+00:00"
+    },
+    {
+      "source": "files.arm-spec.json.created",
+      "value": "2026-09-13T23:44:26.395437+00:00"
+    },
+    {
+      "source": "files.arm-spec.json.updated",
+      "value": "2026-09-13T23:44:26.410345+00:00"
+    },
+    {
+      "source": "files.protocol.md.created",
+      "value": "2026-09-13T23:44:26.417923+00:00"
+    },
+    {
+      "source": "files.protocol.md.updated",
+      "value": "2026-09-13T23:44:26.440657+00:00"
+    },
+    {
+      "source": "files.SEAL-MANIFEST.json.created",
+      "value": "2026-09-13T23:44:26.448487+00:00"
+    },
+    {
+      "source": "files.SEAL-MANIFEST.json.updated",
+      "value": "2026-09-13T23:44:26.461912+00:00"
+    },
+    {
+      "source": "files._provenance.py.created",
+      "value": "2026-09-13T23:44:26.469919+00:00"
+    },
+    {
+      "source": "files._provenance.py.updated",
+      "value": "2026-09-13T23:44:26.484437+00:00"
+    },
+    {
+      "source": "files.apply_decision_rules.py.created",
+      "value": "2026-09-13T23:44:26.491907+00:00"
+    },
+    {
+      "source": "files.apply_decision_rules.py.updated",
+      "value": "2026-09-13T23:44:26.506490+00:00"
+    },
+    {
+      "source": "files.check_seal_scope.py.created",
+      "value": "2026-09-13T23:44:26.513987+00:00"
+    },
+    {
+      "source": "files.check_seal_scope.py.updated",
+      "value": "2026-09-13T23:44:26.528723+00:00"
+    },
+    {
+      "source": "files.repro.sh.created",
+      "value": "2026-09-13T23:44:26.535783+00:00"
+    },
+    {
+      "source": "files.repro.sh.updated",
+      "value": "2026-09-13T23:44:26.549981+00:00"
+    },
+    {
+      "source": "files.freeze-provenance.json.created",
+      "value": "2026-09-13T23:44:26.556987+00:00"
+    },
+    {
+      "source": "files.freeze-provenance.json.updated",
+      "value": "2026-09-13T23:44:26.570746+00:00"
+    },
+    {
+      "source": "files.render_decision_rules.py.created",
+      "value": "2026-09-13T23:44:26.578633+00:00"
+    },
+    {
+      "source": "files.render_decision_rules.py.updated",
+      "value": "2026-09-13T23:44:26.593401+00:00"
+    },
+    {
+      "source": "files.verify_seal.py.created",
+      "value": "2026-09-13T23:44:26.602738+00:00"
+    },
+    {
+      "source": "files.verify_seal.py.updated",
+      "value": "2026-09-13T23:44:26.619199+00:00"
+    },
+    {
+      "source": "datacite.registered",
+      "value": "2026-09-13T23:44:39.000Z"
+    }
+  ],
+  "version_doi": "10.5281/zenodo.22735437"
+}

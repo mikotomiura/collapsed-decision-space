@@ -684,9 +684,9 @@ Before any prospective draw is collected, eleven files are sealed, in six groups
 canonicalisation, and step 12 of `repro.sh` fails if any of them has moved since (§13). What that
 buys is narrow and worth naming exactly: the branch reported after the run can be re-derived, by
 anyone, from the rules as they stood before it. It does not establish that the seal is old, and no
-check that lives inside this repository could. That would take a copy held by somebody else, and
-§13 describes the step that compares these files against one — together with the reason that
-comparison, even when it passes, bounds less than it appears to.
+check that lives inside this repository could. That would take a copy held by somebody else. One
+now exists, at `10.5281/zenodo.22735436`; §13 describes the step that compares these files against
+it, together with the reason that comparison, even when it passes, bounds less than it appears to.
 
 The following are **not** minor deviations:
 
@@ -842,16 +842,26 @@ so nothing in the sealed bytes asserts that the run has not happened; it simply 
 the files appear. When they do, it re-derives the branch from the sealed rules and fails if the
 branch named in `manuscript/reported-branch.txt` is not the one they give.
 
-The fourteenth step is the one that reaches outside this repository, and it is wired in early for
-the same reason and with the same guard. Steps 3 to 13 compare records inside this repository
-against one another; anyone with write access can change both sides of any one of them in a single
-commit, which is why §11 says what it says. An archive publishes, for every file it holds, a
-checksum that anyone can read without an account. `analysis/scripts/collect_zenodo_witness.py`,
-which is sealed, reads that listing and records it as `seal/zenodo-witness.json`, pairing deposited
-files with sealed paths **by content** — each sealed file is hashed locally and matched against the
-published checksums — so the correspondence between the two sets is not something we assert. Step
-14 then compares the recorded listing against the sealed files, and is guarded on the existence of
-that file.
+The fourteenth step is the one that reaches outside this repository, and it was wired in before
+there was anything for it to read, for the same reason and with the same guard. Steps 3 to 13
+compare records inside this repository against one another; anyone with write access can change
+both sides of any one of them in a single commit, which is why §11 says what it says. An archive
+publishes, for every file it holds, a checksum that anyone can read without an account.
+`analysis/scripts/collect_zenodo_witness.py`, which is sealed, reads that listing and records it as
+`seal/zenodo-witness.json`, pairing deposited files with sealed paths **by content** — each sealed
+file is hashed locally and matched against the published checksums — so the correspondence between
+the two sets is not something we assert. Step 14 then compares the recorded listing against the
+sealed files, and is guarded on the existence of that file.
+
+The deposit exists. The eleven sealed files, together with `seal/SEAL-MANIFEST.json`, were
+deposited at `10.5281/zenodo.22735436` (concept) and `10.5281/zenodo.22735437` (this version) —
+each file individually rather than inside an archive, because a checksum over an archive says
+nothing about the files within it. `seal/zenodo-witness.json` records what that deposit publishes
+about them: the per-file MD5 digests, the sizes, and the times the servers assigned. The latest of
+those twenty-seven times is **`2026-09-13T23:44:39.000Z`**, and it is the DOI registration time;
+step 14 recomputes that maximum rather than reading it, and fails if the recorded anchor is not the
+one the witness's own deposit listing implies. The publication date the deposit carries is supplied
+by the depositor, and the checker refuses to admit it to the anchor for that reason.
 
 **What step 14 establishes is less than its name suggests, and we would rather say so than be
 found out.** The step is offline. It establishes two things: that the recorded witness agrees with
@@ -874,10 +884,12 @@ the archive nor an account nor any identifier, and which are where the binding o
 branch to the sealed rules actually lives.
 
 Two further limits, stated here rather than left to be discovered. The checksums an archive
-publishes per file are MD5, so agreement is agreement on that digest. And a deposit record
-**remains editable by its owner for a period after publication, with the identifier unchanged**,
-so the times the archive assigns bound when the deposit was last touched, not when these files were
-written — and no timestamp of any kind can establish that no draw preceded it.
+publishes per file are MD5, so agreement is agreement on that digest rather than a proof of
+identical bytes. And a deposit record **remains editable by its owner for a period after
+publication, with the identifier unchanged** — the archive's own documentation says so — which
+means the time above bounds when that record was last touched, not when these files were written.
+No timestamp of any kind can establish that no draw preceded it. The deposit is corroboration, and
+it is offered as corroboration.
 
 The eleventh step deserves a sentence, because a check that is never exercised may be vacuous. It
 mutates the things the seal is supposed to protect — a threshold moved in the sealed rules, a hash
