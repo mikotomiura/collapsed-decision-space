@@ -8,7 +8,7 @@ agree, and the gap has to be crossed by a copy.
 **Crossing it by hand is the problem this script exists to remove.** Renaming a file into the
 position a checker reads is exactly how the wrong file ends up under the right name, and the
 failure is silent: every downstream check would then run happily against whatever was copied.
-There are three specific ways to get it wrong, and each is refused here.
+There are five specific ways to get it wrong, and each is refused here.
 
 1. **The quarantined verdict.** When the sealed seal check does not pass, the driver renames its
    output to ``run-verdict.DEVIATION.json`` rather than leaving a failed result under a green
@@ -20,17 +20,32 @@ There are three specific ways to get it wrong, and each is refused here.
 3. **A silent overwrite.** Landing the second arm over the first, or a re-run over the run that
    was analysed, loses the thing being replaced without a trace. ``--force`` is required, and
    what is being replaced is printed.
+4. **The wrong arm.** ``--arm control --from <primary artefact dir>`` would land the primary
+   arm's verdict under the control arm's name, and every check downstream would then be reading
+   the wrong model's result under the right label. An independent review found this open, and it
+   is why the seal check below is run here and not merely assumed to have been run earlier.
+5. **A bundle that was never verified.** A directory containing any well-formed JSON and an empty
+   manifest satisfied every other condition in this list.
 
-The bytes are copied **verbatim**. The driver writes its artefacts through a canonicalising
+Points 4 and 5 are closed the same way: this script runs the **sealed** ``verify_seal.py`` with
+``--run-manifest``, ``--run-verdict`` and ``--arm``, and refuses unless it exits 0. That is the
+checker the driver itself calls; it compares the manifest's model, digest, context bank and
+thresholds against the arm's sealed specification, so a primary bundle presented as the control
+arm fails on the model it names.
+
+**"Could not run" is not folded into "passed."** If the sealed checker is missing or cannot be
+started, the landing is refused rather than allowed with a warning: a check that silently
+disappears when its target is absent is the failure mode this repository keeps finding.
+
+The bytes are copied **verbatim**, through a temporary file that is renamed into place, and the
+digest is recomputed after the copy. The driver writes its artefacts through a canonicalising
 serialiser with quantised floats so that the two legs of the CI agree byte for byte; re-encoding
 them here would put a second serialiser in the path for no gain.
 
-**This is not a verification step, and it does not stand in for one.** Whether the run was of the
-sealed size, under the sealed model digests and the sealed context bank, is established by the
-driver's ``--verify`` -- which must have exited **0**; ``2`` means a bundle that is internally
-consistent but smaller than the seal describes -- and by the sealed ``verify_seal.py
---run-manifest`` that it calls. This script checks that the file being landed is a plausible,
-distinct, well-formed verdict and that it lands where step 13 will look.
+**This does not make landing a substitute for verifying.** The driver's ``--verify`` must have
+exited **0** -- ``2`` means a bundle that is internally consistent but smaller than the seal
+describes -- and it checks things this script does not, including that the verdict is the one its
+own scorer produces from the recorded annotation.
 
 Usage:
     python analysis/scripts/land_prospective_verdict.py --arm control --from <artefact dir>
@@ -41,6 +56,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import subprocess  # noqa: S404
 import sys
 from pathlib import Path
 
@@ -53,6 +69,44 @@ from verify_data_hashes import PROSPECTIVE_OUTPUTS, parse_raw_table  # noqa: E40
 DRIVER_VERDICT = "run-verdict.json"
 DRIVER_QUARANTINED = "run-verdict.DEVIATION.json"
 DRIVER_MANIFEST = "run-manifest.json"
+
+#: Outcomes of the sealed seal check. Three values, not two: "could not be run" is its own
+#: answer and must not be read as a pass.
+SEAL_OK = "ok"
+SEAL_FAILED = "failed"
+SEAL_NOT_RUN = "not-run"
+
+
+def run_sealed_seal_check(
+    *, repo_root: Path, manifest: Path, verdict: Path, arm: str
+) -> tuple[str, str]:
+    """Run the sealed ``verify_seal.py`` over the bundle, and return its outcome and output.
+
+    The canonical checker is invoked rather than reimplemented. Duplicating what it compares
+    would put a second statement of the seal's reach beside the sealed one, which is the drift
+    this repository designs against everywhere else.
+    """
+    script = repo_root / "analysis" / "scripts" / "verify_seal.py"
+    if not script.is_file():
+        return SEAL_NOT_RUN, f"the sealed checker is missing: {script}"
+    command = [
+        sys.executable,
+        str(script),
+        "--run-manifest",
+        str(manifest),
+        "--arm",
+        arm,
+        "--run-verdict",
+        str(verdict),
+    ]
+    try:
+        completed = subprocess.run(  # noqa: S603
+            command, cwd=repo_root, capture_output=True, text=True, check=False
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return SEAL_NOT_RUN, f"the sealed checker could not be started: {exc}"
+    output = (completed.stdout + completed.stderr).strip()
+    return (SEAL_OK if completed.returncode == 0 else SEAL_FAILED), output
 
 
 def destination_for(arm: str) -> str:
@@ -144,6 +198,43 @@ def main(argv: list[str] | None = None) -> int:
                 "prospective arm cannot have produced a file that existed before the seal"
             )
 
+    # The arm the bundle says it is, before asking the seal which arm it looks like. The sealed
+    # checker compares the model and digest; this compares the label the driver wrote, so a
+    # mismatch is reported as a mix-up rather than as a model that fails its specification.
+    manifest_path = source_dir / DRIVER_MANIFEST
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return _die(f"{manifest_path} is not readable as JSON ({exc})")
+    recorded_arm = manifest.get("arm") if isinstance(manifest, dict) else None
+    if recorded_arm != args.arm:
+        return _die(
+            f"{manifest_path} records arm {recorded_arm!r} but {args.arm!r} was asked for. "
+            "Landing a bundle under the other arm's name is how the wrong model's result ends "
+            "up under the right label"
+        )
+
+    outcome, output = run_sealed_seal_check(
+        repo_root=repo_root,
+        manifest=manifest_path,
+        verdict=source,
+        arm=args.arm,
+    )
+    for line in output.splitlines():
+        if line.strip():
+            print(f"[land][seal] {line}")
+    if outcome != SEAL_OK:
+        reason = (
+            "the sealed seal check could not be run"
+            if outcome == SEAL_NOT_RUN
+            else "the sealed seal check did not pass"
+        )
+        return _die(
+            f"{reason}. A bundle is landed only once verify_seal.py has compared its manifest "
+            f"with the {args.arm} arm's sealed specification; not having run the check is not "
+            "the same as having passed it"
+        )
+
     target = repo_root / "data" / "raw" / target_name
     if target.is_file() and not args.force:
         return _die(
@@ -153,8 +244,20 @@ def main(argv: list[str] | None = None) -> int:
     if target.is_file():
         print(f"[land] replacing data/raw/{target_name} ({sha256_of(target)[:12]}…)")
 
+    # Copy aside and rename into place, so an interrupted copy cannot leave a truncated verdict
+    # under the name step 13 reads -- and, with --force, cannot destroy the landed result it was
+    # replacing. Then re-read what actually landed: the digest printed below is of the bytes on
+    # disk, not of the bytes that were read a moment earlier.
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, target)
+    staging = target.with_name(target.name + ".landing")
+    shutil.copyfile(source, staging)
+    staging.replace(target)
+    landed_digest = sha256_of(target)
+    if landed_digest != digest:
+        return _die(
+            f"data/raw/{target_name} hashes to {landed_digest} but the source hashed to "
+            f"{digest} when it was read. The source changed underneath the copy"
+        )
     print(f"[land] {source} -> data/raw/{target_name}  ({digest[:12]}… / {target.stat().st_size:,} bytes)")
 
     remaining = sorted(

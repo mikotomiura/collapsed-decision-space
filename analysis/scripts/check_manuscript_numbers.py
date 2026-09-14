@@ -207,13 +207,18 @@ README_QUANTITIES: frozenset[str] = frozenset(
 def check_reported_branch(repo_root: Path) -> list[str]:
     """Bind the branch the manuscript reports to the file step 13 compares against.
 
-    Four states, and only one of them is the interesting one:
+    Five states, and only one of them is uninteresting:
 
     * **nothing landed, nothing claimed** -- guarded absence, not a failure. The arms have not
       run. Freezing "this has not happened yet" into a check is how a check becomes false later,
       which is why this is a condition on files rather than on a date;
     * **both verdicts landed, no branch claimed** -- a failure. Step 13 would run, re-derive a
       branch, compare it with nothing, and exit 0. That is the hole this function closes;
+    * **a branch claimed before both verdicts have landed** -- a failure, and a different one.
+      §8 of the protocol says the authors do not predict which branch will occur; a branch
+      standing in the repository while the arms have not finished is that prediction, written
+      down. Nothing can establish that the author did not see the evaluator's output before
+      writing the marker, but this state is *observable*, so it is refused;
     * **a branch claimed, and the rendered file disagrees or is missing** -- a failure. The file
       is generated from the marker; a hand-edit is the drift the generation exists to prevent;
     * **a file with no marker behind it** -- a failure. It would be compared by step 13 while
@@ -225,6 +230,10 @@ def check_reported_branch(repo_root: Path) -> list[str]:
     landed = sorted(
         name for name in PROSPECTIVE_OUTPUTS if (raw_dir / name).is_file()
     )
+    # Non-emptiness is required as well as completeness: with an empty set of prospective
+    # outputs the equality alone would hold vacuously, and every state below would read as
+    # "the run has finished". The self-check exercises exactly that case.
+    complete = bool(PROSPECTIVE_OUTPUTS) and len(landed) == len(PROSPECTIVE_OUTPUTS)
 
     try:
         branch_ids = sealed_branch_ids(repo_root)
@@ -234,11 +243,18 @@ def check_reported_branch(repo_root: Path) -> list[str]:
 
     problems: list[str] = []
 
+    if (branch is not None or out_path.is_file()) and not complete:
+        claimed = f"main.md reports branch {branch}" if branch else "reported-branch.txt exists"
+        problems.append(
+            f"{claimed}, but only {len(landed)} of {len(PROSPECTIVE_OUTPUTS)} prospective "
+            "verdicts have landed in data/raw/. A branch standing in the repository before its "
+            "inputs do is a prediction, and §8 of the protocol says the authors do not predict "
+            "which branch will occur. Land both verdicts first; "
+            "manuscript/REPORTED-BRANCH.md gives the procedure"
+        )
+
     if branch is None:
-        # `landed` is required to be non-empty as well as complete: with an empty set of
-        # prospective outputs the equality below would hold vacuously and demand a marker for a
-        # run that cannot have happened. The self-check exercises exactly that case.
-        if landed and len(landed) == len(PROSPECTIVE_OUTPUTS):
+        if complete:
             problems.append(
                 "the prospective verdicts have landed but manuscript/main.md carries no "
                 "<!-- REPORTED-BRANCH: ... --> marker. Step 13 would re-derive a branch and "
@@ -279,11 +295,101 @@ def check_reported_branch(repo_root: Path) -> list[str]:
                 "(main.md marker, and the file step 13 reads, agree)"
             )
 
-    if len(landed) < len(PROSPECTIVE_OUTPUTS):
+    if complete:
+        problems.extend(check_hand_derivation(repo_root, branch))
+    return problems
+
+
+#: Rows of the record table in `manuscript/REPORTED-BRANCH.md` that carry decision content, as
+#: opposed to the working it is shown in. Matched on the start of the label so the emphasis and
+#: the code spans around it can be changed without silently disabling the check.
+HAND_BRANCH_LABEL = "Branch reached by hand"
+R2_SIDE_LABEL = "If the branch is R2"
+
+#: Markdown decoration stripped from a cell before it is read.
+_CELL_DECORATION = "*` "
+
+#: The rule whose identifier does not determine the outcome. See `REPORTED-BRANCH.md`.
+AMBIGUOUS_BRANCH = "R2"
+
+
+def table_cell(text: str, label: str) -> str | None:
+    """The second cell of the row whose first cell starts with ``label``.
+
+    ``None`` when there is no such row, which is different from an empty cell: one means the
+    record has lost the field, the other that it has not been filled in, and the two get
+    different messages.
+    """
+    for line in text.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip().strip(_CELL_DECORATION).strip() for cell in line.split("|")]
+        # cells[0] is the empty string before the leading pipe.
+        if len(cells) >= 3 and cells[1].startswith(label):
+            return cells[2]
+    return None
+
+
+def check_hand_derivation(repo_root: Path, branch: str) -> list[str]:
+    """Require the double-entry record to have been filled in, and to agree.
+
+    The branch is meant to be derived by hand from the two verdicts and the sealed rules, written
+    down, and only then compared with the evaluator. Prose cannot enforce that. What can be
+    enforced is that the record exists and names the same branch the manuscript does -- so a
+    marker written without the derivation behind it fails, rather than passing quietly.
+
+    **This does not establish that the derivation was done first**, or honestly, or at all; a
+    single field can be filled in after the fact. It establishes that the claim appears in two
+    places that were written separately and that they agree. `REPORTED-BRANCH.md` states that
+    limit rather than leaving it to be found.
+
+    The second row exists because the sealed evaluator returns the rule identifier, and ``R2``
+    stops on both of its outcomes: satisfied is the non-replication finding, unsatisfied is the
+    ``UNREACHABLE`` defect condition that must not be interpreted. ``--expect-branch R2`` cannot
+    tell them apart and `apply_decision_rules.py` is sealed, so the disambiguation is required
+    here, in writing.
+    """
+    record = repo_root / "manuscript" / "REPORTED-BRANCH.md"
+    if not record.is_file():
+        return [f"{record} is missing; it is where the hand derivation is recorded"]
+    text = record.read_text(encoding="utf-8")
+
+    recorded = table_cell(text, HAND_BRANCH_LABEL)
+    if recorded is None:
+        return [
+            f"manuscript/REPORTED-BRANCH.md has no {HAND_BRANCH_LABEL!r} row, so the hand "
+            "derivation cannot be compared with the branch main.md reports"
+        ]
+    if not recorded:
+        return [
+            f"main.md reports branch {branch}, but the 'Branch reached by hand' row of "
+            "manuscript/REPORTED-BRANCH.md is empty. The branch is meant to be derived from the "
+            "verdicts and the sealed rules and written down before step 13 compares it"
+        ]
+    if recorded != branch:
+        return [
+            f"main.md reports branch {branch}, but the hand derivation in "
+            f"manuscript/REPORTED-BRANCH.md reached {recorded!r}. One of them is wrong, and "
+            "which is not something a check can decide"
+        ]
+
+    problems: list[str] = []
+    if branch == AMBIGUOUS_BRANCH:
+        value = table_cell(text, R2_SIDE_LABEL) or ""
+        if value not in {"true", "false"}:
+            problems.append(
+                f"the branch is {AMBIGUOUS_BRANCH}, which the sealed evaluator reports for both "
+                "the non-replication finding and the UNREACHABLE defect condition. Record "
+                "detail[-1].value from data/derived/decision-report.json as true or false in "
+                f"manuscript/REPORTED-BRANCH.md (found {value!r})"
+            )
+        else:
+            meaning = "the non-replication finding" if value == "true" else "the UNREACHABLE defect"
+            print(f"[numbers] OK R2 disambiguated{'':<15}= {value} ({meaning})")
+    if not problems:
         print(
-            f"[numbers] -- note: main.md reports {branch}, but only {len(landed)} of "
-            f"{len(PROSPECTIVE_OUTPUTS)} prospective verdicts are in data/raw/. Step 13 stays "
-            "guarded until both are, so the claim is not yet compared with anything"
+            f"[numbers] OK hand derivation{'':<18}= {recorded}  "
+            "(REPORTED-BRANCH.md and the main.md marker agree)"
         )
     return problems
 
@@ -297,6 +403,7 @@ _FIXTURE_MAIN_TWO = (
     "# fixture\n\n<!-- REPORTED-BRANCH: R1 -->\n\n<!-- REPORTED-BRANCH: R2 -->\n"
 )
 _FIXTURE_MAIN_UNKNOWN = "# fixture\n\n<!-- REPORTED-BRANCH: R9 -->\n"
+_FIXTURE_MAIN_R2 = "# fixture\n\n<!-- REPORTED-BRANCH: R2 -->\n\nThe results.\n"
 _FIXTURE_MAIN_IN_GENERATED = (
     "# fixture\n\n"
     "<!-- BEGIN GENERATED FROM seal/decision-rules.json -- DO NOT EDIT BY HAND -->\n"
@@ -304,15 +411,36 @@ _FIXTURE_MAIN_IN_GENERATED = (
     "<!-- END GENERATED FROM seal/decision-rules.json -->\n"
 )
 
+#: Record fixtures. Written out per branch rather than formatted from the case's own branch: a
+#: record generated from the value it is supposed to corroborate would agree with anything.
+_FIXTURE_RECORD_R1 = "| Branch reached by hand | R1 |\n"
+_FIXTURE_RECORD_R2_TRUE = (
+    "| Branch reached by hand | R2 |\n"
+    "| If the branch is R2, `detail[-1].value` | true |\n"
+)
+_FIXTURE_RECORD_R2_BLANK = (
+    "| Branch reached by hand | R2 |\n"
+    "| If the branch is R2, `detail[-1].value` |  |\n"
+)
+_FIXTURE_RECORD_EMPTY = "| Branch reached by hand |  |\n"
+
 
 def _branch_fixture(
-    root: Path, *, main_md: str, branch_file: str | None, landed: tuple[str, ...]
+    root: Path,
+    *,
+    main_md: str,
+    branch_file: str | None,
+    landed: tuple[str, ...],
+    record: str,
 ) -> Path:
     """Build a throwaway repository in the shape this check reads."""
     (root / "manuscript").mkdir(parents=True, exist_ok=True)
     (root / "seal").mkdir(parents=True, exist_ok=True)
     (root / "data" / "raw").mkdir(parents=True, exist_ok=True)
     (root / "manuscript" / "main.md").write_text(main_md, encoding="utf-8", newline="\n")
+    (root / "manuscript" / "REPORTED-BRANCH.md").write_text(
+        record, encoding="utf-8", newline="\n"
+    )
     (root / "seal" / "decision-rules.json").write_text(
         _FIXTURE_RULES, encoding="utf-8", newline="\n"
     )
@@ -334,15 +462,43 @@ def check_branch_guards_fire() -> list[str]:
     ``OK`` line can never be read as a statement about this repository.
     """
     both = tuple(sorted(PROSPECTIVE_OUTPUTS))
-    cases: tuple[tuple[str, str, str | None, tuple[str, ...], str | None], ...] = (
-        # label, main.md, reported-branch.txt, landed verdicts, expected substring (None = clean)
-        ("P1 nothing landed, nothing claimed", _FIXTURE_MAIN_NO_MARKER, None, (), None),
-        ("P2 branch claimed and rendered", _FIXTURE_MAIN_R1, "R1\n", both, None),
+    one = both[:1]
+    # label, main.md, reported-branch.txt, landed verdicts, record, expected text (None = clean)
+    cases: tuple[
+        tuple[str, str, str | None, tuple[str, ...], str, str | None], ...
+    ] = (
+        (
+            "P1 nothing landed, nothing claimed",
+            _FIXTURE_MAIN_NO_MARKER,
+            None,
+            (),
+            _FIXTURE_RECORD_EMPTY,
+            None,
+        ),
+        (
+            "P2 R1 claimed, rendered and recorded",
+            _FIXTURE_MAIN_R1,
+            "R1\n",
+            both,
+            _FIXTURE_RECORD_R1,
+            None,
+        ),
+        # The R2 pair is what keeps the renderer honest. With only the R1 control above, a
+        # render() that returned "R1\n" for every branch would pass every case.
+        (
+            "P3 R2 claimed, rendered, recorded and disambiguated",
+            _FIXTURE_MAIN_R2,
+            "R2\n",
+            both,
+            _FIXTURE_RECORD_R2_TRUE,
+            None,
+        ),
         (
             "M1 verdicts landed, no marker",
             _FIXTURE_MAIN_NO_MARKER,
             None,
             both,
+            _FIXTURE_RECORD_EMPTY,
             "carries no <!-- REPORTED-BRANCH",
         ),
         (
@@ -350,49 +506,119 @@ def check_branch_guards_fire() -> list[str]:
             _FIXTURE_MAIN_R1,
             "R2\n",
             both,
+            _FIXTURE_RECORD_R1,
             "rather than",
         ),
-        ("M3 marker but no rendered file", _FIXTURE_MAIN_R1, None, both, "is missing"),
         (
-            "M4 rendered file with no marker behind it",
+            "M3 R2 marker rendered as R1",
+            _FIXTURE_MAIN_R2,
+            "R1\n",
+            both,
+            _FIXTURE_RECORD_R2_TRUE,
+            "rather than",
+        ),
+        (
+            "M4 marker but no rendered file",
+            _FIXTURE_MAIN_R1,
+            None,
+            both,
+            _FIXTURE_RECORD_R1,
+            "is missing",
+        ),
+        (
+            "M5 rendered file with no marker behind it",
             _FIXTURE_MAIN_NO_MARKER,
             "R1\n",
-            (),
+            both,
+            _FIXTURE_RECORD_EMPTY,
             "no marker in main.md generates it",
         ),
-        ("M5 two markers", _FIXTURE_MAIN_TWO, "R1\n", both, "markers"),
         (
-            "M6 marker inside the generated block",
+            "M6 two markers",
+            _FIXTURE_MAIN_TWO,
+            "R1\n",
+            both,
+            _FIXTURE_RECORD_R1,
+            "markers",
+        ),
+        (
+            "M7 marker inside the generated block",
             _FIXTURE_MAIN_IN_GENERATED,
             "R1\n",
             both,
+            _FIXTURE_RECORD_R1,
             "inside the block generated",
         ),
         (
-            "M7 branch the sealed rules cannot reach",
+            "M8 branch the sealed rules cannot reach",
             _FIXTURE_MAIN_UNKNOWN,
             "R9\n",
             both,
+            _FIXTURE_RECORD_R1,
             "not one the sealed rules can reach",
         ),
         (
-            "M8 trailing text makes the file a different token",
+            "M9 trailing text makes the file a different token",
             _FIXTURE_MAIN_R1,
             "R1 # because the control arm held\n",
             both,
+            _FIXTURE_RECORD_R1,
             "rather than",
+        ),
+        # The prediction states: a branch standing in the repository before its inputs.
+        (
+            "M10 branch claimed with nothing landed",
+            _FIXTURE_MAIN_R1,
+            "R1\n",
+            (),
+            _FIXTURE_RECORD_R1,
+            "is a prediction",
+        ),
+        (
+            "M11 branch claimed with one arm landed",
+            _FIXTURE_MAIN_R1,
+            "R1\n",
+            one,
+            _FIXTURE_RECORD_R1,
+            "is a prediction",
+        ),
+        # The double-entry record.
+        (
+            "M12 hand derivation not filled in",
+            _FIXTURE_MAIN_R1,
+            "R1\n",
+            both,
+            _FIXTURE_RECORD_EMPTY,
+            "is empty",
+        ),
+        (
+            "M13 hand derivation reached a different branch",
+            _FIXTURE_MAIN_R2,
+            "R2\n",
+            both,
+            _FIXTURE_RECORD_R1,
+            "reached 'R1'",
+        ),
+        (
+            "M14 R2 reported without saying which R2",
+            _FIXTURE_MAIN_R2,
+            "R2\n",
+            both,
+            _FIXTURE_RECORD_R2_BLANK,
+            "UNREACHABLE defect condition",
         ),
     )
 
     problems: list[str] = []
     with contextlib.redirect_stdout(io.StringIO()):
-        for label, main_md, branch_file, landed, expect in cases:
+        for label, main_md, branch_file, landed, record, expect in cases:
             with tempfile.TemporaryDirectory() as tmp:
                 root = _branch_fixture(
                     Path(tmp) / "repo",
                     main_md=main_md,
                     branch_file=branch_file,
                     landed=landed,
+                    record=record,
                 )
                 reported = check_reported_branch(root)
             joined = " | ".join(reported)
@@ -410,11 +636,12 @@ def check_branch_guards_fire() -> list[str]:
                 )
 
     if not problems:
-        mutations = sum(1 for case in cases if case[4] is not None)
+        mutations = sum(1 for case in cases if case[5] is not None)
         controls = len(cases) - mutations
         print(
             f"[numbers] OK self-check: {mutations} mutations caught, {controls} controls clean "
-            "(the reported branch cannot go unstated, unrendered, or out of step with main.md)"
+            "(the reported branch cannot go unstated, unrendered, predicted ahead of its "
+            "inputs, or out of step with main.md and the hand derivation)"
         )
     return problems
 

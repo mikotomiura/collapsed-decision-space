@@ -165,6 +165,17 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if branch is None:
+        if args.check and out_path.is_file():
+            # Reporting "nothing to compare" while a file sits there waiting to be compared is
+            # the shape of failure this whole arrangement is about. Step 9 catches it too; a
+            # command called --check should not be the one place it passes.
+            print(
+                f"[branch] FAIL: {RELATIVE_OUT.as_posix()} exists but no marker in "
+                "manuscript/main.md generates it. Step 13 would compare against a claim the "
+                "manuscript does not make",
+                file=sys.stderr,
+            )
+            return 1
         print(
             "[branch] the manuscript names no branch yet, so there is nothing to render. "
             "Write the marker into the results section once the arms have run; "

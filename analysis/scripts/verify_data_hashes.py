@@ -474,13 +474,43 @@ def _fixture_entries() -> tuple[RawEntry, ...]:
     )
 
 
-def _fixture_repo(root: Path, files: dict[str, bytes], data_md: str) -> Path:
-    """Build a throwaway repository holding exactly ``files`` under `data/raw/`."""
+def _fixture_repo(
+    root: Path,
+    files: dict[str, bytes],
+    data_md: str,
+    provenance_for: dict[str, bytes] | None = None,
+) -> Path:
+    """Build a throwaway repository holding exactly ``files`` under `data/raw/`.
+
+    ``provenance_for`` names the files that get an entry in the fixture's
+    `analysis/freeze-provenance.json`. The blob identifiers are computed from the fixture bytes
+    with the same content-addressing the real file records, so that the only difference between
+    the control and the mutation below is the exclusion itself, not a blob mismatch standing in
+    for it.
+    """
     raw_dir = root / "data" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     for name, blob in files.items():
         (raw_dir / name).write_bytes(blob)
     (root / "data" / "data.md").write_text(data_md, encoding="utf-8", newline="\n")
+    if provenance_for is not None:
+        (root / "analysis").mkdir(parents=True, exist_ok=True)
+        record = {
+            "frozen_inputs": [
+                {
+                    "shipped_path": f"data/raw/{name}",
+                    "upstream_path": f"upstream/{name}",
+                    "upstream_commit": "0" * 40,
+                    "upstream_commit_utc": "2026-01-01T00:00:00Z",
+                    "provenance_kind": "run_artifact",
+                    "blob_sha1": git_blob_sha1(blob),
+                }
+                for name, blob in provenance_for.items()
+            ]
+        }
+        (root / "analysis" / "freeze-provenance.json").write_text(
+            json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="\n"
+        )
     return root
 
 
@@ -523,8 +553,8 @@ def check_guards_fire() -> list[str]:
         problems = _run_guard_cases()
     if not problems:
         print(
-            "[data-hash] OK self-check: 5 mutations caught, 4 controls clean "
-            "(the exclusion permits exactly two named files and nothing else)"
+            "[data-hash] OK self-check: 6 mutations caught, 5 controls clean "
+            "(the exclusion permits exactly two named files, on both sides, and nothing else)"
         )
     return problems
 
@@ -644,6 +674,27 @@ def _run_guard_cases() -> list[str]:
             check_prospective_outputs(root, entries, exclusion),
             label="P4 well-formed prospective verdicts",
             fires=False,
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # The provenance check enforces the same rule from the other side: every shipped input
+        # must have an entry in the sealed provenance file. The prospective outputs are excluded
+        # there too, and both exclusions have to be right -- fixing only one leaves a run that
+        # passes here and fails on the day the verdicts land. An independent review pointed out
+        # that this function was not being exercised at all, which is why these two cases exist.
+        root = _fixture_repo(
+            Path(tmp) / "prov", landed, _FIXTURE_DATA_MD, provenance_for=frozen_files
+        )
+        problems += _expect(
+            check_frozen_input_provenance(root, None, exclusion),
+            label="P5 provenance accepts the landed verdicts",
+            fires=False,
+        )
+        problems += _expect(
+            check_frozen_input_provenance(root, None, frozenset()),
+            label="M6 provenance exclusion emptied",
+            fires=True,
+            because="no entry in freeze-provenance.json",
         )
 
     return problems
