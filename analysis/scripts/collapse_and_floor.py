@@ -16,7 +16,7 @@ null the scorer's own permutation test uses, gives the distribution the observed
 read against.
 
 What this establishes: the two quantities follow from the shipped annotation.
-What it does not: anything about the prospective arms, which have no draws yet.
+What it does not: anything about the prospective arms' draws or verdicts.
 
 Outputs are quantised to six decimal places before rendering, because the last bits of a float are
 not stable across platforms and the derived artefacts are compared byte-for-byte across two.

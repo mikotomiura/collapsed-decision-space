@@ -747,12 +747,15 @@ evaluation stops at the first rule whose action is `stop`.
 
 Two consequences are worth stating plainly. The question §1 puts — whether the failure mode
 belongs to the model or to the apparatus — is not answered in the primary family by this run,
-because the quantity that would answer it was not estimable there. And the decision space of that
-family collapsed further than the one this manuscript is about: the completed run loses two of
-five zones and still admits every context, whereas here no context clears the floor. That is a
-statement about what could be measured, not about a channel; §12.7 already carries the reason a
-shared collapse would not be a replication, and the same reasoning forbids reading an
-unmeasurable arm as agreement.
+because the quantity that would answer it was not estimable there. And the two arms failed the
+gate quantities in different places: the completed `qwen3:8b` run admits all eight contexts even
+though two of five zones are never produced, whereas the primary arm has `effective_k` = 0 of 8
+because none of its contexts clears `h_min_bits` = 0.5. These are outcomes recorded of these runs
+under this apparatus, and they are not a comparison of how far the decision spaces of two model
+families have collapsed: the two statements are about different quantities, one the support of the
+read-out and the other a per-context entropy floor. What neither licenses is reading an
+unmeasurable arm as agreement; §12.7 carries the reason a shared collapse would not be a
+replication, and that reasoning applies with more force where there is no estimate at all.
 
 ---
 
@@ -878,9 +881,10 @@ sealed files against a recorded copy of the per-file checksums an archive publis
 exits non-zero if any step fails, and its closing line names any step that was skipped rather than
 reporting a count of steps that passed.
 
-The thirteenth step is the third of the three checks named in §8, and it does nothing yet: the
-prospective verdicts do not exist, so it reports that it is skipping and why. It is wired in
-anyway, and the reason is the seal. `repro.sh` is itself a sealed file. Adding this step after the
+The thirteenth step is the third of the three checks named in §8. Both prospective verdicts are
+now in place, so it runs: it re-derives the branch from the sealed rules and compares it with the
+branch this manuscript reports. Before they existed it reported that it was skipping, and why. It
+was wired in from the start all the same, and the reason is the seal. `repro.sh` is itself a sealed file. Adding this step after the
 arms had run would change its bytes, fail step 12, and force the seal to be rebuilt — leaving a
 record of the seal being remade with the results already in hand, which is exactly the sequence the
 seal exists to rule out. The step is guarded on the existence of its inputs rather than on a date,
