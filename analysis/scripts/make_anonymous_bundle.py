@@ -64,6 +64,18 @@ from verify_seal import SEALED_PATHS  # noqa: E402
 #: Substitutions applied to every text file that is not sealed. Longest first, so that a name
 #: contained inside a URL is replaced by the URL rule rather than half-replaced by the name rule.
 SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
+    # The deposit. Replaced **field by field** rather than by loosening the DOI or Zenodo
+    # patterns: a loosened pattern stops catching the real thing, which is the opposite of the
+    # point. The record id is a bare number that no shape pattern can find, so it needs its own
+    # rule -- and it must come after the DOIs, which contain it, or those would be half-replaced.
+    ("https://zenodo.org/api/records/22735437", "https://anonymous.invalid/deposit"),
+    ("10.5281/zenodo.22735437", "10.0000/anonymous.version"),
+    ("10.5281/zenodo.22735436", "10.0000/anonymous.concept"),
+    # Not "000000": the archive returns the record id as a JSON **integer**, so the witness holds
+    # it unquoted and a leading-zero replacement produces a document json refuses to parse. The
+    # bundle built green -- the leak scan and the byte comparison both passed -- and it was
+    # running repro.sh *inside* the bundle that found it. Hence check_redacted_json below.
+    ("22735437", "999999"),
     ("https://github.com/mikotomiura/collapsed-decision-space", "https://anonymous.invalid/repo"),
     ("https://github.com/mikotomiura/ERRE-Sandbox", "https://anonymous.invalid/upstream"),
     ("https://orcid.org/0009-0000-4196-0508", "https://anonymous.invalid/orcid"),
@@ -103,6 +115,11 @@ ALLOWED: tuple[str, ...] = (
     "0000-0000-0000-0000",
     "anonymous@anonymous.invalid",
     "github.com/anonymous",
+    # The deposit placeholders. `10.0000/` is not an assigned registrant prefix, so these cannot
+    # collide with anybody's real DOI. They are declared here rather than made unmatchable,
+    # because the shape pattern that finds them is the one that finds a real deposit.
+    "10.0000/anonymous.version",
+    "10.0000/anonymous.concept",
 )
 
 #: DOIs that belong to **other people's papers** and must stay in the bibliography. A DOI is
@@ -385,6 +402,31 @@ def check_sealed_unchanged(repo_root: Path, out: Path) -> list[str]:
     return problems
 
 
+def check_redacted_json(out: Path, rewritten: list[str]) -> list[str]:
+    """Require every redacted JSON file to still parse.
+
+    A substitution is a blind string replace, so it can produce syntactically broken output: the
+    deposit's record id arrives as a JSON integer, and replacing it with a leading-zero number
+    made the witness unparseable. Nothing above notices. The leak scan passed, the sealed files
+    were byte-identical, the build reported success -- and the bundle's own reproduction then died
+    on the first step that read the file. A green build that ships a bundle which cannot run is a
+    green that means the wrong thing, so the parse is checked here rather than discovered there.
+    """
+    problems: list[str] = []
+    for rel in rewritten:
+        if not rel.endswith(".json"):
+            continue
+        path = out / rel
+        try:
+            json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            problems.append(
+                f"{rel}: redaction left this unparseable as JSON ({exc}). A substitution that "
+                "breaks the syntax is worse than none: the bundle ships and fails on use"
+            )
+    return problems
+
+
 def check_only_redacted_files_differ(
     repo_root: Path, out: Path, rewritten: list[str]
 ) -> list[str]:
@@ -436,6 +478,15 @@ def main(argv: list[str] | None = None) -> int:
         f"[anon] OK: {len(rewritten)} file(s) rewritten by redaction; every other file is "
         "byte-identical to the source"
     )
+
+    problems = check_redacted_json(out, rewritten)
+    if problems:
+        print("[anon] FAIL: redaction produced invalid JSON", file=sys.stderr)
+        for problem in problems:
+            print(f"  - {problem}", file=sys.stderr)
+        return 1
+    json_rewritten = sum(1 for rel in rewritten if rel.endswith(".json"))
+    print(f"[anon] OK: {json_rewritten} redacted JSON file(s) still parse")
 
     problems = check_sealed_unchanged(args.repo_root, out)
     if problems:
