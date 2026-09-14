@@ -76,8 +76,9 @@ its fixture.
 |---|---|
 | `manuscript/main.md` | The protocol |
 | `manuscript/CLAIM-BOUNDARY.md` | The claim guards and their search patterns |
+| `manuscript/REPORTED-BRANCH.md` | How the reported decision branch is written, and what checking it establishes |
 | `seal/` | The sealed decision rules, arm specification and protocol text, with their manifest |
-| `data/raw/` | Frozen evidence from the completed studies, each pinned by SHA-256 and size |
+| `data/raw/` | Frozen evidence from the completed studies, each pinned by SHA-256 and size; also where the prospective arms land, once they have run |
 | `data/data.md` | Provenance of every frozen input, and how it is verified |
 | `analysis/apparatus/` | The measurement apparatus, 69 modules, byte-identical to the upstream source |
 | `analysis/scripts/` | Verification and extraction scripts |

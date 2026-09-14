@@ -40,6 +40,53 @@ It checks five things:
 > different acts, and the first does not license the language of the second. The five checks above
 > close that gap.
 
+## Prospective outputs in `raw/` (not frozen inputs)
+
+The prospective arms of §6 write their verdicts into `data/raw/` as well, because that is where
+step 13 of `repro.sh` reads them and `repro.sh` is sealed. They are **results, not frozen inputs**,
+and the table above does not describe them:
+
+- `data/raw/control-verdict.json` — the control arm (`qwen3:8b`), once it has run
+- `data/raw/primary-verdict.json` — the primary arm (`llama3.1:8b`), once it has run
+
+**There is no digest table for these, and that is deliberate.** A frozen input is pinned by a
+SHA-256 recorded before the fact; a quantity that has not been measured has no digest to record,
+and writing one in advance would be a claim about a result rather than a record of one. They also
+cannot appear in `analysis/freeze-provenance.json`, which is sealed and predates them.
+
+Both files are therefore excluded by name from the two frozen-input checks that would otherwise
+reject them — "no unrecorded file in `data/raw/`" and "every shipped input has a provenance
+entry". An exclusion is a hole, so it is bounded, and the excluded files are checked separately:
+
+- the exclusion covers **exactly these two names**. Any other unrecorded file in `data/raw/` fails
+  as it always did;
+- the list above and `PROSPECTIVE_OUTPUTS` in `analysis/scripts/verify_data_hashes.py` are
+  compared against each other in both directions, so this section cannot license a file the code
+  does not, nor the reverse;
+- each landed verdict must parse as a JSON object, and must **not be a byte-for-byte copy of a
+  frozen input**. Copying `cproper-verdict.json` into both arms would pass the control gate and
+  stop at R1 — a complete decision report, and a green run, out of a file that predates the
+  prospective design. That is the shortest path from nothing to an apparently reported result,
+  and it is closed;
+- `verify_data_hashes.py` runs a mutation sweep over these guards on every invocation and reports
+  what it caught, so "the exclusion is bounded" is measured rather than asserted.
+
+### How a verdict gets here
+
+Not by hand. The driver writes `run-verdict.json` into its own artefact directory, under a
+different name from the one step 13 reads, and renaming files by hand is how the wrong file ends
+up under the right name. Use:
+
+```
+python analysis/scripts/land_prospective_verdict.py --arm control --from <driver artefact dir>
+```
+
+It refuses a verdict the driver quarantined (`run-verdict.DEVIATION.json`, written when the sealed
+seal check did not pass), refuses a copy of a frozen input, and will not overwrite an existing
+landing without `--force`. Landing a verdict is not a substitute for having verified it: the
+driver's `--verify` must have exited **0** first, where `2` means a bundle that is internally
+consistent but not of the sealed size.
+
 ## derived/ — regenerated, not tracked
 
 | File | Built from | Command |

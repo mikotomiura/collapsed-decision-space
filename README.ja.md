@@ -76,8 +76,9 @@ chi-square の検出力ゲートを膨らませ、距離統計量の帰無床が
 |---|---|
 | `manuscript/main.md` | protocol 本文 |
 | `manuscript/CLAIM-BOUNDARY.md` | claim ガードと検索パターン |
+| `manuscript/REPORTED-BRANCH.md` | 報告する決定分岐の書き方と、その照合が示すこと／示さないこと |
 | `seal/` | 封印済みの決定規則・アーム仕様・protocol 本文と、その manifest |
-| `data/raw/` | 完了済み研究の凍結証拠（各ファイルを SHA-256 とサイズで pin） |
+| `data/raw/` | 完了済み研究の凍結証拠（各ファイルを SHA-256 とサイズで pin）。前向きアームの結果も、走った後はここに着地する |
 | `data/data.md` | 凍結入力すべての由来と、その検証方法 |
 | `analysis/apparatus/` | 測定 apparatus 69 モジュール（上流と byte 一致） |
 | `analysis/scripts/` | 検証・抽出スクリプト |

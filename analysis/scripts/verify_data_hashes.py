@@ -28,6 +28,13 @@ Five checks:
    run that produced it. For that file, history witnesses content but not age, and the output
    marks the distinction rather than leaving it to be discovered.
 
+A sixth concern arrived with the prospective arms. Their verdicts land in ``data/raw/`` as well,
+and checks 3 and 5 above would reject them: they are not frozen inputs, they carry no row in the
+table, and they cannot carry a provenance entry, because ``analysis/freeze-provenance.json`` is
+sealed and they are written long after it. They are therefore excluded from the frozen-input
+checks by name. **An exclusion is a hole**, so they are given checks of their own rather than left
+unexamined, and the exclusion is closed to exactly two names. See :data:`PROSPECTIVE_OUTPUTS`.
+
 Usage:
     python analysis/scripts/verify_data_hashes.py
     python analysis/scripts/verify_data_hashes.py --upstream-repo /path/to/upstream/clone
@@ -36,8 +43,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import contextlib
+import hashlib
+import io
+import json
 import re
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -69,6 +81,32 @@ EXPECTED_RAW_ROWS = 4
 
 #: Non-data files permitted inside `data/raw/`.
 RAW_DIR_ALLOWLIST = frozenset({".gitkeep"})
+
+#: What the prospective arms write into `data/raw/`, and what `repro.sh` step 13 reads.
+#:
+#: These are **results, not frozen inputs**, and the distinction is the whole reason they are
+#: named here. A frozen input is a file that existed before the seal and is pinned by its digest
+#: in `data/data.md` and by its upstream blob in the sealed `analysis/freeze-provenance.json`.
+#: A prospective verdict is produced by a run that happens after the seal, so it can appear in
+#: neither: the provenance file is sealed, and a digest cannot be recorded in advance for a
+#: quantity that has not been measured.
+#:
+#: The exclusion is closed to these two names. Any other unrecorded file in `data/raw/` fails
+#: exactly as before. Because excluding a file from every check would leave it unexamined --
+#: the failure this repository keeps finding, where handing a checker an empty target quietly
+#: removes the comparison while the run stays green -- the excluded files get
+#: :func:`check_prospective_outputs` instead.
+PROSPECTIVE_OUTPUTS = frozenset({"control-verdict.json", "primary-verdict.json"})
+
+#: The heading of the section in `data/data.md` that describes the files above. Deliberately not
+#: matching :data:`RAW_SECTION_START_RE`, so the frozen-input table parser cannot wander into it.
+PROSPECTIVE_SECTION_START_RE = re.compile(r"^##\s+Prospective outputs in\s+`?raw/")
+
+#: Inside that section, the lines that *name* the files, as opposed to the prose around them:
+#: `- ``data/raw/<name>`` -- ...`. Restricting the extraction to this shape lets the prose mention
+#: other filenames (the driver's own output, the frozen verdict it must not be a copy of) without
+#: the name-set check misreading them as entries.
+PROSPECTIVE_ENTRY_RE = re.compile(r"^-\s+`data/raw/(?P<name>[A-Za-z0-9_.-]+)`")
 
 
 @dataclass(frozen=True)
@@ -147,10 +185,15 @@ def check_raw_files(repo_root: Path, entries: tuple[RawEntry, ...]) -> list[str]
 
 
 def check_no_unrecorded_files(
-    repo_root: Path, entries: tuple[RawEntry, ...]
+    repo_root: Path, entries: tuple[RawEntry, ...], prospective: frozenset[str]
 ) -> list[str]:
-    """Check that `data/raw/` holds no file absent from the table."""
-    recorded = {entry.name for entry in entries} | set(RAW_DIR_ALLOWLIST)
+    """Check that `data/raw/` holds no file absent from the table.
+
+    ``prospective`` is passed rather than read from the module so that the self-check can run
+    this function with the exclusion emptied. An exclusion whose effect is never measured is
+    indistinguishable from one that is doing nothing.
+    """
+    recorded = {entry.name for entry in entries} | set(RAW_DIR_ALLOWLIST) | prospective
     raw_dir = repo_root / "data" / "raw"
     unrecorded = sorted(
         path.name for path in raw_dir.iterdir() if path.name not in recorded
@@ -159,6 +202,104 @@ def check_no_unrecorded_files(
         return [
             f"data/raw/ holds files not recorded in data/data.md: {unrecorded}"
         ]
+    return []
+
+
+def check_prospective_outputs(
+    repo_root: Path, entries: tuple[RawEntry, ...], prospective: frozenset[str]
+) -> list[str]:
+    """Check the files the frozen-input checks were told to skip.
+
+    Two properties, both outcome-neutral -- neither says anything about which branch the rules
+    will reach, and neither could be satisfied only by a result of a particular shape:
+
+    1. the file parses as a JSON **object**, so that step 13 has something its evaluator can
+       read by key rather than failing deep inside the sealed script;
+    2. the file is **not a byte-for-byte copy of a frozen input**. This one is not hypothetical.
+       Copying ``cproper-verdict.json`` into both arms satisfies the control gate and stops at
+       R1, producing a full decision report and a green run out of a file that predates the
+       prospective design entirely. It is the shortest path from nothing to an apparently
+       reported result, and it is closed here.
+
+    What is *not* checked: that the numbers are right, or that they came from the declared
+    models. That is the driver's ``--verify`` and the sealed ``verify_seal.py --run-manifest``,
+    which compare the run manifest against the seal. Landing a verdict is not a substitute for
+    having verified it, and this function does not pretend otherwise.
+    """
+    problems: list[str] = []
+    raw_dir = repo_root / "data" / "raw"
+    frozen_by_sha = {entry.sha256: entry.name for entry in entries}
+
+    present = sorted(name for name in prospective if (raw_dir / name).is_file())
+    for name in present:
+        path = raw_dir / name
+        try:
+            parsed = json.loads(path.read_text(encoding="utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            problems.append(f"data/raw/{name}: not readable as JSON ({exc})")
+            continue
+        if not isinstance(parsed, dict):
+            problems.append(
+                f"data/raw/{name}: parses as {type(parsed).__name__}, not a JSON object. "
+                "The sealed evaluator reads quantities by key"
+            )
+            continue
+        digest = sha256_of(path)
+        if digest in frozen_by_sha:
+            problems.append(
+                f"data/raw/{name}: byte-for-byte identical to the frozen input "
+                f"{frozen_by_sha[digest]}. A prospective arm cannot have produced a file that "
+                "existed before the seal; this is a copy, not a result"
+            )
+            continue
+        print(f"[data-hash] OK {name:<28} prospective result, distinct from every frozen input")
+
+    missing = sorted(set(prospective) - set(present))
+    if present and missing:
+        print(
+            f"[data-hash] note: {len(present)} of {len(prospective)} prospective verdicts are "
+            f"present; still absent: {missing}. Step 13 stays guarded until both exist"
+        )
+    return problems
+
+
+def check_prospective_section(repo_root: Path, prospective: frozenset[str]) -> list[str]:
+    """Require `data/data.md` to describe exactly the files the exclusion covers.
+
+    The constant is the authority and the document follows it, not the other way round. Reading
+    the exclusion *out of* the document would mean one prose line could license any file at all
+    into `data/raw/`; comparing the two in both directions means the document cannot drift from
+    what the code does, and widening the exclusion takes an edit in more than one place.
+    """
+    data_md = repo_root / "data" / "data.md"
+    named: set[str] = set()
+    in_section = False
+    for line in data_md.read_text(encoding="utf-8").splitlines():
+        if PROSPECTIVE_SECTION_START_RE.match(line):
+            in_section = True
+            continue
+        if in_section and NEXT_SECTION_RE.match(line):
+            break
+        if not in_section:
+            continue
+        match = PROSPECTIVE_ENTRY_RE.match(line)
+        if match is not None:
+            named.add(match.group("name"))
+
+    if not in_section:
+        return [
+            "data/data.md has no 'Prospective outputs in `raw/`' section, so the files "
+            f"excluded from the frozen-input checks ({sorted(prospective)}) are undocumented"
+        ]
+    if named != set(prospective):
+        return [
+            "data/data.md and PROSPECTIVE_OUTPUTS disagree about which files are prospective "
+            f"outputs (document={sorted(named)} code={sorted(prospective)})"
+        ]
+    print(
+        f"[data-hash] OK data/data.md documents exactly the {len(named)} excluded "
+        "prospective outputs"
+    )
     return []
 
 
@@ -209,7 +350,7 @@ def check_upstream_pins(
 
 
 def check_frozen_input_provenance(
-    repo_root: Path, upstream: Path | None
+    repo_root: Path, upstream: Path | None, prospective: frozenset[str]
 ) -> list[str]:
     """Establish that each frozen input is **the blob of its upstream commit**.
 
@@ -261,12 +402,16 @@ def check_frozen_input_provenance(
                 )
             )
 
-    # Every frozen input on disk must also carry a provenance entry.
+    # Every frozen input on disk must also carry a provenance entry. The prospective outputs are
+    # excluded here as well as in check_no_unrecorded_files: they are written after the sealed
+    # provenance file, so requiring an entry for them would require editing a sealed file.
     raw_dir = repo_root / "data" / "raw"
     shipped_names = {
         path.name
         for path in raw_dir.iterdir()
-        if path.is_file() and path.name not in RAW_DIR_ALLOWLIST
+        if path.is_file()
+        and path.name not in RAW_DIR_ALLOWLIST
+        and path.name not in prospective
     }
     missing = sorted(shipped_names - recorded_paths)
     if missing:
@@ -280,6 +425,227 @@ def check_frozen_input_provenance(
             f"confirmed by following {upstream_repository_url(repo_root)} "
             "(--upstream-repo turns that into a machine check)"
         )
+    return problems
+
+
+#: The exclusion written out a second time, as literal names. This is a **pin**, not a second
+#: source: :data:`EXPECTED_RAW_ROWS` is pinned the same way and for the same reason, so that a
+#: change is noticed rather than absorbed. Widening the exclusion now takes an edit in three
+#: places -- here, in :data:`PROSPECTIVE_OUTPUTS`, and in `data/data.md` -- and all three are
+#: compared against one another. That is the friction a check which *suppresses other checks*
+#: ought to have.
+_PINNED_PROSPECTIVE_NAMES: tuple[str, ...] = (
+    "control-verdict.json",
+    "primary-verdict.json",
+)
+
+#: Fixture bytes for the self-check. Written as literals, never derived from the constants under
+#: test: a fixture built out of :data:`PROSPECTIVE_OUTPUTS` would follow that set wherever it
+#: moved, and would report success against a set that had been widened to anything at all.
+_FIXTURE_FROZEN_A = b'{"fixture": "frozen-a"}\n'
+_FIXTURE_FROZEN_B = b'{"fixture": "frozen-b"}\n'
+_FIXTURE_PROSPECTIVE_A = b'{"verdict": "FIXTURE", "tv_bar": 0.5}\n'
+_FIXTURE_PROSPECTIVE_B = b'{"verdict": "FIXTURE", "tv_bar": 0.25}\n'
+
+_FIXTURE_DATA_MD = """# fixture
+
+## Prospective outputs in `raw/` (not frozen inputs)
+
+- `data/raw/control-verdict.json` -- fixture
+- `data/raw/primary-verdict.json` -- fixture
+
+## next
+"""
+
+
+def _fixture_entries() -> tuple[RawEntry, ...]:
+    """The two frozen inputs the fixture repository claims to carry."""
+    return (
+        RawEntry(
+            name="frozen-a.json",
+            sha256=hashlib.sha256(_FIXTURE_FROZEN_A).hexdigest(),
+            size=len(_FIXTURE_FROZEN_A),
+        ),
+        RawEntry(
+            name="frozen-b.json",
+            sha256=hashlib.sha256(_FIXTURE_FROZEN_B).hexdigest(),
+            size=len(_FIXTURE_FROZEN_B),
+        ),
+    )
+
+
+def _fixture_repo(root: Path, files: dict[str, bytes], data_md: str) -> Path:
+    """Build a throwaway repository holding exactly ``files`` under `data/raw/`."""
+    raw_dir = root / "data" / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    for name, blob in files.items():
+        (raw_dir / name).write_bytes(blob)
+    (root / "data" / "data.md").write_text(data_md, encoding="utf-8", newline="\n")
+    return root
+
+
+def _expect(
+    problems: list[str], *, label: str, fires: bool, because: str = ""
+) -> list[str]:
+    """Compare one self-check case against what it was supposed to do.
+
+    ``because`` is matched against the reported text. A mutation that fails for a reason other
+    than the one it was written to provoke is not evidence about the guard it was aimed at, and
+    reporting it as a kill would overstate what the sweep establishes.
+    """
+    reported = bool(problems)
+    joined = " | ".join(problems)
+    if reported != fires:
+        expected = "report a problem" if fires else "report nothing"
+        return [f"self-check {label}: expected to {expected}, got {problems!r}"]
+    if fires and because and because not in joined:
+        return [
+            f"self-check {label}: fired, but not for the expected reason "
+            f"(wanted text containing {because!r}, got {joined!r})"
+        ]
+    return []
+
+
+def check_guards_fire() -> list[str]:
+    """Measure what the guards above actually catch, on every run.
+
+    ``repro.sh`` is sealed, so a mutation sweep cannot be added to it as a step, and this
+    repository has no test suite: the reviewer's one command is the only place a sweep can run.
+    ``check_claim_boundary.py`` carries its positive control the same way and for the same
+    reason. Each case below was confirmed by breaking the guard it aims at and watching it stop
+    firing.
+
+    The checks under test print an ``OK`` line per file they accept. Those lines are swallowed
+    here: a fixture's output that reached the log would read exactly like a statement about this
+    repository's own inputs, which is not a confusion worth risking to save a redirect.
+    """
+    with contextlib.redirect_stdout(io.StringIO()):
+        problems = _run_guard_cases()
+    if not problems:
+        print(
+            "[data-hash] OK self-check: 5 mutations caught, 4 controls clean "
+            "(the exclusion permits exactly two named files and nothing else)"
+        )
+    return problems
+
+
+def _run_guard_cases() -> list[str]:
+    """The cases themselves. Separated so the caller can silence fixture output."""
+    problems: list[str] = []
+    entries = _fixture_entries()
+    exclusion = frozenset(_PINNED_PROSPECTIVE_NAMES)
+    frozen_files = {
+        "frozen-a.json": _FIXTURE_FROZEN_A,
+        "frozen-b.json": _FIXTURE_FROZEN_B,
+    }
+    landed = {
+        **frozen_files,
+        "control-verdict.json": _FIXTURE_PROSPECTIVE_A,
+        "primary-verdict.json": _FIXTURE_PROSPECTIVE_B,
+    }
+
+    if set(_PINNED_PROSPECTIVE_NAMES) != set(PROSPECTIVE_OUTPUTS):
+        problems.append(
+            "self-check pin: PROSPECTIVE_OUTPUTS is "
+            f"{sorted(PROSPECTIVE_OUTPUTS)}, pinned as "
+            f"{sorted(_PINNED_PROSPECTIVE_NAMES)}. Widening the set of files that may sit in "
+            "data/raw/ unrecorded is a deliberate act; update the pin to make it one"
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = _fixture_repo(Path(tmp) / "landed", landed, _FIXTURE_DATA_MD)
+
+        # P1 -- the arrangement this change exists to permit reports nothing.
+        problems += _expect(
+            check_no_unrecorded_files(root, entries, exclusion),
+            label="P1 landed verdicts are permitted",
+            fires=False,
+        )
+        # M1 -- and it is the exclusion that permits them, not something else.
+        problems += _expect(
+            check_no_unrecorded_files(root, entries, frozenset()),
+            label="M1 exclusion emptied",
+            fires=True,
+            because="control-verdict.json",
+        )
+        # P2 -- the frozen inputs are still compared against their recorded digests, and a
+        # single altered byte is still caught. The exclusion did not loosen this.
+        problems += _expect(
+            check_raw_files(root, entries),
+            label="P2 frozen inputs match their digests",
+            fires=False,
+        )
+        (root / "data" / "raw" / "frozen-a.json").write_bytes(
+            _FIXTURE_FROZEN_A.replace(b"frozen-a", b"frozen-X")
+        )
+        problems += _expect(
+            check_raw_files(root, entries),
+            label="P2' one altered byte in a frozen input",
+            fires=True,
+            because="SHA-256 mismatch",
+        )
+        # The document must name exactly the excluded files, in both directions.
+        problems += _expect(
+            check_prospective_section(root, exclusion),
+            label="P3 document names the excluded files",
+            fires=False,
+        )
+        problems += _expect(
+            check_prospective_section(root, frozenset({"control-verdict.json"})),
+            label="M2 document names more than the code excludes",
+            fires=True,
+            because="disagree",
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # M3 -- an unrelated unrecorded file still fails. The exclusion is closed to two names.
+        stray = {**landed, "stray-input.json": b'{"fixture": "stray"}\n'}
+        root = _fixture_repo(Path(tmp) / "stray", stray, _FIXTURE_DATA_MD)
+        reported = check_no_unrecorded_files(root, entries, exclusion)
+        problems += _expect(
+            reported,
+            label="M3 unrelated unrecorded file",
+            fires=True,
+            because="stray-input.json",
+        )
+        if any("verdict.json" in problem for problem in reported):
+            problems.append(
+                "self-check M3: the stray file was reported together with the prospective "
+                f"verdicts, so the exclusion is not being applied at all: {reported!r}"
+            )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # M4 -- the shortest route from nothing to an apparently reported result: copy a frozen
+        # verdict into both arms. Closed.
+        copied = {**frozen_files, "control-verdict.json": _FIXTURE_FROZEN_A}
+        root = _fixture_repo(Path(tmp) / "copied", copied, _FIXTURE_DATA_MD)
+        problems += _expect(
+            check_prospective_outputs(root, entries, exclusion),
+            label="M4 prospective verdict copied from a frozen input",
+            fires=True,
+            because="byte-for-byte identical",
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # M5 -- a landed file that is not a JSON object. The sealed evaluator reads by key.
+        malformed = {**frozen_files, "control-verdict.json": b"[1, 2, 3]\n"}
+        root = _fixture_repo(Path(tmp) / "malformed", malformed, _FIXTURE_DATA_MD)
+        problems += _expect(
+            check_prospective_outputs(root, entries, exclusion),
+            label="M5 landed file is not a JSON object",
+            fires=True,
+            because="not a JSON object",
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # P4 -- and the well-formed, distinct case reports nothing.
+        root = _fixture_repo(Path(tmp) / "ok", landed, _FIXTURE_DATA_MD)
+        problems += _expect(
+            check_prospective_outputs(root, entries, exclusion),
+            label="P4 well-formed prospective verdicts",
+            fires=False,
+        )
+
     return problems
 
 
@@ -315,11 +681,18 @@ def main(argv: list[str] | None = None) -> int:
     entries = parse_raw_table(data_md)
     print(f"[data-hash] {len(entries)} rows parsed from data/data.md (## raw/)")
 
-    problems: list[str] = []
+    # Run first. Every verdict below is only worth what the guards producing it are worth, and a
+    # harness that has stopped catching its own mutations should say so before, not after.
+    problems: list[str] = check_guards_fire()
+
     problems.extend(check_raw_files(repo_root, entries))
-    problems.extend(check_no_unrecorded_files(repo_root, entries))
+    problems.extend(check_no_unrecorded_files(repo_root, entries, PROSPECTIVE_OUTPUTS))
+    problems.extend(check_prospective_outputs(repo_root, entries, PROSPECTIVE_OUTPUTS))
+    problems.extend(check_prospective_section(repo_root, PROSPECTIVE_OUTPUTS))
     problems.extend(check_upstream_pins(repo_root, entries))
-    problems.extend(check_frozen_input_provenance(repo_root, args.upstream_repo))
+    problems.extend(
+        check_frozen_input_provenance(repo_root, args.upstream_repo, PROSPECTIVE_OUTPUTS)
+    )
 
     if problems:
         print("[data-hash] FAIL", file=sys.stderr)
