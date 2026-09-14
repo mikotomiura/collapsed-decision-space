@@ -418,9 +418,11 @@ def check_hand_derivation(repo_root: Path, branch: str) -> list[str]:
         if value not in {"true", "false"}:
             problems.append(
                 f"the branch is {AMBIGUOUS_BRANCH}, which the sealed evaluator reports for both "
-                "the non-replication finding and the UNREACHABLE defect condition. Record "
-                "detail[-1].value from data/derived/decision-report.json as true or false in "
-                f"manuscript/REPORTED-BRANCH.md (found {value!r})"
+                "the non-replication finding and the UNREACHABLE defect condition. Evaluate "
+                f"{AMBIGUOUS_BRANCH}'s own condition by hand from the landed verdicts and record "
+                f"it as true or false in {RELATIVE_RECORD.as_posix()} (found {value!r}). Not from "
+                "data/derived/decision-report.json: step 13 writes that after this check runs, "
+                "so it holds either nothing or the previous run's answer"
             )
         else:
             meaning = "the non-replication finding" if value == "true" else "the UNREACHABLE defect"
