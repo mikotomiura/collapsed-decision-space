@@ -152,8 +152,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    repo_root: Path = args.repo_root
-    source_dir: Path = args.source_dir
+    # Resolved before anything else reads them. The sealed checker is run with ``cwd=repo_root``;
+    # a relative ``--from`` given from any other directory would therefore name one directory to
+    # this process and a different one to the checker, and the bundle that was verified would not
+    # be the bundle that lands. An independent review found that open after the check had been
+    # added, which is a good illustration of how a check can be present and still not be over the
+    # thing it is supposed to cover.
+    repo_root: Path = args.repo_root.resolve()
+    source_dir: Path = args.source_dir.resolve()
     target_name = destination_for(args.arm)
     if target_name not in PROSPECTIVE_OUTPUTS:
         return _die(
@@ -244,20 +250,23 @@ def main(argv: list[str] | None = None) -> int:
     if target.is_file():
         print(f"[land] replacing data/raw/{target_name} ({sha256_of(target)[:12]}…)")
 
-    # Copy aside and rename into place, so an interrupted copy cannot leave a truncated verdict
-    # under the name step 13 reads -- and, with --force, cannot destroy the landed result it was
-    # replacing. Then re-read what actually landed: the digest printed below is of the bytes on
-    # disk, not of the bytes that were read a moment earlier.
+    # Copy aside, check what was copied, and only then rename into place. An interrupted copy
+    # cannot leave a truncated verdict under the name step 13 reads, and -- the ordering matters,
+    # and an independent review is why it is this way round -- a copy that does not match what
+    # was verified never reaches the canonical name at all. Checking after the rename would
+    # report the mismatch with the bad file already in place, and with --force the result it
+    # replaced already gone.
     target.parent.mkdir(parents=True, exist_ok=True)
     staging = target.with_name(target.name + ".landing")
     shutil.copyfile(source, staging)
-    staging.replace(target)
-    landed_digest = sha256_of(target)
-    if landed_digest != digest:
+    staged_digest = sha256_of(staging)
+    if staged_digest != digest:
+        staging.unlink(missing_ok=True)
         return _die(
-            f"data/raw/{target_name} hashes to {landed_digest} but the source hashed to "
-            f"{digest} when it was read. The source changed underneath the copy"
+            f"the copy hashes to {staged_digest} but {source} hashed to {digest} when it was "
+            "read and verified. The source changed underneath the copy; nothing was landed"
         )
+    staging.replace(target)
     print(f"[land] {source} -> data/raw/{target_name}  ({digest[:12]}… / {target.stat().st_size:,} bytes)")
 
     remaining = sorted(

@@ -87,10 +87,18 @@ stops on both outcomes:
 | R2 not satisfied | `UNREACHABLE` — R1 and R2 partition the remaining space, so this indicates a defect in the rules or the inputs, and **must not be interpreted** | `R2` |
 
 `--expect-branch R2` therefore does not distinguish them. `analysis/scripts/apply_decision_rules.py`
-is sealed and this cannot be repaired there. If the branch is R2, read
-`detail[-1].value` in `data/derived/decision-report.json` — `true` is the finding, `false` is the
-defect condition — and record which in the section below and in the manuscript. Carry the
-ambiguity itself as a limitation; it is a property of the pre-registered rules, not of the run.
+is sealed and this cannot be repaired there. So if the branch is R2, **evaluate R2's own condition
+by hand** from the landed verdicts — `rho_hat` ≥ 0.5 ∧ `power` ≥ 0.8 ∧ (`tv_bar` ≥ 0.1 ∨
+`permutation_reject`) — and record `true` or `false` in the section below, with the quantities it
+was read from. Carry the ambiguity itself as a limitation; it is a property of the pre-registered
+rules, not of the run.
+
+It is recorded by hand rather than copied out of `data/derived/decision-report.json` for the same
+reason the branch is. That file is the evaluator's own output, written by step 13 *after* the
+check that reads the record has already run; copying it would make the record a transcript of the
+thing it is meant to be compared with. On a fresh checkout it is not there to copy at all, since
+`data/derived/` is regenerated and untracked. The report is the right place to *confirm* the hand
+evaluation afterwards. It is not the place to source it.
 
 ## What checking the branch establishes, and what it does not
 
@@ -125,5 +133,21 @@ check repairs.
 | R3 (primary) — satisfied? | |
 | R1 (primary) — satisfied? | |
 | R2 (primary) — satisfied? | |
-| Branch reached by hand | |
-| If R2: `detail[-1].value` | |
+| **Branch reached by hand** | |
+| **If the branch is R2, its condition evaluated by hand** | |
+
+The last two rows are **machine-checked**. Their labels are checked on every run, so this template
+and the checker cannot drift apart — an independent review found them already drifted, because the
+self-check's fixtures carried the checker's own wording and agreed with it whatever this file said.
+Once both verdicts have landed, step 9 also fails if the branch row is empty or names a different
+branch from the marker in `main.md`, and — when the branch is R2 — unless the second row records
+`true` or `false`.
+
+The rows above them are the working, and are **not** checked. A check that a prose cell is
+non-empty measures that text exists, not that it says anything, and calling that verification would
+be the error this repository keeps trying to remove.
+
+What the two checked rows establish is that the claim appears in two places that were written
+separately, and that they agree. They do **not** establish that the derivation was performed before
+the evaluator was run, or performed at all: a field can be filled in afterwards. That residue is the
+one named above, and no check here reaches it.

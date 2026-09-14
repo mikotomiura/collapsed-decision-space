@@ -306,6 +306,9 @@ def check_reported_branch(repo_root: Path) -> list[str]:
 HAND_BRANCH_LABEL = "Branch reached by hand"
 R2_SIDE_LABEL = "If the branch is R2"
 
+#: Where the record lives, relative to the repository root.
+RELATIVE_RECORD = Path("manuscript") / "REPORTED-BRANCH.md"
+
 #: Markdown decoration stripped from a cell before it is read.
 _CELL_DECORATION = "*` "
 
@@ -328,6 +331,42 @@ def table_cell(text: str, label: str) -> str | None:
         if len(cells) >= 3 and cells[1].startswith(label):
             return cells[2]
     return None
+
+
+def check_record_template(repo_root: Path) -> list[str]:
+    """Check that the record still carries the rows the checks below read.
+
+    Unconditional, and separate from :func:`check_hand_derivation`, because the failure it
+    catches is invisible to the sweep. The self-check builds its fixtures from literals that
+    match this module's labels, so a fixture and a checker that agree with each other will keep
+    agreeing however the shipped template is worded. An independent review found exactly that:
+    the labels here and the row in `REPORTED-BRANCH.md` had drifted apart, every fixture passed,
+    and the drift would have surfaced only on the day the verdicts landed -- as a check that
+    could never be satisfied.
+
+    Checking the shipped file itself, on every run, is the only version of this that does not
+    depend on a fixture agreeing with the thing it was copied from.
+    """
+    record = repo_root / RELATIVE_RECORD
+    if not record.is_file():
+        return [f"{RELATIVE_RECORD.as_posix()} is missing; it is where the branch is recorded"]
+    text = record.read_text(encoding="utf-8")
+    missing = [
+        label
+        for label in (HAND_BRANCH_LABEL, R2_SIDE_LABEL)
+        if table_cell(text, label) is None
+    ]
+    if missing:
+        return [
+            f"{RELATIVE_RECORD.as_posix()} has no row whose label starts with {missing!r}. "
+            "The checks that read the hand derivation would then have nothing to read, and "
+            "would fail only once the verdicts had landed"
+        ]
+    print(
+        f"[numbers] OK record template{'':<19}= both machine-read rows present in "
+        f"{RELATIVE_RECORD.as_posix()}"
+    )
+    return []
 
 
 def check_hand_derivation(repo_root: Path, branch: str) -> list[str]:
@@ -750,6 +789,7 @@ def main(argv: list[str] | None = None) -> int:
         if forbidden in text:
             problems.append(f"mix-up: {label} -- {forbidden!r} appears in main.md")
 
+    problems.extend(check_record_template(repo_root))
     problems.extend(check_reported_branch(repo_root))
 
     if problems:
