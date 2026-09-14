@@ -454,16 +454,22 @@ _FIXTURE_MAIN_IN_GENERATED = (
 
 #: Record fixtures. Written out per branch rather than formatted from the case's own branch: a
 #: record generated from the value it is supposed to corroborate would agree with anything.
-_FIXTURE_RECORD_R1 = "| Branch reached by hand | R1 |\n"
+#:
+#: The row wording mirrors the shipped template. Matching is by label prefix, so a fixture left
+#: at an older wording would keep passing while quietly documenting a procedure that had been
+#: replaced -- which is how the label drift an independent review found got in. Wording drift
+#: between these and the shipped file is caught by :func:`check_record_template`, which reads the
+#: shipped file rather than anything here.
+_FIXTURE_RECORD_R1 = "| **Branch reached by hand** | R1 |\n"
 _FIXTURE_RECORD_R2_TRUE = (
-    "| Branch reached by hand | R2 |\n"
-    "| If the branch is R2, `detail[-1].value` | true |\n"
+    "| **Branch reached by hand** | R2 |\n"
+    "| **If the branch is R2, its condition evaluated by hand** | true |\n"
 )
 _FIXTURE_RECORD_R2_BLANK = (
-    "| Branch reached by hand | R2 |\n"
-    "| If the branch is R2, `detail[-1].value` |  |\n"
+    "| **Branch reached by hand** | R2 |\n"
+    "| **If the branch is R2, its condition evaluated by hand** |  |\n"
 )
-_FIXTURE_RECORD_EMPTY = "| Branch reached by hand |  |\n"
+_FIXTURE_RECORD_EMPTY = "| **Branch reached by hand** |  |\n"
 
 
 def _branch_fixture(
