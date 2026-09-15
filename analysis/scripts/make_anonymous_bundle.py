@@ -90,6 +90,10 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     ("mikotomiura", "anonymous"),
     ("Mikoto Miura", "Anonymous Author"),
     ("Miura, Mikoto", "Author, Anonymous"),
+    # The bibliography's own style, which uses an initial. Without this rule the bare-name rule
+    # below turns a reference entry into "Author, M." -- redacted, but visibly half-redacted,
+    # which is the shape the ordering of this list exists to avoid.
+    ("Miura, M.", "Author, Anonymous"),
     ("Mikoto", "Anonymous"),
     ("Miura", "Author"),
     ("mmiura.network@gmail.com", "anonymous@anonymous.invalid"),
