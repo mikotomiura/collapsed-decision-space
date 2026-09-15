@@ -15,6 +15,13 @@ the prospective arms are sealed before the arms are run: `seal/` holds them in m
 from the rules as they stood beforehand. Steps 12 and 13 of `repro.sh` are what check that, and
 they need no network, no account and no trust in the author.
 
+**Both arms have since been run**, once each, and the sealed rules reach branch **R4 (apparatus
+validity)**: in the primary model family the substrate does not license two or more zones, so the
+estimand is not measurable there. That is not read as a null result, and the claim narrows to
+single-model scope. The results section of `manuscript/main.md` reports it and
+`manuscript/REPORTED-BRANCH.md` records the derivation; step 13 re-derives the branch from the
+sealed rules on every run.
+
 What they cannot check is that the seal is old. The author can rebuild every sealed file and the
 manifest in one commit, and no check living inside this repository would see it; that half needs a
 copy held by someone else. Step 14 is the comparison against a recorded copy, and it says in its
