@@ -7,7 +7,10 @@
 This repository is the research compendium for a **pre-registered protocol with a completed
 preliminary measurement reported in full** (`manuscript/main.md`). It holds the protocol, the
 frozen evidence the protocol builds on, the measurement apparatus, and a single command that
-re-derives every number the protocol quotes.
+re-derives the completed run's verdict from its shipped draws and checks the quantities the
+protocol quotes against their sources. What that command does **not** reach is set out in §12.8 of
+the manuscript: the prospective verdicts are read as inputs rather than recomputed, because their
+draw bundles are not shipped here.
 
 **At the time of sealing, no prospective data had been collected.** The decision rules that read
 the prospective arms are sealed before the arms are run: `seal/` holds them in machine-readable form and
@@ -50,11 +53,12 @@ protocol then estimates the same quantity in a second model family, with a contr
 the original model, to find out whether the failure mode belongs to the model or to the apparatus.
 
 Both arms have since been run, and the rules stop at R4: the estimand is not measurable in the
-second family, so **that question is not answered by this run**. What the run does show is where a
-validity gate placed ahead of the estimate reaches and where it does not — applied to the completed
-run and to the control arm, neither of its two conditions is met, in the very regime the paper is
-about. And of the runs that produced an estimate at all, none returned one its own permutation test
-rejected.
+second family, so **that question is not answered by this run**. What the run does show is that
+clearing a per-context entropy floor everywhere does not certify the support the power calculation
+needs — the completed run and the control arm clear it everywhere — and that at the thresholds
+fixed in advance, a measurability gate of this shape does not flag that case, though it did fire on
+the second family. Of the two runs that produced an estimate, both of them `qwen3:8b`, neither
+returned one its own permutation test rejected.
 
 **The subject of every claim here is the channel.** It is not walking, and it is not creativity.
 
@@ -72,10 +76,10 @@ The full guard list, with the search patterns used to enforce it, is in
   occurs elsewhere
 - concentration of the base distribution is not itself what reduces detection power
 - effect-absent, low-power and apparatus-invalid are kept apart as three distinct outcomes
-- a measurement-validity gate evaluated ahead of the estimate reaches the arm where the estimand
-  cannot be measured, and **does not** reach the regime this paper is about — clearing a
-  per-context entropy floor everywhere is compatible with a base distribution missing two of five
-  zones
+- clearing a per-context entropy floor everywhere **does not certify** the support the power
+  calculation depends on — it is compatible with a base distribution missing two of five zones.
+  What follows for the gate is threshold-bound: at the values fixed in advance R4 does not flag
+  that case, but the same rule at a higher floor would
 - the envelope is bounded: one apparatus, one sampling regime, eight frozen contexts
 
 **Out of reach of this design** (three of thirteen guards, quoted for orientation)

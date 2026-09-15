@@ -23,8 +23,8 @@ A common way to report a null in language-model evaluation pairs a materiality m
 advance with a power gate: the estimate must fall below the margin, and the design must have had
 the power to detect a shift of that size. We show that both guards can stop working at once, and
 in the same direction, when the categorical decision space partially collapses. In a completed
-measurement of an agent-internal channel over 4,800 draws, two of the five available zones are
-never produced in the channel-off condition that the power calculation takes as its base. The
+measurement of an agent-internal channel over 4,800 draws, the channel-off condition the power
+calculation takes as its base (2,276 parsed draws) never produces two of the five zones. The
 calculation builds its alternative by moving mass into the smallest cell, so a cell of probability
 exactly zero leaves the gate reporting 0.921 even at a hundredth of the declared margin of 0.10.
 The null floor of the distance statistic meanwhile stands at 0.027813, against an observed
@@ -33,11 +33,11 @@ whether the failure mode belongs to the model or to the apparatus, the protocol 
 same quantity in a second model family; both arms have since been run once each, 9,600 draws in
 total. The sealed rules stop at R4, apparatus validity: no context in the second family clears the
 per-context entropy floor, so the estimand is not measurable there and that question is not
-answered by this run. What the run does establish is that a validity gate evaluated ahead of the
-estimate reaches the case where the read-out cannot support the estimand, and does not reach the
-case this paper is about: applied to the completed run and to the control arm, neither of that
-gate's two conditions is met. Neither run that produced an estimate returned one its own
-permutation test rejected.
+answered by this run. What the run does establish is that clearing such a floor in every context
+does not certify the support the power calculation depends on — the completed run and the control
+arm clear it everywhere — and that at the thresholds fixed in advance a measurability gate of this
+shape, which did fire on the second family, does not flag that case. Neither of the two runs that
+produced an estimate, both of them the same model, returned one its own permutation test rejected.
 
 ---
 
@@ -778,38 +778,53 @@ read-out and the other a per-context entropy floor. What neither licenses is rea
 unmeasurable arm as agreement; §12.7 carries the reason a shared collapse would not be a
 replication, and that reasoning applies with more force where there is no estimate at all.
 
-**What the validity gate reaches, and what it does not.** R4 is a gate on measurability, and
-evaluating it ahead of the estimate is what keeps an unmeasurable arm from being read as an absent
-effect. The rule is written for the primary arm and is evaluated only there. Applied to the
-completed run of §5.1 and to the control arm, neither of its two conditions is met: `rho_hat` is
-1.0 in both, so every context clears the per-context entropy floor, and `none_rate_max_observed` is
-0.123333 and 0.086667 respectively, both below the 0.5 the rule names. The completed run is also
-the run whose channel-off base never produces two of the five zones and whose power gate clears
-`0.8` at one-hundredth of the declared margin (§5.1.1); seven of its eight contexts have a combined
-support of three zones. **A gate of this form therefore does not reach the regime this paper is
-about.** The two quantities are not interchangeable. An entropy floor asks whether each context
-varies enough to be scored; the support count asks how many of the five categories the base
-distribution ever occupies. Clearing the floor does constrain the support, but only from below and
-only by two, which is far short of what the power calculation assumes of it. Detecting the regime
-of §5.1.1 took the support and null-floor diagnostics computed there, which run on every
-reproduction but are not gates in this protocol. The reading in this paragraph is not left to the
-prose: step 9 evaluates R4's sealed predicates against all three records and fails if any of them
-comes to stand differently (§12.8).
+**An entropy floor cleared everywhere, on a base occupying three of five zones.** The completed run
+of §5.1 admits all eight of its contexts: every one clears the per-context entropy floor of
+`h_min_bits` = 0.5, which is what `rho_hat` = 1.0 records. It is the same run whose channel-off
+base — the distribution the power calculation reads — never produces two of the five zones, whose
+power gate clears `0.8` at one-hundredth of the declared margin (§5.1.1), and seven of whose eight
+contexts have a combined support of three zones. The control arm records `rho_hat` = 1.0 as well.
+**Clearing a per-context entropy floor therefore does not certify the support that the power
+calculation depends on.** The two quantities are not interchangeable: a floor asks whether each
+context varies enough to be scored, and the support count asks how many of the five categories the
+base ever occupies. Clearing the floor does constrain the support, but only from below and only by
+two, which is far short of what that calculation assumes of it.
 
-**No run of this apparatus has returned an estimate that its own permutation test rejected.** The
-paragraph above should be set beside what the three runs of this measurement have returned. In the
-completed run `tv_bar` = 0.038065 against a null mean of 0.027813 and a null 95th percentile of
-0.038839, so the observation falls below that percentile (§5.1.1), which the recorded
-`permutation_p_value` of 0.057986 reports from the other side. In the control arm `tv_bar` =
-0.030575 at a permutation *p* of 0.43989, and the test does not reject. In the primary arm no
-estimate is produced at all. So of the two runs that produced an estimate, neither returned one its
-own permutation test rejected, and the one that carries a computed null also sits below that null's
-95th percentile. This is a statement about what has been observed. It is not a statement about the
-power of any test — §12.6 records that the power of the permutation test is evaluated nowhere in
-this work — and it changes no threshold and no decision rule. Whether the read-out itself, the zone
-vocabulary, the parser and the frozen bank, is what holds the estimate there is the question §12.7
-raises, and this protocol cannot answer it: varying the read-out is a change the seal does not
-permit (§11).
+That has a consequence for R4, the measurability gate of §8, which is written for the primary arm
+and evaluated only there. Its two conditions are `rho_hat` < 0.5 and `none_rate_max_observed` >
+0.5. Applied to the completed run and to the control arm, **neither condition is met** —
+`rho_hat` is 1.0 in both, and `none_rate_max_observed` is 0.123333 and 0.086667 respectively. **At
+the thresholds frozen in §6.3, a gate of this shape does not flag the regime this paper is about.**
+Two things keep that from being true by construction. The gate is not inert: the same two
+conditions, at the same thresholds, did fire on the primary arm, which is how this run reached R4
+at all. And the thresholds are what decide it rather than the shape of the rule — the completed
+run's per-context entropies run from 0.628287 to 0.754149, so a floor set above 0.68 rather than at
+0.5 would have put `rho_hat` at 0.375 and fired R4 on the completed run too. What the paragraph
+above says about certification holds at any floor; what this paragraph says about flagging is a
+statement about these thresholds, and §10.2 records that they were fixed before any of this was
+computed. Detecting the regime of §5.1.1 took the support and null-floor diagnostics computed
+there, which run on every reproduction but are not gates in this protocol. The reading here is not
+left to the prose: step 9 re-derives each arm's `effective_k` and `rho_hat` from its own
+per-context entropies, evaluates R4's sealed predicates against all three records, and requires the
+zero-probability zones to be named in this manuscript (§12.8).
+
+**Neither run that produced an estimate returned one its own permutation test rejected.** The
+paragraphs above should be set beside what the three runs of this measurement have returned. The
+first line restates §5.1.1 rather than adding to it, which matters because a value repeated in two
+places is a value the occurrence check no longer protects at either (§12.8). In the completed run
+`tv_bar` = 0.038065 against a null mean of 0.027813 and a null 95th percentile of 0.038839, so the
+observation falls below that percentile, which the recorded `permutation_p_value` of 0.057986
+reports from the other side — a margin of 0.000774 below the percentile and 0.007986 above the α of
+0.05, so neither is a comfortable distance. In the control
+arm `tv_bar` = 0.030575 at a permutation *p* of 0.43989, and the test does not reject. In the
+primary arm no estimate is produced at all. **Both runs that produced an estimate are `qwen3:8b`**,
+so the *n* here is two runs of one model family; §12.7 gives the reason agreement across runs of
+this apparatus would not establish what it appears to. It is a statement about what has been
+observed, not about the power of any test
+— §12.6 records that the power of the permutation test is evaluated nowhere in this work — and it
+changes no threshold and no decision rule. Whether the read-out itself, the zone vocabulary, the
+parser and the frozen bank, is what holds the estimate there is the question §12.7 raises, and this
+protocol cannot answer it: varying the read-out is a change the seal does not permit (§11).
 
 ---
 
@@ -912,14 +927,24 @@ participating in the reported branch are different facts. And step 9 tests occur
 uniqueness: six quantities quoted from the landed verdicts are compared against them, but `rho_hat`
 and `effective_k` are not among the six, because their literals are `1.0`, `0.0` and `8` and a
 check for those would pass against prose that never mentioned the quantity at all. Adding them
-would have produced a line of output and no coverage. They are covered a different way instead:
-step 9 evaluates R4's sealed predicates against the completed run, the control arm and the primary
-arm, and fails if the reading of them in the results section stops following from the records. That
-comparison is made between sources, so it does not depend on how the prose is worded.
+would have produced a line of output and no coverage.
 
-What none of this reaches is whether the landed verdicts represent the draws they came from. That
-would take the bundles, and shipping them is a change to the compendium rather than to the
-manuscript.
+Those two are held a different way, and it is worth saying exactly how far it goes. Step 9
+re-derives each arm's `effective_k` and `rho_hat` from that arm's own per-context entropies against
+that arm's own `h_min_bits`, so "every context clears that floor" and "`effective_k` = 0 of 8" fail
+if the recorded summary stops following from the map it summarises. It evaluates R4's sealed
+predicates — read from `seal/decision-rules.json`, not restated in the checker — against all three
+records, so the reading above fails if any of them comes to stand differently. And it requires the
+zones of probability zero to be *named* in this manuscript, because `agora` and `chashitsu` are
+distinctive enough for an occurrence test while "two of five" is not. Twelve mutations and one
+positive control are run against copies of the real records on every reproduction, three of them
+against the sealed rule itself, so a checker that had quietly stopped reading the seal would be
+reported rather than pass.
+
+Two things are still outside all of it. Whether the landed verdicts represent the draws they came
+from would take the bundles, and shipping them is a change to the compendium rather than to the
+manuscript. And the prose in §5.3, the timings and digests of the pilot, exists in no shipped
+record at all, as §4 of `manuscript/CLAIM-BOUNDARY.md` states.
 
 ---
 

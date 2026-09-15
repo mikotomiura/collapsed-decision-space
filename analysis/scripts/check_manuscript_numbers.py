@@ -41,6 +41,7 @@ import json
 import shutil
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -740,11 +741,15 @@ def check_branch_guards_fire() -> list[str]:
 
 
 #: The ops R4 uses. Kept to exactly those, so a rule edited to use an op this function does not
-#: know fails loudly instead of being silently read as "not satisfied".
-_PREDICATE_OPS: dict[str, Any] = {
+#: know is reported instead of being silently read as "not satisfied".
+_PREDICATE_OPS: dict[str, Callable[[Any, Any], bool]] = {
     "lt": lambda observed, value: observed < value,
     "gt": lambda observed, value: observed > value,
 }
+
+
+class PredicateError(Exception):
+    """A sealed predicate this check cannot evaluate. Reported, never treated as a false."""
 
 
 def _r4_satisfied(rule: dict[str, Any], verdict: dict[str, Any]) -> tuple[bool, list[str]]:
@@ -755,7 +760,7 @@ def _r4_satisfied(rule: dict[str, Any], verdict: dict[str, Any]) -> tuple[bool, 
         quantity = predicate["quantity"]
         op = predicate["op"]
         if op not in _PREDICATE_OPS:
-            raise KeyError(f"R4 uses an op this check does not know: {op!r}")
+            raise PredicateError(f"R4 uses an op this check does not know: {op!r}")
         observed = verdict[quantity]  # Raising on a missing key is correct; no default
         fired = bool(_PREDICATE_OPS[op](observed, predicate["value"]))
         satisfied = satisfied or fired
@@ -763,21 +768,40 @@ def _r4_satisfied(rule: dict[str, Any], verdict: dict[str, Any]) -> tuple[bool, 
     return satisfied, results
 
 
+def _rho_hat_identity(verdict: dict[str, Any]) -> tuple[int, float]:
+    """Recompute `effective_k` and `rho_hat` from the per-context entropies and the floor.
+
+    Neither quantity survives an occurrence test -- their literals are ``8``, ``0`` and ``1.0``.
+    Recomputing them from the map they summarise is what puts the sentences that quote them
+    ("every context clears that floor", "`effective_k` = 0 of 8") under a check at all.
+    """
+    per_context = verdict["per_context_h"]
+    floor = verdict["thresholds"]["h_min_bits"]
+    effective_k = sum(1 for value in per_context.values() if value >= floor)
+    return effective_k, effective_k / len(per_context)
+
+
 def check_third_finding_support(repo_root: Path) -> list[str]:
     """Compute the counterfactual the results section states, rather than asserting it.
 
-    The manuscript says that the validity gate does not reach the regime this paper is about:
-    applied to the completed run and to the control arm, **neither** of R4's two conditions is
-    met, while the base distribution the power calculation uses is missing zones. That is a claim
-    about how three shipped records stand to the sealed rule, so it is checkable, and leaving it
-    to the prose would put the paper's newest claim in the class
-    `manuscript/CLAIM-BOUNDARY.md` section 4 calls covered by nothing.
+    The manuscript reports that at the thresholds fixed in section 6.3 the measurability gate
+    does not flag the regime the paper is about: applied to the completed run and to the control
+    arm, **neither** of R4's two conditions is met, while the base distribution the power
+    calculation uses is missing zones. That is a claim about how three shipped records stand to
+    the sealed rule, so it is checkable, and leaving it to the prose would put the paper's newest
+    claim in the class `manuscript/CLAIM-BOUNDARY.md` section 4 calls covered by nothing.
 
-    An occurrence check cannot do this job. The literals involved are `1.0`, `0.0` and `8`, and
-    `'1.0' in text` is true of almost any page of this manuscript. So the comparison is made
-    between the sources, and the predicates come from `seal/decision-rules.json` rather than
-    being restated here -- the same reason the rule *text* in the protocol is generated from the
-    seal instead of written beside it.
+    Three things are compared, because the sentence has three parts. R4's sealed predicates are
+    evaluated against each record. Each record's ``effective_k`` and ``rho_hat`` are recomputed
+    from its own per-context entropies against its own floor, which is what holds "every context
+    clears that floor" and "effective_k = 0 of 8" -- neither survives an occurrence test, since
+    their literals are ``1.0``, ``0.0`` and ``8`` and ``'1.0' in text`` is true of almost any page
+    here. And the zero-probability zones must be **named** in the manuscript, because ``agora``
+    and ``chashitsu`` are distinctive where "two of five" is not.
+
+    The predicates come from `seal/decision-rules.json` rather than being restated here -- the
+    same reason the rule *text* in the protocol is generated from the seal instead of written
+    beside it -- and the self-check below mutates the seal to confirm that they really do.
 
     Absence of the prospective verdicts is not a failure: before the arms run there is nothing to
     compare, and a check that demanded them would freeze "the run has happened" into a step that
@@ -786,6 +810,7 @@ def check_third_finding_support(repo_root: Path) -> list[str]:
     raw_dir = repo_root / "data" / "raw"
     rules_path = repo_root / "seal" / "decision-rules.json"
     derived_path = repo_root / "data" / "derived" / "collapse-and-floor.json"
+    text = (repo_root / "manuscript" / "main.md").read_text(encoding="utf-8")
 
     landed = sorted(name for name in PROSPECTIVE_OUTPUTS if (raw_dir / name).is_file())
     if len(landed) != len(PROSPECTIVE_OUTPUTS) or not PROSPECTIVE_OUTPUTS:
@@ -818,8 +843,19 @@ def check_third_finding_support(repo_root: Path) -> list[str]:
         ("the control arm", "control-verdict.json", False),
         ("the primary arm", "primary-verdict.json", True),
     )
-    for label, filename, should_fire in expectations:
-        satisfied, rendering = _r4_satisfied(r4, load_json(raw_dir / filename))
+    # (label, file, does R4 fire, the k the manuscript quotes out of eight)
+    expectations = (
+        ("the completed run", "cproper-verdict.json", False, 8),
+        ("the control arm", "control-verdict.json", False, 8),
+        ("the primary arm", "primary-verdict.json", True, 0),
+    )
+    for label, filename, should_fire, stated_k in expectations:
+        verdict = load_json(raw_dir / filename)
+        try:
+            satisfied, rendering = _r4_satisfied(r4, verdict)
+        except PredicateError as exc:
+            problems.append(f"{label} ({filename}): {exc}")
+            continue
         if satisfied != should_fire:
             wanted = "satisfied" if should_fire else "not satisfied"
             problems.append(
@@ -827,26 +863,103 @@ def check_third_finding_support(repo_root: Path) -> list[str]:
                 f"{label} ({filename}), but the results section reads them as {wanted}: "
                 + "; ".join(rendering)
             )
+        # The recorded summary must be the one its own per-context map produces. This is what
+        # holds the sentences an occurrence test cannot -- "every context clears that floor" and
+        # "`effective_k` = 0 of 8" -- and it is also what keeps `rho_hat` from drifting anywhere
+        # inside the side of the threshold it sits on.
+        recomputed_k, recomputed_rho = _rho_hat_identity(verdict)
+        if recomputed_k != verdict["effective_k"] or recomputed_rho != verdict["rho_hat"]:
+            problems.append(
+                f"{label} ({filename}) records effective_k = {verdict['effective_k']!r} and "
+                f"rho_hat = {verdict['rho_hat']!r}, but its own per-context entropies against "
+                f"its own h_min_bits give {recomputed_k} and {recomputed_rho!r}"
+            )
+        elif recomputed_k != stated_k:
+            problems.append(
+                f"{label} ({filename}) admits {recomputed_k} of "
+                f"{len(verdict['per_context_h'])} contexts, but the results section reads it as "
+                f"{stated_k}"
+            )
 
     # The other half of the sentence: the base the power calculation uses is missing zones. The
     # count is taken from the derived artefact, which computes it over the channel-off condition
     # -- the base of that calculation, and not the whole run.
     derived = load_json(derived_path)
     zero_count = derived["zero_support_count"]
-    if zero_count < 1:
+    named = derived["zero_support_zones"]
+    if zero_count != len(named):
         problems.append(
-            "data/derived/collapse-and-floor.json reports no zero-probability zone in the "
-            "channel-off base, so the results section's reading of why the power gate inflates "
-            "no longer follows from the shipped data"
+            f"data/derived/collapse-and-floor.json counts {zero_count} zero-probability zone(s) "
+            f"in the channel-off base but names {len(named)}: {named}"
         )
+    elif zero_count != 2:
+        # Not a range check. The manuscript writes "two of the five zones" in several places, and
+        # a count that moved would leave those sentences standing while this step still passed.
+        problems.append(
+            f"the channel-off base has {zero_count} zone(s) of probability zero, but the "
+            "manuscript reads it as two"
+        )
+    else:
+        # The names are distinctive enough for an occurrence test, which "two of five" is not.
+        missing = [zone for zone in named if zone not in text]
+        if missing:
+            problems.append(
+                f"the channel-off base never produces {named}, but main.md does not name "
+                f"{missing}"
+            )
 
     if not problems:
         print(
             "[numbers] OK counterfactual        = R4's sealed predicates are not satisfied by the "
-            f"completed run or the control arm, are satisfied by the primary arm, and "
-            f"{zero_count} zone(s) have probability zero in the channel-off base"
+            "completed run or the control arm, are satisfied by the primary arm, each arm's "
+            f"effective_k and rho_hat follow from its own per-context entropies, and the "
+            f"{zero_count} zone(s) of probability zero in the channel-off base are named in "
+            "main.md"
         )
     return problems
+
+
+class _NoOpMutation(Exception):
+    """A mutation that did not change what it named. Counting one as caught would be a lie."""
+
+
+def _mutate(payload: dict[str, Any], key: str, value: Any) -> Any:
+    """Apply one mutation to a fixture payload, returning what stood there before.
+
+    Three shapes are needed and each is spelled out rather than inferred, so that a path which
+    silently matches nothing raises instead of leaving the fixture unmutated:
+
+    * ``"field"`` and ``"thresholds.h_min_bits"`` -- a key, or a key inside a nested dictionary;
+    * ``"R4.predicates.0.value"`` -- a field of a rule found by id, not by position;
+    * ``"R4.combine"`` and ``"R4.duplicate"`` -- a rule's combinator, and a second copy of it.
+    """
+    if key.startswith("R4."):
+        rules = payload["rules"]
+        index = next(i for i, rule in enumerate(rules) if rule["id"] == "R4")
+        rest = key[len("R4.") :]
+        if rest == "duplicate":
+            rules.insert(index + 1, json.loads(json.dumps(rules[index])))
+            return None
+        if rest == "combine":
+            before = rules[index]["combine"]
+            rules[index]["combine"] = value
+            return before
+        _, position, field = rest.split(".")
+        predicate = rules[index]["predicates"][int(position)]
+        before = predicate[field]
+        predicate[field] = value
+        return before
+    node: Any = payload
+    parts = key.split(".")
+    for part in parts[:-1]:
+        if part not in node:
+            raise _NoOpMutation(f"the path {key!r} matches nothing in this fixture")
+        node = node[part]
+    if parts[-1] not in node:
+        raise _NoOpMutation(f"the path {key!r} matches nothing in this fixture")
+    before = node[parts[-1]]
+    node[parts[-1]] = value
+    return before
 
 
 def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
@@ -856,8 +969,19 @@ def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
     from the checker's own constants can only confirm that the constants were applied. Every
     mutation moves one value across the threshold the sealed rule names, and the unmutated copy
     is carried as a positive control so that "nothing fired" is not the only observation.
+
+    Two properties are exercised that an earlier version left to the reader. The **sealed rule
+    itself** is mutated (M7-M9), because the docstring above claims the predicates come from the
+    seal, and a suite that only ever rewrites verdicts cannot tell that claim from a
+    reimplementation. And each expectation names the **rendering** the report should carry, not
+    just the record it concerns, so a mutation that fires for the wrong reason is not counted as
+    caught.
     """
-    if not all((repo_root / "data" / "raw" / name).is_file() for name in PROSPECTIVE_OUTPUTS):
+    # `bool(...)` first, for the reason check_reported_branch gives: an empty set of prospective
+    # outputs would make the `all` vacuously true and every mutation below run against nothing.
+    if not PROSPECTIVE_OUTPUTS or not all(
+        (repo_root / "data" / "raw" / name).is_file() for name in PROSPECTIVE_OUTPUTS
+    ):
         print(
             "[numbers] -- the prospective verdicts have not all landed, so the counterfactual "
             "self-check has nothing to mutate"
@@ -872,28 +996,28 @@ def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
             "cproper-verdict.json",
             "rho_hat",
             0.25,
-            "the completed run",
+            "rho_hat = 0.25 lt 0.5 -> True",
         ),
         (
             "M2 the completed run crosses the none-rate condition",
             "cproper-verdict.json",
             "none_rate_max_observed",
             0.75,
-            "the completed run",
+            "none_rate_max_observed = 0.75 gt 0.5 -> True",
         ),
         (
             "M3 the control arm crosses the rho_hat condition",
             "control-verdict.json",
             "rho_hat",
             0.25,
-            "the control arm",
+            "rho_hat = 0.25 lt 0.5 -> True",
         ),
         (
             "M4 the control arm crosses the none-rate condition",
             "control-verdict.json",
             "none_rate_max_observed",
             0.75,
-            "the control arm",
+            "none_rate_max_observed = 0.75 gt 0.5 -> True",
         ),
         (
             "M5 the primary arm stops crossing either condition",
@@ -903,11 +1027,56 @@ def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
             "the primary arm",
         ),
         (
-            "M6 the channel-off base has no empty zone",
+            "M6 the channel-off base loses an empty zone",
             "collapse-and-floor.json",
             "zero_support_count",
-            0,
-            "no zero-probability zone",
+            1,
+            "counts 1 zero-probability zone(s) in the channel-off base but names 2",
+        ),
+        # The sealed rule. Without these three the claim that the predicates are read from the
+        # seal is untested: an implementation that hard-coded 0.5 would pass M1-M6 unchanged.
+        (
+            "M7 the sealed rho_hat threshold moves past the recorded value",
+            "decision-rules.json",
+            "R4.predicates.0.value",
+            1.5,
+            "rho_hat = 1.0 lt 1.5 -> True",
+        ),
+        (
+            "M8 the sealed rule combines its predicates with all",
+            "decision-rules.json",
+            "R4.combine",
+            "all",
+            "not 'any'",
+        ),
+        (
+            "M9 the seal carries two rules with id R4",
+            "decision-rules.json",
+            "R4.duplicate",
+            True,
+            "2 rules with id R4",
+        ),
+        # The summaries an occurrence test cannot hold.
+        (
+            "M10 the primary arm's effective_k stops following from its entropies",
+            "primary-verdict.json",
+            "effective_k",
+            5,
+            "records effective_k = 5",
+        ),
+        (
+            "M11 the completed run's entropy floor admits only three contexts",
+            "cproper-verdict.json",
+            "thresholds.h_min_bits",
+            0.68,
+            "give 3 and 0.375",
+        ),
+        (
+            "M12 a zone of probability zero goes unnamed in the manuscript",
+            "collapse-and-floor.json",
+            "zero_support_zones",
+            ["agora", "vestibule"],
+            "does not name ['vestibule']",
         ),
     )
 
@@ -919,9 +1088,9 @@ def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
                 (root / "data" / "raw").mkdir(parents=True)
                 (root / "data" / "derived").mkdir(parents=True)
                 (root / "seal").mkdir(parents=True)
+                (root / "manuscript").mkdir(parents=True)
                 shutil.copy2(
-                    repo_root / "seal" / "decision-rules.json",
-                    root / "seal" / "decision-rules.json",
+                    repo_root / "manuscript" / "main.md", root / "manuscript" / "main.md"
                 )
                 payloads = {
                     name: load_json(repo_root / "data" / "raw" / name)
@@ -930,20 +1099,29 @@ def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
                 payloads["collapse-and-floor.json"] = load_json(
                     repo_root / "data" / "derived" / "collapse-and-floor.json"
                 )
+                payloads["decision-rules.json"] = load_json(
+                    repo_root / "seal" / "decision-rules.json"
+                )
                 if filename is not None and key is not None:
-                    before = payloads[filename][key]
+                    try:
+                        before = _mutate(payloads[filename], key, value)
+                    except _NoOpMutation as exc:
+                        problems.append(f"self-check {label}: {exc}")
+                        continue
                     if before == value:
                         problems.append(
                             f"self-check {label}: the mutation is a no-op -- {key} already "
                             f"holds {value!r} in {filename}"
                         )
                         continue
-                    payloads[filename][key] = value
                 for name, payload in payloads.items():
-                    where = "derived" if name == "collapse-and-floor.json" else "raw"
-                    (root / "data" / where / name).write_text(
-                        json.dumps(payload), encoding="utf-8"
-                    )
+                    if name == "decision-rules.json":
+                        target = root / "seal" / name
+                    elif name == "collapse-and-floor.json":
+                        target = root / "data" / "derived" / name
+                    else:
+                        target = root / "data" / "raw" / name
+                    target.write_text(json.dumps(payload), encoding="utf-8")
                 reported = check_third_finding_support(root)
             joined = " | ".join(reported)
             if expect is None:
@@ -997,6 +1175,7 @@ def main(argv: list[str] | None = None) -> int:
     # Run the sweep first: a harness that has stopped catching its own mutations should say so
     # before it reports on anything else.
     problems: list[str] = check_branch_guards_fire()
+    problems.extend(check_third_finding_guards_fire(repo_root))
     covered_in_readme = 0
 
     for label, filename, keys, how in REQUIRED:
@@ -1102,7 +1281,6 @@ def main(argv: list[str] | None = None) -> int:
 
     problems.extend(check_record_template(repo_root))
     problems.extend(check_reported_branch(repo_root))
-    problems.extend(check_third_finding_guards_fire(repo_root))
     problems.extend(check_third_finding_support(repo_root))
 
     if problems:
