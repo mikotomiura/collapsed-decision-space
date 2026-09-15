@@ -43,10 +43,18 @@ The open question is whether the channel *propagates*. A completed measurement o
 no shift in the agent's five-way zone decision exceeding a materiality margin declared in advance,
 while the power gate reported full nominal power — and looking at the support of that read-out
 afterwards showed why neither number was carrying information. Two of the five zones are never
-produced at all; the chi-square power gate is inflated by the empty cell, and the null floor of the
-distance statistic eats most of the declared margin. **That joint failure is the paper.** The
+produced in the channel-off condition the power calculation uses as its base; the chi-square power
+gate is inflated by the empty cell, and the null floor of the distance statistic eats most of the
+declared margin. **That joint failure is the paper.** The
 protocol then estimates the same quantity in a second model family, with a control arm that re-runs
 the original model, to find out whether the failure mode belongs to the model or to the apparatus.
+
+Both arms have since been run, and the rules stop at R4: the estimand is not measurable in the
+second family, so **that question is not answered by this run**. What the run does show is where a
+validity gate placed ahead of the estimate reaches and where it does not — applied to the completed
+run and to the control arm, neither of its two conditions is met, in the very regime the paper is
+about. And of the runs that produced an estimate at all, none returned one its own permutation test
+rejected.
 
 **The subject of every claim here is the channel.** It is not walking, and it is not creativity.
 
@@ -64,6 +72,10 @@ The full guard list, with the search patterns used to enforce it, is in
   occurs elsewhere
 - concentration of the base distribution is not itself what reduces detection power
 - effect-absent, low-power and apparatus-invalid are kept apart as three distinct outcomes
+- a measurement-validity gate evaluated ahead of the estimate reaches the arm where the estimand
+  cannot be measured, and **does not** reach the regime this paper is about — clearing a
+  per-context entropy floor everywhere is compatible with a base distribution missing two of five
+  zones
 - the envelope is bounded: one apparatus, one sampling regime, eight frozen contexts
 
 **Out of reach of this design** (three of thirteen guards, quoted for orientation)

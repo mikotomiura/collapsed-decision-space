@@ -37,6 +37,8 @@ from __future__ import annotations
 import argparse
 import contextlib
 import io
+import json
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -149,6 +151,13 @@ def literal_of(value: Any, how: str) -> str:
     if how == "two_dp":
         # Quantities written as `0.10` rather than `0.1` (declared margins and floors).
         return f"{float(value):.2f}"
+    if how in ("min", "max"):
+        # The endpoints of a per-context map. The manuscript quotes the *range* of
+        # ``per_context_h`` rather than eight separate values, and a range transcribed by hand is
+        # exactly what `manuscript/CLAIM-BOUNDARY.md` section 4 says is covered by nothing. The
+        # endpoint is taken from the map rather than from a named context, so the check stays
+        # correct if the extremum ever sits somewhere else.
+        return repr(min(value.values()) if how == "min" else max(value.values()))
     return repr(value)
 
 
@@ -165,6 +174,43 @@ DERIVED_REQUIRED: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
         ("power_at_one_hundredth_of_margin",),
         "repr",
     ),
+)
+
+
+#: Quantities the manuscript quotes from the **landed prospective verdicts**. Until this table
+#: existed they were covered by nothing: step 13 reads only the predicates of the rules it
+#: reaches, so a number quoted in the results section could drift from the verdict it came from
+#: without any step noticing. That gap was found in review rather than by a failing check, and
+#: section 12.8 of the manuscript states the part of it that remains.
+#:
+#: **Only literals distinctive enough for an occurrence test are listed.** ``rho_hat`` is `1.0`
+#: in two of these files and `0.0` in the third, and a check that `'1.0' in text` passes on
+#: prose that never mentions the quantity at all. Listing such a value here would add a line of
+#: output and no coverage, and this repository has a name for that. Those quantities are guarded
+#: instead by :func:`check_third_finding_support`, which compares the sources against each other
+#: rather than against the prose.
+PROSPECTIVE_REQUIRED: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
+    ("control.tv_bar", "control-verdict.json", ("tv_bar",), "repr"),
+    (
+        "control.permutation_p_value",
+        "control-verdict.json",
+        ("permutation_p_value",),
+        "repr",
+    ),
+    (
+        "control.none_rate_max_observed",
+        "control-verdict.json",
+        ("none_rate_max_observed",),
+        "repr",
+    ),
+    (
+        "primary.none_rate_max_observed",
+        "primary-verdict.json",
+        ("none_rate_max_observed",),
+        "repr",
+    ),
+    ("primary.per_context_h min", "primary-verdict.json", ("per_context_h",), "min"),
+    ("primary.per_context_h max", "primary-verdict.json", ("per_context_h",), "max"),
 )
 
 
@@ -693,6 +739,237 @@ def check_branch_guards_fire() -> list[str]:
     return problems
 
 
+#: The ops R4 uses. Kept to exactly those, so a rule edited to use an op this function does not
+#: know fails loudly instead of being silently read as "not satisfied".
+_PREDICATE_OPS: dict[str, Any] = {
+    "lt": lambda observed, value: observed < value,
+    "gt": lambda observed, value: observed > value,
+}
+
+
+def _r4_satisfied(rule: dict[str, Any], verdict: dict[str, Any]) -> tuple[bool, list[str]]:
+    """Evaluate R4's sealed predicates against one verdict, returning (satisfied, rendering)."""
+    results: list[str] = []
+    satisfied = False
+    for predicate in rule["predicates"]:
+        quantity = predicate["quantity"]
+        op = predicate["op"]
+        if op not in _PREDICATE_OPS:
+            raise KeyError(f"R4 uses an op this check does not know: {op!r}")
+        observed = verdict[quantity]  # Raising on a missing key is correct; no default
+        fired = bool(_PREDICATE_OPS[op](observed, predicate["value"]))
+        satisfied = satisfied or fired
+        results.append(f"{quantity} = {observed!r} {op} {predicate['value']!r} -> {fired}")
+    return satisfied, results
+
+
+def check_third_finding_support(repo_root: Path) -> list[str]:
+    """Compute the counterfactual the results section states, rather than asserting it.
+
+    The manuscript says that the validity gate does not reach the regime this paper is about:
+    applied to the completed run and to the control arm, **neither** of R4's two conditions is
+    met, while the base distribution the power calculation uses is missing zones. That is a claim
+    about how three shipped records stand to the sealed rule, so it is checkable, and leaving it
+    to the prose would put the paper's newest claim in the class
+    `manuscript/CLAIM-BOUNDARY.md` section 4 calls covered by nothing.
+
+    An occurrence check cannot do this job. The literals involved are `1.0`, `0.0` and `8`, and
+    `'1.0' in text` is true of almost any page of this manuscript. So the comparison is made
+    between the sources, and the predicates come from `seal/decision-rules.json` rather than
+    being restated here -- the same reason the rule *text* in the protocol is generated from the
+    seal instead of written beside it.
+
+    Absence of the prospective verdicts is not a failure: before the arms run there is nothing to
+    compare, and a check that demanded them would freeze "the run has happened" into a step that
+    ran before it had.
+    """
+    raw_dir = repo_root / "data" / "raw"
+    rules_path = repo_root / "seal" / "decision-rules.json"
+    derived_path = repo_root / "data" / "derived" / "collapse-and-floor.json"
+
+    landed = sorted(name for name in PROSPECTIVE_OUTPUTS if (raw_dir / name).is_file())
+    if len(landed) != len(PROSPECTIVE_OUTPUTS) or not PROSPECTIVE_OUTPUTS:
+        print(
+            "[numbers] -- the prospective verdicts have not all landed, so the counterfactual "
+            "reading of R4 is not compared"
+        )
+        return []
+    if not derived_path.is_file():
+        return [
+            f"{derived_path} is missing; collapse_and_floor.py runs before this step in repro.sh"
+        ]
+
+    rules = load_json(rules_path)
+    matching = [rule for rule in rules["rules"] if rule["id"] == "R4"]
+    if len(matching) != 1:
+        return [f"seal/decision-rules.json holds {len(matching)} rules with id R4; expected one"]
+    r4 = matching[0]
+    if r4["combine"] != "any":
+        return [
+            f"R4 combines its predicates with {r4['combine']!r}, not 'any'. The counterfactual "
+            "below is written for a rule that fires when either condition holds"
+        ]
+
+    problems: list[str] = []
+
+    # The two records the manuscript says the gate does not reach, and the one it does.
+    expectations = (
+        ("the completed run", "cproper-verdict.json", False),
+        ("the control arm", "control-verdict.json", False),
+        ("the primary arm", "primary-verdict.json", True),
+    )
+    for label, filename, should_fire in expectations:
+        satisfied, rendering = _r4_satisfied(r4, load_json(raw_dir / filename))
+        if satisfied != should_fire:
+            wanted = "satisfied" if should_fire else "not satisfied"
+            problems.append(
+                f"R4's sealed predicates are {'satisfied' if satisfied else 'not satisfied'} by "
+                f"{label} ({filename}), but the results section reads them as {wanted}: "
+                + "; ".join(rendering)
+            )
+
+    # The other half of the sentence: the base the power calculation uses is missing zones. The
+    # count is taken from the derived artefact, which computes it over the channel-off condition
+    # -- the base of that calculation, and not the whole run.
+    derived = load_json(derived_path)
+    zero_count = derived["zero_support_count"]
+    if zero_count < 1:
+        problems.append(
+            "data/derived/collapse-and-floor.json reports no zero-probability zone in the "
+            "channel-off base, so the results section's reading of why the power gate inflates "
+            "no longer follows from the shipped data"
+        )
+
+    if not problems:
+        print(
+            "[numbers] OK counterfactual        = R4's sealed predicates are not satisfied by the "
+            f"completed run or the control arm, are satisfied by the primary arm, and "
+            f"{zero_count} zone(s) have probability zero in the channel-off base"
+        )
+    return problems
+
+
+def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
+    """Break each half of :func:`check_third_finding_support` and require it to notice.
+
+    Written against **copies of the real records**, not against invented ones: a fixture built
+    from the checker's own constants can only confirm that the constants were applied. Every
+    mutation moves one value across the threshold the sealed rule names, and the unmutated copy
+    is carried as a positive control so that "nothing fired" is not the only observation.
+    """
+    if not all((repo_root / "data" / "raw" / name).is_file() for name in PROSPECTIVE_OUTPUTS):
+        print(
+            "[numbers] -- the prospective verdicts have not all landed, so the counterfactual "
+            "self-check has nothing to mutate"
+        )
+        return []
+
+    # (label, file to rewrite, key, new value, text the report must contain; None = control)
+    cases: tuple[tuple[str, str | None, str | None, Any, str | None], ...] = (
+        ("C1 the records unaltered", None, None, None, None),
+        (
+            "M1 the completed run crosses the rho_hat condition",
+            "cproper-verdict.json",
+            "rho_hat",
+            0.25,
+            "the completed run",
+        ),
+        (
+            "M2 the completed run crosses the none-rate condition",
+            "cproper-verdict.json",
+            "none_rate_max_observed",
+            0.75,
+            "the completed run",
+        ),
+        (
+            "M3 the control arm crosses the rho_hat condition",
+            "control-verdict.json",
+            "rho_hat",
+            0.25,
+            "the control arm",
+        ),
+        (
+            "M4 the control arm crosses the none-rate condition",
+            "control-verdict.json",
+            "none_rate_max_observed",
+            0.75,
+            "the control arm",
+        ),
+        (
+            "M5 the primary arm stops crossing either condition",
+            "primary-verdict.json",
+            "rho_hat",
+            1.0,
+            "the primary arm",
+        ),
+        (
+            "M6 the channel-off base has no empty zone",
+            "collapse-and-floor.json",
+            "zero_support_count",
+            0,
+            "no zero-probability zone",
+        ),
+    )
+
+    problems: list[str] = []
+    with contextlib.redirect_stdout(io.StringIO()):
+        for label, filename, key, value, expect in cases:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / "repo"
+                (root / "data" / "raw").mkdir(parents=True)
+                (root / "data" / "derived").mkdir(parents=True)
+                (root / "seal").mkdir(parents=True)
+                shutil.copy2(
+                    repo_root / "seal" / "decision-rules.json",
+                    root / "seal" / "decision-rules.json",
+                )
+                payloads = {
+                    name: load_json(repo_root / "data" / "raw" / name)
+                    for name in ("cproper-verdict.json", *sorted(PROSPECTIVE_OUTPUTS))
+                }
+                payloads["collapse-and-floor.json"] = load_json(
+                    repo_root / "data" / "derived" / "collapse-and-floor.json"
+                )
+                if filename is not None and key is not None:
+                    before = payloads[filename][key]
+                    if before == value:
+                        problems.append(
+                            f"self-check {label}: the mutation is a no-op -- {key} already "
+                            f"holds {value!r} in {filename}"
+                        )
+                        continue
+                    payloads[filename][key] = value
+                for name, payload in payloads.items():
+                    where = "derived" if name == "collapse-and-floor.json" else "raw"
+                    (root / "data" / where / name).write_text(
+                        json.dumps(payload), encoding="utf-8"
+                    )
+                reported = check_third_finding_support(root)
+            joined = " | ".join(reported)
+            if expect is None:
+                if reported:
+                    problems.append(
+                        f"self-check {label}: expected to report nothing, got {reported!r}"
+                    )
+            elif not reported:
+                problems.append(f"self-check {label}: expected to report a problem, got none")
+            elif expect not in joined:
+                problems.append(
+                    f"self-check {label}: fired, but not for the expected reason "
+                    f"(wanted text containing {expect!r}, got {joined!r})"
+                )
+
+    if not problems:
+        mutations = sum(1 for case in cases if case[4] is not None)
+        controls = len(cases) - mutations
+        print(
+            f"[numbers] OK self-check: {mutations} mutations caught, {controls} control clean "
+            "(neither half of the counterfactual reading of R4 can drift from the records "
+            "without this step saying so)"
+        )
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -765,6 +1042,32 @@ def main(argv: list[str] | None = None) -> int:
                 "in main.md"
             )
 
+    # The landed prospective verdicts. Absent before the arms run, and their absence is not a
+    # failure, for the same reason the witness block below gives.
+    prospective_landed = all(
+        (repo_root / "data" / "raw" / name).is_file() for name in PROSPECTIVE_OUTPUTS
+    )
+    if prospective_landed:
+        for label, filename, keys, how in PROSPECTIVE_REQUIRED:
+            if filename not in sources:
+                sources[filename] = load_json(repo_root / "data" / "raw" / filename)
+            node = sources[filename]
+            for key in keys:
+                node = node[key]
+            literal = literal_of(node, how)
+            if literal in text:
+                print(f"[numbers] OK {label:<28} = {literal}  (prospective)")
+            else:
+                problems.append(
+                    f"{label}: the landed value {literal!r} from {filename} does not appear "
+                    "in main.md"
+                )
+    else:
+        print(
+            "[numbers] -- the prospective verdicts have not all landed, so the quantities the "
+            "results section quotes from them are not compared"
+        )
+
     # The deposit witness. Absent before a deposit exists, and its absence is not a failure --
     # the same existence guard steps 13 and 14 of repro.sh use, for the same reason: a check that
     # demanded the file would freeze "the deposit has happened" into a script that ran before it
@@ -799,6 +1102,8 @@ def main(argv: list[str] | None = None) -> int:
 
     problems.extend(check_record_template(repo_root))
     problems.extend(check_reported_branch(repo_root))
+    problems.extend(check_third_finding_guards_fire(repo_root))
+    problems.extend(check_third_finding_support(repo_root))
 
     if problems:
         print("[numbers] FAIL", file=sys.stderr)
@@ -808,12 +1113,15 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"[numbers] OK: {len(REQUIRED)} frozen and {len(DERIVED_REQUIRED)} derived quantities "
-        f"(plus {len(WITNESS_REQUIRED)} from the deposit witness, when one is present) "
+        f"(plus {len(PROSPECTIVE_REQUIRED)} from the landed prospective verdicts and "
+        f"{len(WITNESS_REQUIRED)} from the deposit witness, when those are present) "
         f"occur in main.md as their sources "
         f"render them, {covered_in_readme} of them also in README.md. The test is "
         "occurrence, not uniqueness: a value that appears more than once is not protected "
         "against one of its occurrences being altered. Numbers outside this list are not "
-        "covered at all."
+        "covered at all -- including the prospective quantities whose literals are too common "
+        "for an occurrence test to mean anything, which check_third_finding_support compares "
+        "between sources instead."
     )
     return 0
 

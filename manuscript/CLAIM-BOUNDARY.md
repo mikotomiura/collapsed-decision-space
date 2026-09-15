@@ -28,6 +28,16 @@
   total-variation estimand consumes much of the declared margin. Demonstrated on this apparatus and
   recomputed on every run; **not** surveyed for how often it occurs elsewhere.
 - Effect-absent, low-power and apparatus-invalid are kept apart as **three distinct outcomes**.
+- **A measurement-validity gate evaluated ahead of the estimate reaches the case where the estimand
+  cannot be measured, and does not reach the case this paper is about.** Applied to the completed
+  run and to the control arm, neither of R4's two conditions is met, while the base distribution of
+  the power calculation is missing two of five zones. What may be said is that clearing a
+  per-context entropy floor everywhere does not certify that support; what may **not** be said is
+  that one arm's decision space collapsed further than another's — support size and per-context
+  entropy are different quantities, and the records do not order the arms on either.
+- **No run of this apparatus has returned an estimate its own permutation test rejected.** This is
+  a statement about what has been observed across three runs, not about the power of any test
+  (§12.6), and not about whether the read-out could have detected a material shift.
 - The envelope is bounded and stated: one apparatus, one sampling regime, one model in the
   completed measurement.
 

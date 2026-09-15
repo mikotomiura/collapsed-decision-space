@@ -24,13 +24,20 @@ advance with a power gate: the estimate must fall below the margin, and the desi
 the power to detect a shift of that size. We show that both guards can stop working at once, and
 in the same direction, when the categorical decision space partially collapses. In a completed
 measurement of an agent-internal channel over 4,800 draws, two of the five available zones are
-never produced at all. The power calculation takes the empirical read-out distribution as its base
-and builds its alternative by moving mass into the smallest cell, so a cell of probability exactly
-zero leaves the gate reporting 0.921 even at a hundredth of the declared margin of 0.10. The null
-floor of the distance statistic meanwhile stands at 0.027813, against an observed 0.038065. The
-channel is separately established as causal, separable and ablatable. This protocol estimates the
-same quantity in a second model family, to find out whether the failure mode belongs to the model
-or to the apparatus.
+never produced in the channel-off condition that the power calculation takes as its base. The
+calculation builds its alternative by moving mass into the smallest cell, so a cell of probability
+exactly zero leaves the gate reporting 0.921 even at a hundredth of the declared margin of 0.10.
+The null floor of the distance statistic meanwhile stands at 0.027813, against an observed
+0.038065. The channel is separately established as causal, separable and ablatable. To find out
+whether the failure mode belongs to the model or to the apparatus, the protocol then estimates the
+same quantity in a second model family; both arms have since been run once each, 9,600 draws in
+total. The sealed rules stop at R4, apparatus validity: no context in the second family clears the
+per-context entropy floor, so the estimand is not measurable there and that question is not
+answered by this run. What the run does establish is that a validity gate evaluated ahead of the
+estimate reaches the case where the read-out cannot support the estimand, and does not reach the
+case this paper is about: applied to the completed run and to the control arm, neither of that
+gate's two conditions is met. Neither run that produced an estimate returned one its own
+permutation test rejected.
 
 ---
 
@@ -55,7 +62,8 @@ margin. The margin check and the power check then agree, and neither is carrying
 
 We did not set out to make this point. We arrived at it by looking at the support of our own
 read-out after the fact, and §5.1.1 reports what we found: over 4,800 draws two of five zones are
-never produced, the power gate clears `0.8` at a hundredth of the declared margin, and roughly
+never produced in the channel-off condition that the power calculation takes as its base, the
+power gate clears `0.8` at a hundredth of the declared margin, and roughly
 three-quarters of the reported estimate is the null floor. The thresholds were fixed before the
 run and are not revised here. What changes is not the numbers but what a pass of them is worth.
 
@@ -92,9 +100,13 @@ specific to that model in a way §5.1.1 could not establish on its own. Either w
 is informative, which is not something we could have said of a replication attempt whose only
 purpose was to see the null again.
 
+Neither of those two cases is what occurred. The estimand was not measurable in the second family,
+so the arm reached neither side of the disambiguation set out here, and the question stays open.
+What it did establish instead is reported in the results section, and it is not this.
+
 ### 1.3 What is new here, and what is not
 
-Three things in this work are, to our knowledge, not already standard:
+Four things in this work are, to our knowledge, not already standard:
 
 1. the joint failure of the margin-and-power pairing under a collapsed decision space, stated as a
    mechanism rather than as an anomaly, and demonstrated on frozen data that a reader can recompute;
@@ -102,7 +114,12 @@ Three things in this work are, to our knowledge, not already standard:
    rather than agreement between two models' output distributions; and
 3. the demonstration that **concentration of the base distribution is not itself what reduces
    detection power** (§5.2), which runs against a common intuition. What reduces power is a small
-   attainable shift, not a peaked base.
+   attainable shift, not a peaked base; and
+4. the placing of a measurement-validity gate **ahead of** the estimate, together with a measured
+   account of the limit of what such a gate reaches: clearing a per-context entropy floor in every
+   context is compatible with a channel-off base that never produces two of the five zones, so the
+   floor does not certify the support the power calculation depends on. Reporting a prospective
+   arm on which the gate does fire is what makes that limit visible rather than hypothetical.
 
 Everything else is the deliberate application of existing practice. In particular, declaring a
 materiality margin in advance for an equivalence-style reading of language-model evaluation is
@@ -195,7 +212,9 @@ reported to establish the upstream determinism property of the same apparatus.**
 verdict record was not retained as a shipped artefact and is therefore not included in this
 repository. Because this manuscript quotes only numbers that the extraction script can produce from
 shipped data, no ES-1 quantity is quoted here. This is recorded as a provenance limitation
-(§12.5).
+(§12.5). The determinism and byte-exact cross-platform replay properties of the upstream apparatus
+are separately reported, with a publicly reproducible verification path, in [40]. That report is
+not the ES-1 record and does not restore it, and no quantity from it is quoted here either.
 
 ---
 
@@ -302,7 +321,8 @@ be read. Both are recomputed from the shipped annotation by
 `analysis/scripts/collapse_and_floor.py` on every reproduction run, and are tabulated in
 `data/derived/collapse-and-floor.md`.
 
-**Two of the five zones are never produced.** Pooled over the channel-off condition (2,276 draws
+**Two of the five zones are never produced in the condition the power calculation reads as its
+base.** Pooled over the channel-off condition (2,276 draws
 that parsed), the read-out distribution is:
 
 | Zone | Count | Probability |
@@ -749,13 +769,47 @@ Two consequences are worth stating plainly. The question §1 puts — whether th
 belongs to the model or to the apparatus — is not answered in the primary family by this run,
 because the quantity that would answer it was not estimable there. And the two arms failed the
 gate quantities in different places: the completed `qwen3:8b` run admits all eight contexts even
-though two of five zones are never produced, whereas the primary arm has `effective_k` = 0 of 8
-because none of its contexts clears `h_min_bits` = 0.5. These are outcomes recorded of these runs
+though two of five zones are never produced in the channel-off condition, whereas the primary arm
+has `effective_k` = 0 of 8 because none of its contexts clears `h_min_bits` = 0.5. These are
+outcomes recorded of these runs
 under this apparatus, and they are not a comparison of how far the decision spaces of two model
 families have collapsed: the two statements are about different quantities, one the support of the
 read-out and the other a per-context entropy floor. What neither licenses is reading an
 unmeasurable arm as agreement; §12.7 carries the reason a shared collapse would not be a
 replication, and that reasoning applies with more force where there is no estimate at all.
+
+**What the validity gate reaches, and what it does not.** R4 is a gate on measurability, and
+evaluating it ahead of the estimate is what keeps an unmeasurable arm from being read as an absent
+effect. The rule is written for the primary arm and is evaluated only there. Applied to the
+completed run of §5.1 and to the control arm, neither of its two conditions is met: `rho_hat` is
+1.0 in both, so every context clears the per-context entropy floor, and `none_rate_max_observed` is
+0.123333 and 0.086667 respectively, both below the 0.5 the rule names. The completed run is also
+the run whose channel-off base never produces two of the five zones and whose power gate clears
+`0.8` at one-hundredth of the declared margin (§5.1.1); seven of its eight contexts have a combined
+support of three zones. **A gate of this form therefore does not reach the regime this paper is
+about.** The two quantities are not interchangeable. An entropy floor asks whether each context
+varies enough to be scored; the support count asks how many of the five categories the base
+distribution ever occupies. Clearing the floor does constrain the support, but only from below and
+only by two, which is far short of what the power calculation assumes of it. Detecting the regime
+of §5.1.1 took the support and null-floor diagnostics computed there, which run on every
+reproduction but are not gates in this protocol. The reading in this paragraph is not left to the
+prose: step 9 evaluates R4's sealed predicates against all three records and fails if any of them
+comes to stand differently (§12.8).
+
+**No run of this apparatus has returned an estimate that its own permutation test rejected.** The
+paragraph above should be set beside what the three runs of this measurement have returned. In the
+completed run `tv_bar` = 0.038065 against a null mean of 0.027813 and a null 95th percentile of
+0.038839, so the observation falls below that percentile (§5.1.1), which the recorded
+`permutation_p_value` of 0.057986 reports from the other side. In the control arm `tv_bar` =
+0.030575 at a permutation *p* of 0.43989, and the test does not reject. In the primary arm no
+estimate is produced at all. So of the two runs that produced an estimate, neither returned one its
+own permutation test rejected, and the one that carries a computed null also sits below that null's
+95th percentile. This is a statement about what has been observed. It is not a statement about the
+power of any test — §12.6 records that the power of the permutation test is evaluated nowhere in
+this work — and it changes no threshold and no decision rule. Whether the read-out itself, the zone
+vocabulary, the parser and the frozen bank, is what holds the estimate there is the question §12.7
+raises, and this protocol cannot answer it: varying the read-out is a change the seal does not
+permit (§11).
 
 ---
 
@@ -794,7 +848,10 @@ matters in general.
 ### 12.5 Provenance gaps we are carrying
 
 The ES-1 verdict record is not shipped (§3), and the 17.7 MB per-draw record of the completed run
-is referenced by hash in `data/data.md` rather than included, to keep the repository small.
+is referenced by hash in `data/data.md` rather than included, to keep the repository small. A
+separate report of the upstream apparatus's determinism properties is citable [40], but it is a
+different body of evidence and does not stand in for the missing ES-1 record: the gap below is
+stated, not closed.
 
 One further gap concerns the ES-3 forensic record of §3. Its bytes are verifiably identical to the
 blob registered upstream, but the upstream commit that carries it is a **relocation** commit: the
@@ -837,6 +894,32 @@ The prospective design does not resolve this, and no rule in §8 attributes the 
 way. We name it in advance so that an R1 outcome is not read as more than it is. Distinguishing the
 two would need the read-out varied -- a different zone vocabulary, a different parser, a different
 bank -- which is outside this protocol and is not a change we may make to it (§11).
+
+### 12.8 What the checks reach on the prospective arms, and what they do not
+
+The reproduction script evaluates the sealed rules against the two landed verdicts. It does not
+recompute those verdicts from the draw bundles, as step 5 does for the completed run, because those
+bundles are not shipped here. Four things about the prospective arms are therefore recorded by us
+rather than checked by this repository: that each arm was run once, the dates, the 4,800 model
+calls per arm, and that each bundle passed seal verification before its verdict was landed. Step 3
+establishes only that each landed verdict is a document distinct from every frozen input, and its
+own output says so rather than leaving the stronger reading available.
+
+Two further limits are worth naming exactly, because both were found in review rather than by a
+check that failed. Step 13 reads only the predicates of the rules it reaches — five quantities from
+the control arm and two from the primary arm — so a quantity being quoted correctly and a quantity
+participating in the reported branch are different facts. And step 9 tests occurrence rather than
+uniqueness: six quantities quoted from the landed verdicts are compared against them, but `rho_hat`
+and `effective_k` are not among the six, because their literals are `1.0`, `0.0` and `8` and a
+check for those would pass against prose that never mentioned the quantity at all. Adding them
+would have produced a line of output and no coverage. They are covered a different way instead:
+step 9 evaluates R4's sealed predicates against the completed run, the control arm and the primary
+arm, and fails if the reading of them in the results section stops following from the records. That
+comparison is made between sources, so it does not depend on how the prose is worded.
+
+What none of this reaches is whether the landed verdicts represent the draws they came from. That
+would take the bundles, and shipping them is a change to the compendium rather than to the
+manuscript.
 
 ---
 
@@ -1082,6 +1165,10 @@ simulation: a critical review of LLMs in agent-based modeling.* Artificial Intel
 B., Vudragović, D., Bogojević, A. and Mitrović Dankulov, M. *Towards operational validation of
 LLM-agent social simulations: a replicated study of a Reddit-like technology forum.* EPJ Data
 Science, 15(1), article 72, 2026. doi:10.1140/epjds/s13688-026-00674-x
+
+[40] Miura, M. *Two-plane determinism: byte-exact cross-platform replay of LLM-in-the-loop agent
+simulations.* Preprint, 2026. doi:10.5281/zenodo.22719772 (The concept identifier is cited, since
+it resolves to the current version; the record carries no version string of its own.)
 
 Reference numbers are permanent identifiers assigned in the author's central bibliography and are
 not renumbered between manuscripts.
