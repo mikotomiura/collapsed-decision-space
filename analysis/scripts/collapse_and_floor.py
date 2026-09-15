@@ -5,10 +5,13 @@ Both are derived here rather than quoted, for the same reason the verdict is rec
 copied: a number that only a person has ever calculated is an assertion.
 
 **The support of the decision space.** The estimand is described as a five-way choice. Over the
-4,800 draws of the completed run two of the five zones are never produced at all. That is not a
-detail of presentation: the power calculation takes the empirical channel-off distribution as its
-base and builds its alternative by moving mass into the *smallest* cell, so a cell of probability
-exactly zero determines what the gate can detect.
+4,800 draws of the completed run two of the five zones are never produced in the channel-off
+condition -- which is the condition that matters here, and the qualification is not decoration:
+one of the two does appear a handful of times when the channel is on, and ``zero_support_zones``
+below is computed over the channel-off pooled distribution alone. That is not a detail of
+presentation either: the power calculation takes that same empirical channel-off distribution as
+its base and builds its alternative by moving mass into the *smallest* cell, so a cell of
+probability exactly zero determines what the gate can detect.
 
 **The null floor of the estimand.** Total variation is a non-negative distance, so its expectation
 under the null is not zero. Permuting the condition labels within each context, which is the same

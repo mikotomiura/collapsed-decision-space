@@ -28,6 +28,22 @@
   total-variation estimand consumes much of the declared margin. Demonstrated on this apparatus and
   recomputed on every run; **not** surveyed for how often it occurs elsewhere.
 - Effect-absent, low-power and apparatus-invalid are kept apart as **three distinct outcomes**.
+- **Clearing a per-context entropy floor in every context does not certify the support that the
+  power calculation depends on.** The completed run and the control arm both record `rho_hat` =
+  1.0 while the channel-off base is missing two of five zones. This one holds at any floor: a floor
+  bounds the support from below, and only by two. What follows for the gate is **narrower and
+  threshold-bound** — at the values fixed in §6.3, R4's two conditions are not met by either of
+  those two records, but the same per-context entropies against a floor above 0.68 would meet them.
+  So what may be said is that this gate, at these thresholds, does not **flag** that case; what may
+  **not** be said is that a gate of this shape cannot, or that one arm's decision space collapsed
+  further than another's — support size and per-context entropy are different quantities, and the
+  records do not order the arms on either.
+- **Neither of the two runs that produced an estimate returned one its own permutation test
+  rejected.** Both of those runs are `qwen3:8b`, so the *n* is two runs of one model family and not
+  three independent measurements; §12.7 gives the reason agreement across runs of this apparatus
+  would not establish what it appears to. This is a statement about what has been observed, not
+  about the power of any test (§12.6), and not about whether the read-out could have detected a
+  material shift.
 - The envelope is bounded and stated: one apparatus, one sampling regime, one model in the
   completed measurement.
 
@@ -54,6 +70,8 @@ relaxed.**
 | G11 | A control-arm pass proves that no version drift occurred | A pass states only that the quantities fall **inside the declared band** | `(proves?\|demonstrates?\|establishes?)[a-z ]*no (version )?drift`, `rules? out[a-z ]*version drift` |
 | G12 | Speculation about the primary arm after a control-arm failure | Defeats the purpose of a stopping rule | `(had\|if)[a-z ]*r5[a-z ]*(failed\|fails)[^.]*primary[^.]*would` |
 | G13 | Replication across two families therefore separated family from regime | A paraphrase that returns to G4 through the replication branch | `(two\|both) (model )?famil(y\|ies)[a-z ,]*(therefore\|thus\|hence)[a-z ]*(separat\|disentangl\|isolat)` |
+| G14 | Measurement-validity gates, as a class, cannot detect a collapsed decision space | **Threshold-bound, not structural.** The completed run's per-context entropies are `0.628287`–`0.754149`, so the same rule at a floor above `0.68` would put `rho_hat` at `0.375` and fire. What the evidence supports is that clearing the floor **fixed in §6.3** does not certify the support the power calculation needs | `(validity\|measurability) gates?[a-z ,]*cannot (detect\|catch\|reach)`, `no (validity\|measurability) gate[a-z ]*(can\|could)`, `(entropy floors?\|validity gates?)[a-z ]*(are\|is) (useless\|blind)` |
+| G15 | The three runs are three independent measurements of the null | Two of the three produced an estimate and **both are `qwen3:8b`**; the third produced none. §12.7 gives the reason agreement across runs of one apparatus is not replication | `three (independent\|separate) (runs\|measurements\|replications)`, `replicated (across\|in) three runs`, `three runs[a-z ,]*(independent\|confirm)` |
 
 ---
 
