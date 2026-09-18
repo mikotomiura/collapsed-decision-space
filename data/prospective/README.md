@@ -23,5 +23,10 @@ run driver wrote them on 2026-09-15:
   annotation files here; `repro.sh` (sealed) does not recompute them.
 - `.gitattributes` marks this directory `-text`, and the anonymous bundle copies it verbatim, so that
   a checkout with `core.autocrlf = true` does not change the bytes the digests describe.
-- A `None` read-out is not necessarily a decision to stay: in the completed run every `None` was the
-  string `"null"` rejected by the plan schema. See `analysis/heldout-stay/SPEC.ja.md` §2 and §5.
+- A `None` read-out is not necessarily a decision to stay, and it does not mean the same thing in
+  every run. In the **earlier completed run** that the hypothesis came from
+  (`data/raw/bank_annotation.jsonl`, not these files), every `None` was the string `"null"` rejected
+  by the plan schema. In **these two arms**, the control's `None` draws are almost all that same
+  string, while most of the primary's are responses with no parseable JSON object (class `F`). The
+  counts per class are in `analysis/heldout-stay/result.json` (`classes`); the classes are defined
+  in `analysis/heldout-stay/SPEC.ja.md` §5.
