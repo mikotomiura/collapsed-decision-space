@@ -1,0 +1,210 @@
+{
+  "schema": "heldout-stay-freeze-1",
+  "alpha": "1/40",
+  "alternative": "on > off (upper tail of T)",
+  "outcome": "pre_bias_destination_zone is None, as recorded in run_annotation.jsonl",
+  "explicit_null_classes": [
+    "N_str",
+    "N_json"
+  ],
+  "order": [
+    "control",
+    "primary"
+  ],
+  "design": {
+    "contexts": [
+      "cproper-ctx-0",
+      "cproper-ctx-1",
+      "cproper-ctx-2",
+      "cproper-ctx-3",
+      "cproper-ctx-4",
+      "cproper-ctx-5",
+      "cproper-ctx-6",
+      "cproper-ctx-7"
+    ],
+    "m_draws": 300
+  },
+  "inputs": {
+    "control": {
+      "run_annotation.jsonl": {
+        "sha256": "44571865b31e99c536e58f550df18a6affb9e1d9da163f3962ccbd7ac60295a3",
+        "bytes": 682525
+      },
+      "run_records.jsonl": {
+        "sha256": "ca4ff2f042b855a1c0ef557b1e8fd2c8eea2d41ae44580d3a3de7902e99fe6b7",
+        "bytes": 17764970
+      },
+      "run-manifest.json": {
+        "sha256": "09fbacb6291e72740e934692bc89eae10f0292cfd409e8ddd15cff4c766629fc",
+        "bytes": 1351
+      }
+    },
+    "primary": {
+      "run_annotation.jsonl": {
+        "sha256": "ac5b9504b19d4d89fa997451568ffc5b14971edec24a6423d667ff131782ec0d",
+        "bytes": 681875
+      },
+      "run_records.jsonl": {
+        "sha256": "8fe42e6711537dafedf4fb4522b4d1377f323856d1a1049b7630420e6f4020ae",
+        "bytes": 17351300
+      },
+      "run-manifest.json": {
+        "sha256": "98fa9b029b1767f0881bab6aabdfc0fb4cbe6b925f2cbed32e3ac5867a7a565d",
+        "bytes": 1357
+      }
+    }
+  },
+  "known": {
+    "control": {
+      "none_total": 250,
+      "cell_none_rate_max": "0.086667"
+    },
+    "primary": {
+      "none_total": 168,
+      "cell_none_rate_max": "0.066667"
+    }
+  },
+  "tv6": {
+    "replicates": 20000,
+    "seed": 20260708,
+    "compare_decimals": 9
+  },
+  "negative_control": {
+    "replicates": 2000,
+    "seed": 20260708,
+    "band": [
+      "1/200",
+      "71/2000"
+    ]
+  },
+  "declared_power": {
+    "assumption": "既知のアーム全体の None 件数 (control 250 / primary 168) を 8 context に均等に割り、共通オッズ比 psi のもとで片側 alpha = 1/40 の厳密検定が棄却する確率。psi = 1.72 は完了済 run の MH オッズ比 1.723700 を小数 2 桁に丸めた値。arm ごとの周辺の検出力であり、固定順序による primary の条件付けは含まない",
+    "values": [
+      {
+        "arm": "control",
+        "psi": "1.72",
+        "power": "0.983439"
+      },
+      {
+        "arm": "control",
+        "psi": "1.3",
+        "power": "0.500634"
+      },
+      {
+        "arm": "primary",
+        "psi": "1.72",
+        "power": "0.927883"
+      },
+      {
+        "arm": "primary",
+        "psi": "1.3",
+        "power": "0.382802"
+      }
+    ]
+  },
+  "positive_control": {
+    "annotation_sha256": "378b5423d5b9d927f884e4381c80dd2116ef9342b6f05a92a07b12cd17bdc6fc",
+    "on_none": 206,
+    "off_none": 124,
+    "contexts": 8,
+    "contexts_on_gt_off": 8,
+    "p_upper": "1.728042e-06",
+    "mh_odds_ratio": "1.723700",
+    "tv6_observed": "0.058333",
+    "tv6_p_max": "0.005",
+    "records_sha256": "eec4b80db401c69b11e95c515385e72c0577ea9d9081e1e07148bca8d12352fb",
+    "records_classes": {
+      "N_str": 330
+    }
+  },
+  "rows": [
+    {
+      "id": "STOP",
+      "when": "I1〜I6 のいずれかが発火した",
+      "can_say": "どの gate が何を検出したか",
+      "cannot_say": "どちらのアームについても、条件差に関する主張",
+      "revision": "結果は無い。欠陥として user 裁定に回す"
+    },
+    {
+      "id": "A",
+      "when": "control が確認的に棄却し、primary も確認的に棄却した",
+      "can_say": "前向き 2 run の両方で、channel-on ブロックの記録上の None が channel-off ブロックより多かった",
+      "cannot_say": "実行順から切り離した channel の効果、意図 (留まることを選んだ) の主張、2 model・8 context の外への一般化",
+      "revision": "事後の発見が独立 draws で再現し、2 つ目の族でも封印推定量が落とした成分が動いた。DA-P2-22 の理由 2 (§12.1 の confound) には部分的にしか答えない"
+    },
+    {
+      "id": "B",
+      "when": "control が確認的に棄却し、primary は確認的に棄却しなかった",
+      "can_say": "同じ model・別の backend 版の独立 draws で、channel-on ブロックの記録上の None が多かった",
+      "cannot_say": "llama3.1:8b に効果が無い、あるいは同等である",
+      "revision": "事後の発見は同じ model で再現した。2 つ目の族では確認されなかったので、改稿は単一 model の範囲で書く"
+    },
+    {
+      "id": "B_prime",
+      "when": "control が確認的に棄却し、primary が I7 で検査不能だった",
+      "can_say": "同じ model・別の backend 版の独立 draws で、channel-on ブロックの記録上の None が多かった。primary はこの検定では検査不能だった",
+      "cannot_say": "llama3.1:8b についての主張すべて",
+      "revision": "B と同じく単一 model の範囲で書き、primary は検査不能と明記する"
+    },
+    {
+      "id": "C",
+      "when": "control が棄却しなかったが、primary の記述的な p は 0.025 以下だった",
+      "can_say": "確認的な主張は無い。primary の p は記述として報告する",
+      "cannot_say": "llama3.1:8b に効果がある (固定順序のもとで primary は確認的に検定されていない)",
+      "revision": "事後の発見は同じ model の独立 draws で再現しなかった。改稿は power と推定量の不一致に絞り、primary の値は記述に留める"
+    },
+    {
+      "id": "D",
+      "when": "control が棄却せず、primary の記述的な p も 0.025 を超えた",
+      "can_say": "held-out では再現しなかった。完了済 run の発見は探索的な位置づけに下げる",
+      "cannot_say": "効果が無い、あるいは同等である",
+      "revision": "事後の発見は脆い。改稿は power と推定量の不一致に絞る"
+    },
+    {
+      "id": "E",
+      "when": "control が I7 で検査不能だった",
+      "can_say": "確認的な主張は無い。どの gate で止まったかを報告する",
+      "cannot_say": "どちらのアームについても、条件差の主張",
+      "revision": "I6 が通っていれば起こらない行である (250 件の None で到達不能にはならない)。起きたら欠陥を疑い user 裁定に回す"
+    }
+  ],
+  "modifiers": [
+    {
+      "id": "explicit_null",
+      "text": "explicit_null: その arm の主検定が確認的に棄却され、かつ明示的 null 表現 (N_str ∪ N_json) に同じ検定をかけた p も 0.025 以下のときに限り、「destination_zone に null と書いた出力が増えた」と書いてよい。水準はアーム単位であり、2 アームの主張を合わせた FWER は保証しない。成立しなければ「増えたのは記録上の None 全般である」とだけ書く"
+    },
+    {
+      "id": "reverse",
+      "text": "reverse: 下側の p が 0.025 以下なら、逆向き (off > on) の差が記述的に出たと書く。確認的な主張にはしない"
+    }
+  ],
+  "forbidden_claims": [
+    "エージェントが「留まることを選んだ」という意図の主張 (None の実体は schema 検証失敗である)",
+    "実行順 (context ごとに on ブロック → off ブロック)・時間・サーバ状態から切り離した channel の効果",
+    "固定ブロック設計のまま、実行位置に対する交換可能性や時間的安定性を仮定せずに、厳密 p 値の水準が保証されたとする主張",
+    "λ・locomotion・身体性への帰属、および temperature と top_p のどちらか一方への帰属",
+    "形式上の事前登録、または PCI RR の意味での confirmatory",
+    "非棄却を「効果が無い」「同等である」と読むこと",
+    "arm 間の効果量の差を model family の差として読むこと",
+    "完了済 run の p ≈ 0.001 を証拠として数えること (仮説を生んだデータである)",
+    "封印済 verdict や分岐 R4 / R5 を変える主張",
+    "6 カテゴリの平均 TV を margin 0.10 に照らして materiality を判定すること",
+    "凍結前に誰も条件別の件数を見ていないことを、検査で示したと書くこと (宣言にすぎない)",
+    "2 model・8 固定 context の外への一般化"
+  ],
+  "semantics": {
+    "source": "on と off の sampling は、完了済 run の records (全 8 context で条件ごとに 1 通り) と、前向き run が消費した凍結 context bank の値。model・digest・ollama 版・think・bank checksum・context・k・m・seed は seal/arm-spec.json から読む",
+    "sampling": {
+      "on": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.82,
+        "top_p": 0.94
+      },
+      "off": {
+        "repeat_penalty": 1.0,
+        "temperature": 0.7,
+        "top_p": 0.9
+      }
+    }
+  }
+}

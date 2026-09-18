@@ -1,0 +1,63 @@
+name: heldout-stay
+
+# 事後仮説「None は channel-on で増える」の held-out 検査 (analysis/heldout-stay/SPEC.ja.md)。
+#
+# repro.sh は封印済で step を足せないので、封印の外側にあるこの workflow で走らせる。
+# このファイル自身も凍結範囲 (heldout_stay_check.py の FROZEN_PATHS) に入っている。凍結後に
+# このファイルを変えると、--verify は「凍結 commit が凍結範囲に最後に触れた commit でない」として落ちる。
+#
+#   --self-test : 既知データ (完了済 run) と合成データだけを使う対照。完了済 run の records は
+#                 出荷していないので PC-records は SKIPPED と表示される (通ったという意味ではない)
+#   --mutations : script を 1 か所ずつ壊し、期待した診断で落ちることを要求する
+#   --verify    : result.json が着地した後は data/prospective/ から再計算し、result.json と run.log の
+#                 byte 一致と、凍結 commit との結び付きを要求する。着地前は SKIPPED と表示する
+#
+# 凍結 commit との照合に git 履歴が要るので、checkout は fetch-depth: 0 にする。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: heldout-stay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  heldout-stay:
+    name: heldout-stay check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Pin the environment from the lockfile
+        shell: bash
+        run: uv sync --frozen --no-install-project --project env
+
+      - name: Self-test (known data only)
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/heldout_stay_check.py --self-test
+
+      - name: Mutations
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/heldout_stay_check.py --mutations
+
+      - name: Verify the landed result
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/heldout_stay_check.py --verify
