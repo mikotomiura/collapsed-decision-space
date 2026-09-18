@@ -38,3 +38,12 @@ LICENSE-MIT text eol=lf
 # bytes, so nothing surfaced until a checkout replaced them.
 data/raw/** -text
 env/uv.lock -text
+
+# The prospective arms' per-draw outputs, shipped on 2026-09-18. Their SHA-256 digests are pinned in
+# analysis/heldout-stay/freeze.json, which was committed before the files; `.jsonl` has no rule
+# above, so without this a Windows checkout could rewrite the bytes the pins describe.
+data/prospective/** -text
+
+# The held-out check's run log is compared byte for byte by `heldout_stay_check.py --verify`, and
+# `.log` has no rule above.
+analysis/heldout-stay/run.log -text

@@ -1,0 +1,672 @@
+{
+  "alpha": "1/40",
+  "arms": {
+    "control": {
+      "classes": {
+        "F": {
+          "off": 0,
+          "on": 1
+        },
+        "K": {
+          "off": 0,
+          "on": 0
+        },
+        "N_json": {
+          "off": 0,
+          "on": 1
+        },
+        "N_str": {
+          "off": 94,
+          "on": 154
+        },
+        "S": {
+          "off": 0,
+          "on": 0
+        },
+        "Z": {
+          "off": 0,
+          "on": 0
+        }
+      },
+      "classes_per_context": {
+        "cproper-ctx-0": {
+          "F": {
+            "off": 0,
+            "on": 0
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 12,
+            "on": 16
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-1": {
+          "F": {
+            "off": 0,
+            "on": 0
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 14,
+            "on": 17
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-2": {
+          "F": {
+            "off": 0,
+            "on": 0
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 7,
+            "on": 11
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-3": {
+          "F": {
+            "off": 0,
+            "on": 0
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 1
+          },
+          "N_str": {
+            "off": 8,
+            "on": 19
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-4": {
+          "F": {
+            "off": 0,
+            "on": 0
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 15,
+            "on": 24
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-5": {
+          "F": {
+            "off": 0,
+            "on": 0
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 13,
+            "on": 26
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-6": {
+          "F": {
+            "off": 0,
+            "on": 0
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 10,
+            "on": 22
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-7": {
+          "F": {
+            "off": 0,
+            "on": 1
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 15,
+            "on": 19
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        }
+      },
+      "explicit_null_test": {
+        "p_min": "1.107547e-78",
+        "p_upper": "4.359535e-05",
+        "successes": 249,
+        "t_obs": 155
+      },
+      "none": {
+        "block_halves": {
+          "off": {
+            "first_half": "0.039167",
+            "second_half": "0.039167"
+          },
+          "on": {
+            "first_half": "0.056667",
+            "second_half": "0.073333"
+          }
+        },
+        "contexts_on_gt_off": 8,
+        "contexts_on_lt_off": 0,
+        "contexts_tie": 0,
+        "mh_ci95": [
+          "1.312605",
+          "2.219433"
+        ],
+        "mh_odds_ratio": "1.706821",
+        "off": 94,
+        "off_rate": "0.039167",
+        "on": 156,
+        "on_rate": "0.065000",
+        "per_context": {
+          "cproper-ctx-0": {
+            "off": 12,
+            "on": 16
+          },
+          "cproper-ctx-1": {
+            "off": 14,
+            "on": 17
+          },
+          "cproper-ctx-2": {
+            "off": 7,
+            "on": 11
+          },
+          "cproper-ctx-3": {
+            "off": 8,
+            "on": 20
+          },
+          "cproper-ctx-4": {
+            "off": 15,
+            "on": 24
+          },
+          "cproper-ctx-5": {
+            "off": 13,
+            "on": 26
+          },
+          "cproper-ctx-6": {
+            "off": 10,
+            "on": 22
+          },
+          "cproper-ctx-7": {
+            "off": 15,
+            "on": 20
+          }
+        },
+        "rate_difference": "0.025833"
+      },
+      "test": {
+        "p_lower": "9.999806e-01",
+        "p_min": "5.205080e-79",
+        "p_upper": "3.415046e-05",
+        "t_max": 250,
+        "t_obs": 156
+      },
+      "tv6": {
+        "null_mean": "0.036918",
+        "null_p95": "0.048333",
+        "observed": "0.047917",
+        "p_value": "0.061197"
+      }
+    },
+    "primary": {
+      "classes": {
+        "F": {
+          "off": 57,
+          "on": 98
+        },
+        "K": {
+          "off": 0,
+          "on": 1
+        },
+        "N_json": {
+          "off": 0,
+          "on": 0
+        },
+        "N_str": {
+          "off": 2,
+          "on": 5
+        },
+        "S": {
+          "off": 2,
+          "on": 3
+        },
+        "Z": {
+          "off": 0,
+          "on": 0
+        }
+      },
+      "classes_per_context": {
+        "cproper-ctx-0": {
+          "F": {
+            "off": 6,
+            "on": 18
+          },
+          "K": {
+            "off": 0,
+            "on": 1
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 1,
+            "on": 0
+          },
+          "S": {
+            "off": 0,
+            "on": 1
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-1": {
+          "F": {
+            "off": 5,
+            "on": 15
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 0,
+            "on": 2
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-2": {
+          "F": {
+            "off": 8,
+            "on": 8
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 0,
+            "on": 0
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-3": {
+          "F": {
+            "off": 6,
+            "on": 7
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 0,
+            "on": 2
+          },
+          "S": {
+            "off": 0,
+            "on": 1
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-4": {
+          "F": {
+            "off": 7,
+            "on": 8
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 1,
+            "on": 1
+          },
+          "S": {
+            "off": 2,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-5": {
+          "F": {
+            "off": 8,
+            "on": 17
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 0,
+            "on": 0
+          },
+          "S": {
+            "off": 0,
+            "on": 1
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-6": {
+          "F": {
+            "off": 6,
+            "on": 9
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 0,
+            "on": 0
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        },
+        "cproper-ctx-7": {
+          "F": {
+            "off": 11,
+            "on": 16
+          },
+          "K": {
+            "off": 0,
+            "on": 0
+          },
+          "N_json": {
+            "off": 0,
+            "on": 0
+          },
+          "N_str": {
+            "off": 0,
+            "on": 0
+          },
+          "S": {
+            "off": 0,
+            "on": 0
+          },
+          "Z": {
+            "off": 0,
+            "on": 0
+          }
+        }
+      },
+      "explicit_null_test": {
+        "p_min": "7.773438e-03",
+        "p_upper": "2.263667e-01",
+        "successes": 7,
+        "t_obs": 5
+      },
+      "none": {
+        "block_halves": {
+          "off": {
+            "first_half": "0.024167",
+            "second_half": "0.026667"
+          },
+          "on": {
+            "first_half": "0.045000",
+            "second_half": "0.044167"
+          }
+        },
+        "contexts_on_gt_off": 6,
+        "contexts_on_lt_off": 1,
+        "contexts_tie": 1,
+        "mh_ci95": [
+          "1.299738",
+          "2.462870"
+        ],
+        "mh_odds_ratio": "1.789158",
+        "off": 61,
+        "off_rate": "0.025417",
+        "on": 107,
+        "on_rate": "0.044583",
+        "per_context": {
+          "cproper-ctx-0": {
+            "off": 7,
+            "on": 20
+          },
+          "cproper-ctx-1": {
+            "off": 5,
+            "on": 17
+          },
+          "cproper-ctx-2": {
+            "off": 8,
+            "on": 8
+          },
+          "cproper-ctx-3": {
+            "off": 6,
+            "on": 10
+          },
+          "cproper-ctx-4": {
+            "off": 10,
+            "on": 9
+          },
+          "cproper-ctx-5": {
+            "off": 8,
+            "on": 18
+          },
+          "cproper-ctx-6": {
+            "off": 6,
+            "on": 9
+          },
+          "cproper-ctx-7": {
+            "off": 11,
+            "on": 16
+          }
+        },
+        "rate_difference": "0.019167"
+      },
+      "test": {
+        "p_lower": "9.998981e-01",
+        "p_min": "1.235879e-52",
+        "p_upper": "1.894707e-04",
+        "t_max": 168,
+        "t_obs": 107
+      },
+      "tv6": {
+        "null_mean": "0.021470",
+        "null_p95": "0.027917",
+        "observed": "0.030833",
+        "p_value": "0.015049"
+      }
+    }
+  },
+  "confirmatory": {
+    "control_rejected": true,
+    "control_tested": true,
+    "primary_rejected": true,
+    "primary_tested": true
+  },
+  "freeze_commit": "61dbd960142f6db51a83bbaf05dc3c7781cb6559",
+  "gates": {
+    "control": {
+      "I7_testable": true,
+      "integrity": "PASS"
+    },
+    "primary": {
+      "I7_testable": true,
+      "integrity": "PASS"
+    }
+  },
+  "modifiers": {
+    "control": {
+      "explicit_null": true,
+      "reverse": false
+    },
+    "primary": {
+      "explicit_null": false,
+      "reverse": false
+    }
+  },
+  "row": {
+    "can_say": "前向き 2 run の両方で、channel-on ブロックの記録上の None が channel-off ブロックより多かった",
+    "cannot_say": "実行順から切り離した channel の効果、意図 (留まることを選んだ) の主張、2 model・8 context の外への一般化",
+    "id": "A",
+    "revision": "事後の発見が独立 draws で再現し、2 つ目の族でも封印推定量が落とした成分が動いた。DA-P2-22 の理由 2 (§12.1 の confound) には部分的にしか答えない",
+    "when": "control が確認的に棄却し、primary も確認的に棄却した"
+  },
+  "schema": "heldout-stay-result-1"
+}

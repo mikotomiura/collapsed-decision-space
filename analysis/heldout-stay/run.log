@@ -1,0 +1,13 @@
+[heldout] run at freeze commit 61dbd960142f6db51a83bbaf05dc3c7781cb6559
+[heldout] control: integrity gates I1-I6 passed
+[heldout] primary: integrity gates I1-I6 passed
+[heldout] control: None on 156 / off 94; T = 156, p_upper = 3.415046e-05, p_lower = 9.999806e-01; I7 testable = True
+[heldout] control: explicit-null test p_upper = 4.359535e-05; classes = {"F": {"off": 0, "on": 1}, "K": {"off": 0, "on": 0}, "N_json": {"off": 0, "on": 1}, "N_str": {"off": 94, "on": 154}, "S": {"off": 0, "on": 0}, "Z": {"off": 0, "on": 0}}
+[heldout] control: TV6 (secondary) = {"null_mean": "0.036918", "null_p95": "0.048333", "observed": "0.047917", "p_value": "0.061197"}
+[heldout] primary: None on 107 / off 61; T = 107, p_upper = 1.894707e-04, p_lower = 9.998981e-01; I7 testable = True
+[heldout] primary: explicit-null test p_upper = 2.263667e-01; classes = {"F": {"off": 57, "on": 98}, "K": {"off": 0, "on": 1}, "N_json": {"off": 0, "on": 0}, "N_str": {"off": 2, "on": 5}, "S": {"off": 2, "on": 3}, "Z": {"off": 0, "on": 0}}
+[heldout] primary: TV6 (secondary) = {"null_mean": "0.021470", "null_p95": "0.027917", "observed": "0.030833", "p_value": "0.015049"}
+[heldout] confirmatory = {"control_rejected": true, "control_tested": true, "primary_rejected": true, "primary_tested": true}
+[heldout] row = A
+[heldout] modifiers = {"control": {"explicit_null": true, "reverse": false}, "primary": {"explicit_null": false, "reverse": false}}
+[heldout] result.json written
