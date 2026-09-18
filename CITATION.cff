@@ -9,14 +9,22 @@ abstract: >-
   in advance with a power gate: the estimate must fall below the margin, and the design must have
   had the power to detect a shift of that size. We show that both guards can stop working at once,
   and in the same direction, when the categorical decision space partially collapses. In a
-  completed measurement of an agent-internal channel over 4,800 draws, two of the five available
-  zones are never produced at all. The power calculation takes the empirical read-out distribution
-  as its base and builds its alternative by moving mass into the smallest cell, so a cell of
+  completed measurement of an agent-internal channel over 4,800 draws, the channel-off condition
+  the power calculation takes as its base (2,276 parsed draws) never produces two of the five
+  zones. The calculation builds its alternative by moving mass into the smallest cell, so a cell of
   probability exactly zero leaves the gate reporting 0.921 even at a hundredth of the declared
   margin of 0.10. The null floor of the distance statistic meanwhile stands at 0.027813, against
   an observed 0.038065. The channel is separately established as causal, separable and ablatable.
-  This protocol estimates the same quantity in a second model family, to find out whether the
-  failure mode belongs to the model or to the apparatus.
+  To find out whether the failure mode belongs to the model or to the apparatus, the protocol then
+  estimates the same quantity in a second model family; both arms have since been run once each,
+  9,600 draws in total. The sealed rules stop at R4, apparatus validity: no context in the second
+  family clears the per-context entropy floor, so the estimand is not measurable there and that
+  question is not answered by this run. What the run does establish is that clearing such a floor
+  in every context does not certify the support the power calculation depends on — the completed
+  run and the control arm clear it everywhere — and that at the thresholds fixed in advance a
+  measurability gate of this shape, which did fire on the second family, does not flag that case.
+  Neither of the two runs that produced an estimate, both of them the same model, returned one its
+  own permutation test rejected.
 type: software
 authors:
   - family-names: "Miura"

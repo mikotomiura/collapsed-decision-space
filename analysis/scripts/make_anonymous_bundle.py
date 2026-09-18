@@ -71,6 +71,13 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     ("https://zenodo.org/api/records/22735437", "https://anonymous.invalid/deposit"),
     ("10.5281/zenodo.22735437", "10.0000/anonymous.version"),
     ("10.5281/zenodo.22735436", "10.0000/anonymous.concept"),
+    # A different deposit of the author's own, cited as related work rather than being this
+    # study's record. It does **not** belong in CITED_DOIS below: that list is declared to hold
+    # other people's papers, and putting one's own deposit in it would be a false declaration
+    # that also happens to work -- the scan would go quiet while a reviewer following the link
+    # landed on a page carrying the author's name. Substituted here instead, with the deposits,
+    # because that is what it is.
+    ("10.5281/zenodo.22719772", "10.0000/anonymous.prior"),
     # Not "000000": the archive returns the record id as a JSON **integer**, so the witness holds
     # it unquoted and a leading-zero replacement produces a document json refuses to parse. The
     # bundle built green -- the leak scan and the byte comparison both passed -- and it was
@@ -83,6 +90,10 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     ("mikotomiura", "anonymous"),
     ("Mikoto Miura", "Anonymous Author"),
     ("Miura, Mikoto", "Author, Anonymous"),
+    # The bibliography's own style, which uses an initial. Without this rule the bare-name rule
+    # below turns a reference entry into "Author, M." -- redacted, but visibly half-redacted,
+    # which is the shape the ordering of this list exists to avoid.
+    ("Miura, M.", "Author, Anonymous"),
     ("Mikoto", "Anonymous"),
     ("Miura", "Author"),
     ("mmiura.network@gmail.com", "anonymous@anonymous.invalid"),
@@ -120,6 +131,7 @@ ALLOWED: tuple[str, ...] = (
     # because the shape pattern that finds them is the one that finds a real deposit.
     "10.0000/anonymous.version",
     "10.0000/anonymous.concept",
+    "10.0000/anonymous.prior",
 )
 
 #: DOIs that belong to **other people's papers** and must stay in the bibliography. A DOI is

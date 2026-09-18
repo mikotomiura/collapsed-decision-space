@@ -8,7 +8,7 @@ run fail.
 1. **The patterns come from ``manuscript/CLAIM-BOUNDARY.md``, never from the text being checked.**
    A document carrying its own forbidden-phrase list and confirming it does not match itself would
    be checking nothing.
-2. **Exactly thirteen guards, in order, must parse.** A parser that silently yields nothing reports
+2. **Exactly fifteen guards, in order, must parse.** A parser that silently yields nothing reports
    "no hits" against any document whatsoever, so the count and the identifiers are pinned.
 3. **A positive control accompanies the "zero hits is correct" check.**
    ``manuscript/_claim_boundary_positive_control.md`` trips every pattern on purpose, and the run
@@ -56,7 +56,7 @@ CELL_SPLIT_RE = re.compile(r"(?<!\\)\|")
 BACKTICKED_RE = re.compile(r"`([^`]+)`")
 
 #: The guards the source file must carry. Both the count and the order are pinned.
-EXPECTED_GUARD_IDS: tuple[str, ...] = tuple(f"G{i}" for i in range(1, 14))
+EXPECTED_GUARD_IDS: tuple[str, ...] = tuple(f"G{i}" for i in range(1, 16))
 
 #: Preconditions for the manuscript being non-vacuous. Failing these means it is unfinished.
 #: ``Level 6`` used to head this list and is deliberately gone. The level declaration belonged to

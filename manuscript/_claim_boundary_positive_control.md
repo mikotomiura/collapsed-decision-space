@@ -83,3 +83,13 @@ nothing.
 
 Both model families agree on the null, and therefore we separate the family contribution from the
 regime contribution at last.
+
+## G14 — validity gates as a class
+
+Measurement-validity gates cannot detect a collapsed decision space, and no validity gate could
+have caught it here. Entropy floors are blind to the thing that matters.
+
+## G15 — counting the runs
+
+Three independent runs of this measurement all returned a null, so the finding is replicated across
+three runs and confirmed.
