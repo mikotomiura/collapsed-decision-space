@@ -132,6 +132,11 @@ ALLOWED: tuple[str, ...] = (
     "10.0000/anonymous.version",
     "10.0000/anonymous.concept",
     "10.0000/anonymous.prior",
+    # Not installed by this script: the git identity heldout_stay_check.py gives the throwaway
+    # repository its guard self-test commits to. `.invalid` is reserved (RFC 2606), so it cannot be
+    # anyone's address. It is declared here because that script is frozen (analysis/heldout-stay/
+    # SPEC.ja.md section 12) and editing it would break the binding to its freeze commit.
+    "t@example.invalid",
 )
 
 #: DOIs that belong to **other people's papers** and must stay in the bibliography. A DOI is
