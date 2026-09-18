@@ -212,8 +212,9 @@ BINARY_SUFFIXES: frozenset[str] = frozenset({".pdf", ".zip", ".gz", ".png", ".jp
 #: hypothetical. The first version of this script treated ``.json`` as text and wrote it back with
 #: LF endings, which took ``data/raw/es3-verdict-forensic.json`` from 11,743 bytes to 11,401 and
 #: failed step 3 of the bundle's own reproduction -- the same 342 bytes a global ``core.autocrlf``
-#: setting had removed once before.
-VERBATIM_PREFIXES: tuple[str, ...] = ("data/raw/", "env/uv.lock")
+#: setting had removed once before. ``data/prospective/`` joined on 2026-09-18: its digests are
+#: pinned in ``analysis/heldout-stay/freeze.json``, committed before the files themselves.
+VERBATIM_PREFIXES: tuple[str, ...] = ("data/raw/", "env/uv.lock", "data/prospective/")
 
 
 def _die(message: str) -> None:
