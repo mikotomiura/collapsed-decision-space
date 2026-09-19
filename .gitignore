@@ -25,6 +25,7 @@ build/
 .env
 *.key
 *.pem
+.idea/
 
 # OS
 .DS_Store

@@ -1,30 +1,32 @@
 cff-version: 1.2.0
 message: "If you cite this protocol or the accompanying code, please use the metadata below."
-title: "When the power gate cannot fail: collapsed decision spaces defeat margin-and-power null reporting in LLM agents"
+title: "Three gates, three proxies: an instrument autopsy of a sealed LLM-agent evaluation"
 # This abstract must match the Abstract section of manuscript/main.md verbatim.
 # analysis/scripts/check_claim_boundary.py compares them on every run, so editing
 # one without the other fails repro.sh.
 abstract: >-
-  A common way to report a null in language-model evaluation pairs a materiality margin declared
-  in advance with a power gate: the estimate must fall below the margin, and the design must have
-  had the power to detect a shift of that size. We show that both guards can stop working at once,
-  and in the same direction, when the categorical decision space partially collapses. In a
-  completed measurement of an agent-internal channel over 4,800 draws, the channel-off condition
-  the power calculation takes as its base (2,276 parsed draws) never produces two of the five
-  zones. The calculation builds its alternative by moving mass into the smallest cell, so a cell of
-  probability exactly zero leaves the gate reporting 0.921 even at a hundredth of the declared
-  margin of 0.10. The null floor of the distance statistic meanwhile stands at 0.027813, against
-  an observed 0.038065. The channel is separately established as causal, separable and ablatable.
-  To find out whether the failure mode belongs to the model or to the apparatus, the protocol then
-  estimates the same quantity in a second model family; both arms have since been run once each,
-  9,600 draws in total. The sealed rules stop at R4, apparatus validity: no context in the second
-  family clears the per-context entropy floor, so the estimand is not measurable there and that
-  question is not answered by this run. What the run does establish is that clearing such a floor
-  in every context does not certify the support the power calculation depends on — the completed
-  run and the control arm clear it everywhere — and that at the thresholds fixed in advance a
-  measurability gate of this shape, which did fire on the second family, does not flag that case.
-  Neither of the two runs that produced an estimate, both of them the same model, returned one its
-  own permutation test rejected.
+  A pre-registered evaluation that may end in a null has to fix in advance what a null would be
+  worth. We report an instrument autopsy of one that did: a sealed evaluation of whether an
+  agent-internal channel, a scalar from a language-model agent's recent movement composed into its
+  sampling temperature, shifts a five-way zone decision beyond a declared margin. Sealed after a
+  completed run on one model and applied to two prospective arms, its rules stop at R4, apparatus
+  validity. The three gates that decide what a null report is worth each ran as written, passing
+  or firing by its own rule, and each read a quantity other than the one its reading depends on.
+  The power gate reads a pooled chi-square surrogate, not the stratified permutation test the
+  decision turns on, whose power is evaluated nowhere: at the registered effect size the surrogate
+  returns 1.0 for a near-uniform and a degenerate base alike, and 0.921 at one hundredth of the
+  margin against an empirical base with two empty zones. The entropy floor reads per-context
+  entropy, not support: two runs of one model clear it everywhere while their channel-off draws
+  never produce two of the five zones, and the second model fails it although each of its cells
+  produced two or more zones. The cap on draws with no zone, which the estimand drops, reads the
+  largest per-cell rate, not the difference between conditions: all three runs pass it, but a
+  held-out test of a post hoc observation, specified before the condition-wise counts were
+  tabulated, found more such draws in the channel-on blocks of both arms (156 against 94; 107
+  against 61). Those draws were mostly the string "null" in one model's arm and missing or
+  malformed JSON in the other's, and each context ran its channel-on block first, so the
+  difference is confounded with execution order. The prospective arms and the held-out test did
+  not resolve this; they exposed it. The claim concerns the instrument, not the channel, does not
+  depend on the margin's value, and is confined to two models and eight frozen contexts.
 type: software
 authors:
   - family-names: "Miura"
@@ -42,8 +44,8 @@ license:
   - MIT
   - CC-BY-4.0
 repository-code: "https://github.com/mikotomiura/collapsed-decision-space"
-version: "0.2.0-sealed-protocol"
-date-released: "2026-09-13"
+version: "0.3.0-instrument-autopsy"
+date-released: "2026-09-19"
 # doi: to be filled in once a DOI is minted. The key is omitted until then, because an
 #      empty value would be rendered as-is by the GitHub citation widget.
 # preferred-citation: to point at the peer-reviewed version once it exists. Omitted

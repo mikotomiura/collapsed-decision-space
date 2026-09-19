@@ -35,6 +35,7 @@ Usage:  python analysis/scripts/check_manuscript_numbers.py
 from __future__ import annotations
 
 import argparse
+import collections
 import contextlib
 import io
 import json
@@ -1148,6 +1149,556 @@ def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
     return problems
 
 
+#: Number words the manuscript uses in place of small integers. A literal table rather than a library
+#: call, so that the rendering is visible in the checker and cannot drift with a dependency.
+_NUMBER_WORDS: tuple[str, ...] = (
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+    "nineteen", "twenty",
+)  # fmt: skip
+
+#: The five zones, in the order the apparatus uses.
+_ZONES: tuple[str, ...] = ("agora", "chashitsu", "garden", "peripatos", "study")
+
+#: Where the rendered comparison reads its sources, relative to the repository root.
+RENDER_SOURCES: tuple[str, ...] = (
+    "manuscript/main.md",
+    "data/derived/collapse-and-floor.json",
+    "data/derived/power-curve.md",
+    "data/raw/bank_annotation.jsonl",
+    "data/prospective/control/run_annotation.jsonl",
+    "data/prospective/primary/run_annotation.jsonl",
+    "data/raw/cproper-verdict.json",
+    "data/raw/control-verdict.json",
+    "data/raw/primary-verdict.json",
+    "analysis/heldout-stay/result.json",
+    "analysis/heldout-stay/freeze.json",
+)
+
+#: Labels the manuscript's tables use. Literals, and checked as part of the rendered row: a label
+#: that drifted from the table would fail here rather than silently match nothing.
+_RUN_LABELS: tuple[tuple[str, str, str], ...] = (
+    ("completed run (`qwen3:8b`)", "data/raw/bank_annotation.jsonl", "cproper-verdict.json"),
+    ("control arm (`qwen3:8b`)", "data/prospective/control/run_annotation.jsonl", "control-verdict.json"),
+    ("primary arm (`llama3.1:8b`)", "data/prospective/primary/run_annotation.jsonl", "primary-verdict.json"),
+)  # fmt: skip
+_READ_LABELS: tuple[tuple[str, str], ...] = (
+    ("completed run", "cproper-verdict.json"),
+    ("control arm", "control-verdict.json"),
+    ("primary arm", "primary-verdict.json"),
+)
+_ARM_LABELS: tuple[tuple[str, str], ...] = (
+    ("control", "control (`qwen3:8b`)"),
+    ("primary", "primary (`llama3.1:8b`)"),
+)
+_CLASS_LABELS: tuple[tuple[str, str], ...] = (
+    ("N_str", 'the string `"null"`'),
+    ("N_json", "a JSON `null`"),
+    ("K", "no `destination_zone` key"),
+    ("Z", "a valid zone name, with the plan rejected on another field"),
+    ("S", "some other value"),
+    ("F", "no usable JSON object"),
+)
+_BASE_LABELS: dict[str, str] = {
+    "[0.2, 0.2, 0.2, 0.2, 0.2]": "near-uniform",
+    "[0.96, 0.01, 0.01, 0.01, 0.01]": "degenerate",
+}
+
+
+def _word(n: int) -> str:
+    """The English word for a small count, as the manuscript writes it."""
+    if not 0 <= n < len(_NUMBER_WORDS):
+        raise ValueError(f"no number word for {n}")
+    return _NUMBER_WORDS[n]
+
+
+def _annotation_summary(path: Path) -> dict[str, Any]:
+    """Counts the prose quotes from a per-draw annotation: None by condition, support, cell sizes."""
+    none: collections.Counter[str] = collections.Counter()
+    totals: collections.Counter[str] = collections.Counter()
+    pooled: dict[str, collections.Counter[str]] = {
+        "on": collections.Counter(),
+        "off": collections.Counter(),
+    }
+    cells: dict[tuple[str, str], set[str]] = collections.defaultdict(set)
+    per_context: dict[str, collections.Counter[str]] = collections.defaultdict(collections.Counter)
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        zone, condition, context = (
+            row["pre_bias_destination_zone"],
+            row["condition"],
+            row["frozen_ctx_id"],
+        )
+        totals[condition] += 1
+        if zone is None:
+            none[condition] += 1
+            per_context[context][condition] += 1
+            continue
+        pooled[condition][zone] += 1
+        cells[(context, condition)].add(zone)
+    sizes = [len(zones) for zones in cells.values()]
+    return {
+        "none": none,
+        "totals": totals,
+        "pooled": pooled,
+        "cells": len(cells),
+        "cell_min": min(sizes),
+        "cell_max": max(sizes),
+        "contexts": len({context for context, _ in cells}),
+        "contexts_on_gt_off": sum(1 for c in per_context.values() if c["on"] > c["off"]),
+    }
+
+
+def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
+    """Render, from the sources, the rows and phrases the manuscript must carry.
+
+    Returns ``(fragments, problems)``: each fragment is ``(what it is, the exact text)``, and the
+    problems are inconsistencies between sources that no fragment could express -- a class count
+    that the pinned golden value disagrees with, or a zone the prose says is absent turning up.
+    Nothing here is read from the manuscript; the manuscript is only searched afterwards.
+    """
+    fragments: list[tuple[str, str]] = []
+    problems: list[str] = []
+
+    derived = load_json(root / "data" / "derived" / "collapse-and-floor.json")
+    for zone in _ZONES:
+        fragments.append(
+            (
+                f"support table row, {zone}",
+                f"| `{zone}` | {derived['off_counts'][zone]} | "
+                f"`{derived['off_distribution'][zone]!r}` |",
+            )
+        )
+    fragments.append(
+        ("channel-off parsed draws", f"({derived['off_total_draws']:,} draws that parsed)")
+    )
+    for row in derived["power_sweep"]:
+        fraction = row["fraction_of_margin"]
+        rendered = "1" if fraction == 1.0 else f"1/{round(1 / fraction)}"
+        fragments.append(
+            (
+                f"sweep row, delta_tv {row['delta_tv']!r}",
+                f"| `{row['delta_tv']!r}` | {rendered} | `{row['power']!r}` | "
+                f"{'yes' if row['passes_gate'] else 'no'} |",
+            )
+        )
+
+    for line in (root / "data" / "derived" / "power-curve.md").read_text(encoding="utf-8").splitlines():
+        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+        if len(cells) != 5 or not cells[1].startswith("`["):
+            continue
+        base = cells[1].strip("`")
+        label = _BASE_LABELS.get(base)
+        if label is None:
+            problems.append(f"data/derived/power-curve.md has a base the manuscript does not name: {base}")
+            continue
+        fragments.append(
+            (
+                f"power table row, {label} at delta_tv {cells[2]}",
+                f"| {label} `{base}` | `{float(cells[2]):.2f}` | `{cells[3]}` |",
+            )
+        )
+        # §1, §4.2, §5.1.1 and §12.6 say in words that at the registered delta_tv the surrogate
+        # returns 1.0 for both bases. The rows above hold the table; this holds the sentence.
+        if float(cells[2]) == 0.1 and cells[3] != "1.0000":
+            problems.append(
+                f"the manuscript says the surrogate returns 1.0 for both bases at the registered "
+                f"delta_tv, but data/derived/power-curve.md gives {cells[3]} for the {label} base"
+            )
+
+    verdicts = {
+        name: load_json(root / "data" / "raw" / name)
+        for name in ("cproper-verdict.json", "control-verdict.json", "primary-verdict.json")
+    }
+    summaries = {rel: _annotation_summary(root / rel) for _, rel, _ in _RUN_LABELS}
+
+    completed = summaries["data/raw/bank_annotation.jsonl"]
+    none_on, none_off = completed["none"]["on"], completed["none"]["off"]
+    total = none_on + none_off
+    fragments += [
+        (
+            "completed-run None counts",
+            f"{none_off} of the {completed['totals']['off']:,} channel-off draws and {none_on} of "
+            f"the {completed['totals']['on']:,} channel-on draws",
+        ),
+        (
+            "completed-run contexts with more None under the channel",
+            f"in {completed['contexts_on_gt_off']} of the {completed['contexts']} contexts",
+        ),
+        ("completed-run None total", f"All {total} are the same thing"),
+        ("completed-run None total, all string null", f"all {total} `None` records are this string"),
+        ("completed-run None total, in §1", f"all {total} dropped draws are the string"),
+        ("completed-run None by condition, in §1", f"{none_on} against {none_off} in the completed run"),
+    ]
+    freeze = load_json(root / "analysis" / "heldout-stay" / "freeze.json")
+    pinned = freeze["positive_control"]["records_classes"]
+    if pinned != {"N_str": total}:
+        problems.append(
+            "analysis/heldout-stay/freeze.json pins the completed run's records classes as "
+            f"{pinned!r}, but the manuscript says all {total} dropped draws are the string null"
+        )
+
+    for label, rel, verdict_name in _RUN_LABELS:
+        summary = summaries[rel]
+        off_support = sum(1 for z in _ZONES if summary["pooled"]["off"][z] > 0)
+        on_support = sum(1 for z in _ZONES if summary["pooled"]["on"][z] > 0)
+        fragments.append(
+            (
+                f"support row, {label}",
+                f"| {label} | {off_support} of 5 | {on_support} of 5 | "
+                f"{summary['cell_min']}–{summary['cell_max']} | "
+                f"`{verdicts[verdict_name]['rho_hat']!r}` |",
+            )
+        )
+    primary = summaries["data/prospective/primary/run_annotation.jsonl"]
+    low, high = _word(primary["cell_min"]), _word(primary["cell_max"])
+    fragments += [
+        (
+            "primary cells, in §1",
+            f"each of its {primary['cells']} (context, condition) cells produced between {low} "
+            f"and {high} zones",
+        ),
+        (
+            "primary cells, in the results section",
+            f"every one of the primary arm's {primary['cells']} (context, condition) cells "
+            f"produces {low} or more zones, between {low} and {high}",
+        ),
+    ]
+    control_off = summaries["data/prospective/control/run_annotation.jsonl"]["pooled"]["off"]
+    absent = [zone for zone in ("agora", "chashitsu") if control_off[zone] != 0]
+    if absent:
+        problems.append(
+            f"the manuscript says the control arm's channel-off base never produces agora or "
+            f"chashitsu, but it produces {absent}"
+        )
+    fragments.append(
+        (
+            "control channel-off base",
+            f"of its {sum(control_off.values()):,} parsed channel-off draws, `garden` has "
+            f"{control_off['garden']:,}, `study` {control_off['study']:,} and `peripatos` "
+            f"{control_off['peripatos']:,}",
+        )
+    )
+
+    for label, name in _READ_LABELS:
+        verdict = verdicts[name]
+        if verdict["tv_bar"] is None:
+            what = (
+                f"`rho_hat` = {verdict['rho_hat']!r} (`effective_k` = {verdict['effective_k']} of "
+                f"{verdict['n_contexts']}); no estimate formed"
+            )
+            made = "no"
+        else:
+            what = (
+                f"`rho_hat` = {verdict['rho_hat']!r}, `power` = {verdict['power']!r}, "
+                f"`tv_bar` = {verdict['tv_bar']!r}, "
+                f"`permutation_reject` = {str(verdict['permutation_reject']).lower()}"
+            )
+            made = "yes"
+        fragments.append(
+            (f"read-across row, {label}", f"| {label} | `{verdict['verdict']}` | {what} | {made} |")
+        )
+
+    result = load_json(root / "analysis" / "heldout-stay" / "result.json")
+    arms = result["arms"]
+    for arm, label in _ARM_LABELS:
+        fragments.append(
+            (
+                f"held-out count row, {arm}",
+                f"| {label} | {arms[arm]['none']['on']} | {arms[arm]['none']['off']} | "
+                f"{arms[arm]['test']['p_upper']} |",
+            )
+        )
+    for key, label in _CLASS_LABELS:
+        counts = [arms[arm]["classes"][key][condition] for arm in ("control", "primary") for condition in ("on", "off")]  # fmt: skip
+        fragments.append(
+            (f"held-out class row, {key}", f"| {label} | " + " | ".join(map(str, counts)) + " |")
+        )
+    c_none, p_none = arms["control"]["none"], arms["primary"]["none"]
+    primary_f = arms["primary"]["classes"]["F"]
+    empty = sum(
+        arms[arm]["classes"][key][condition]
+        for arm in ("control", "primary")
+        for key in ("N_json", "K")
+        for condition in ("on", "off")
+    )
+    dropped = sum(arms[arm]["none"][condition] for arm in ("control", "primary") for condition in ("on", "off"))  # fmt: skip
+    fragments += [
+        (
+            "held-out counts, in the abstract",
+            f"({c_none['on']} against {c_none['off']}; {p_none['on']} against {p_none['off']})",
+        ),
+        (
+            "held-out counts, in §1",
+            f"{c_none['on']} against {c_none['off']} in the control arm and {p_none['on']} against "
+            f"{p_none['off']} in the primary arm",
+        ),
+        (
+            "held-out excess of malformed JSON",
+            f"{primary_f['on'] - primary_f['off']} of the primary arm's "
+            f"{p_none['on'] - p_none['off']}-draw excess",
+        ),
+        (
+            "held-out explicit-null p-values",
+            f"*p* = {arms['control']['explicit_null_test']['p_upper']}, and not for the primary "
+            f"arm, where it gives *p* = {arms['primary']['explicit_null_test']['p_upper']}",
+        ),
+        (
+            "held-out six-category distance",
+            f"is {arms['control']['tv6']['observed']} (permutation *p* = "
+            f"{arms['control']['tv6']['p_value']}) in the control arm and "
+            f"{arms['primary']['tv6']['observed']} (*p* = {arms['primary']['tv6']['p_value']}) "
+            "in the primary arm",
+        ),
+        (
+            "held-out freeze commit, in §1.4",
+            f"Specification frozen at commit `{result['freeze_commit'][:7]}`, before the "
+            "condition-wise counts",
+        ),
+        (
+            "held-out freeze commit, in the results section",
+            f"interpretation table were frozen at commit `{result['freeze_commit'][:7]}`",
+        ),
+        ("held-out row", f"row {result['row']['id']} of the frozen interpretation table"),
+        ("held-out row, in §1", f"(row {result['row']['id']} of the held-out test's frozen interpretation table"),
+        ("held-out row, in §1.4", f"Row {result['row']['id']} of its frozen table"),
+        ("held-out level", f"at level {result['alpha']}"),
+        ("held-out level, in §1.4", f"control first, α = {result['alpha']}"),
+        (
+            "empty destinations among the prospective None, in §1",
+            f"for all but {_word(empty)} of the draws dropped in the prospective arms",
+        ),
+        (
+            "empty destinations among the prospective None, before §8",
+            f"all but {_word(empty)} of the {dropped}",
+        ),
+    ]
+    # Readings the prose states in words rather than numbers: both arms rejected, and the
+    # explicit-null qualifier holds for the control arm only.
+    confirmatory = result["confirmatory"]
+    if not (confirmatory["control_rejected"] and confirmatory["primary_rejected"]):
+        problems.append(f"the manuscript says both arms rejected, but result.json records {confirmatory!r}")
+    modifiers = result["modifiers"]
+    if (modifiers["control"]["explicit_null"], modifiers["primary"]["explicit_null"]) != (True, False):
+        problems.append(
+            "the manuscript says the explicit-null qualifier holds for the control arm and not for "
+            f"the primary arm, but result.json records {modifiers!r}"
+        )
+    return fragments, problems
+
+
+def check_rendered_fragments(repo_root: Path) -> list[str]:
+    """Require every rendered row and phrase to occur in the manuscript exactly once.
+
+    For quantities whose literals are too common for an occurrence test -- ``2``, ``8``, ``1.0`` --
+    the unit checked is the table row or the phrase that carries them, rendered from the source.
+    **Exactly once**, not merely at least once: the occurrence test used for the other quantities
+    does not protect a value quoted twice against one of its copies being altered, and an
+    observation run on this check found exactly that for a phrase quoted in two sections. A
+    rendered phrase is specific enough to be unique, so uniqueness can be required here.
+    """
+    missing = [rel for rel in RENDER_SOURCES if not (repo_root / rel).is_file()]
+    if missing:
+        return [f"the rendered comparison has no source at {missing}"]
+    fragments, problems = rendered_fragments(repo_root)
+    text = " ".join((repo_root / "manuscript" / "main.md").read_text(encoding="utf-8").split())
+    for what, fragment in fragments:
+        count = text.count(" ".join(fragment.split()))
+        if count == 0:
+            problems.append(f"{what}: main.md does not carry {fragment!r}")
+        elif count > 1:
+            problems.append(
+                f"{what}: main.md carries {fragment!r} {count} times. A phrase quoted more than "
+                "once is not protected against one of its copies being altered; render each "
+                "occurrence as its own fragment"
+            )
+    if not problems:
+        print(
+            f"[numbers] OK rendered              = {len(fragments)} rows and phrases rendered from "
+            "the annotations, the verdicts, the derived artefacts and the held-out result each "
+            "occur in main.md exactly once"
+        )
+    return problems
+
+
+def _rewrite_json(path: Path, edit: Callable[[Any], Any]) -> None:
+    payload = load_json(path)
+    before = json.dumps(payload, sort_keys=True)
+    edit(payload)
+    if json.dumps(payload, sort_keys=True) == before:
+        raise _NoOpMutation(f"the edit to {path.name} changed nothing")
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _rewrite_first_row(path: Path, matches: Callable[[dict[str, Any]], bool], zone: str) -> None:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for index, line in enumerate(lines):
+        row = json.loads(line)
+        if matches(row):
+            row["pre_bias_destination_zone"] = zone
+            lines[index] = json.dumps(row)
+            path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            return
+    raise _NoOpMutation(f"no row of {path.name} matches the mutation")
+
+
+def _set(path: tuple[Any, ...], value: Any) -> Callable[[Any], None]:
+    def edit(payload: Any) -> None:
+        node = payload
+        for key in path[:-1]:
+            node = node[key]
+        node[path[-1]] = value
+
+    return edit
+
+
+def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
+    """Alter one source at a time, on copies, and require the rendered comparison to notice.
+
+    Each case names the diagnostic it must produce, so a case that fails for another reason is not
+    counted as caught, and the unaltered copy is carried as a control. The sources are copies of
+    the real files, not invented ones: a fixture built from this module's own constants could only
+    confirm that the constants were applied.
+    """
+    if not all((repo_root / rel).is_file() for rel in RENDER_SOURCES):
+        print("[numbers] -- a source of the rendered comparison is absent, so its self-check has nothing to alter")  # fmt: skip
+        return []
+
+    def off_none(row: dict[str, Any]) -> bool:
+        return row["condition"] == "off" and row["pre_bias_destination_zone"] is None
+
+    def off_zone(zone: str) -> Callable[[dict[str, Any]], bool]:
+        return lambda row: row["condition"] == "off" and row["pre_bias_destination_zone"] == zone
+
+    result = "analysis/heldout-stay/result.json"
+    cases: tuple[tuple[str, Callable[[Path], None] | None, str | None], ...] = (
+        ("C1 the sources unaltered", None, None),
+        (
+            "M1 a held-out count moves",
+            lambda root: _rewrite_json(root / result, _set(("arms", "control", "none", "on"), 157)),
+            "held-out count row, control",
+        ),
+        (
+            "M2 a held-out class count moves",
+            lambda root: _rewrite_json(root / result, _set(("arms", "primary", "classes", "F", "on"), 97)),
+            "held-out class row, F",
+        ),
+        (
+            "M3 a held-out p-value moves",
+            lambda root: _rewrite_json(root / result, _set(("arms", "control", "test", "p_upper"), "3.415047e-05")),
+            "held-out count row, control",
+        ),
+        (
+            "M4 one more empty destination among the prospective None",
+            lambda root: _rewrite_json(root / result, _set(("arms", "primary", "classes", "K", "off"), 1)),
+            "empty destinations among the prospective None",
+        ),
+        (
+            "M5 the completed run loses a None draw",
+            lambda root: _rewrite_first_row(root / "data/raw/bank_annotation.jsonl", off_none, "study"),
+            "completed-run None counts",
+        ),
+        (
+            "M6 the primary arm's channel-off base gains a zone",
+            lambda root: _rewrite_first_row(
+                root / "data/prospective/primary/run_annotation.jsonl", off_zone("study"), "peripatos"
+            ),
+            "support row, primary arm",
+        ),
+        (
+            "M7 a row of the power table moves",
+            lambda root: (root / "data/derived/power-curve.md").write_text(
+                (root / "data/derived/power-curve.md").read_text(encoding="utf-8").replace("0.9533", "0.9534"),
+                encoding="utf-8",
+            ),
+            "power table row, degenerate at delta_tv 0.01",
+        ),
+        (
+            "M8 a row of the sweep moves",
+            lambda root: _rewrite_json(
+                root / "data/derived/collapse-and-floor.json", _set(("power_sweep", 5, "power"), 0.92)
+            ),
+            "sweep row, delta_tv 0.001",
+        ),
+        (
+            "M9 the control arm stops producing an estimate",
+            lambda root: _rewrite_json(root / "data/raw/control-verdict.json", _set(("tv_bar",), None)),
+            "read-across row, control arm",
+        ),
+        (
+            "M10 the pinned classes of the completed run move",
+            lambda root: _rewrite_json(
+                root / "analysis/heldout-stay/freeze.json",
+                _set(("positive_control", "records_classes", "N_str"), 329),
+            ),
+            "freeze.json pins the completed run's records classes",
+        ),
+        (
+            "M11 the control arm's channel-off base moves",
+            lambda root: _rewrite_first_row(
+                root / "data/prospective/control/run_annotation.jsonl", off_zone("garden"), "study"
+            ),
+            "control channel-off base",
+        ),
+        (
+            "M13 the surrogate stops returning 1.0 at the registered delta_tv",
+            lambda root: (root / "data/derived/power-curve.md").write_text(
+                (root / "data/derived/power-curve.md").read_text(encoding="utf-8").replace(
+                    "| 0.1 | 1.0000 |", "| 0.1 | 0.9990 |", 1
+                ),
+                encoding="utf-8",
+            ),
+            "returns 1.0 for both bases at the registered delta_tv",
+        ),
+        (
+            "M12 a rendered row is quoted a second time",
+            lambda root: (root / "manuscript/main.md").write_text(
+                (root / "manuscript/main.md").read_text(encoding="utf-8")
+                + "\n| control (`qwen3:8b`) | 156 | 94 | 3.415046e-05 |\n",
+                encoding="utf-8",
+            ),
+            "held-out count row, control: main.md carries",
+        ),
+    )  # fmt: skip
+
+    problems: list[str] = []
+    with contextlib.redirect_stdout(io.StringIO()):
+        for label, mutate, expect in cases:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp) / "repo"
+                for rel in RENDER_SOURCES:
+                    (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(repo_root / rel, root / rel)
+                if mutate is not None:
+                    try:
+                        mutate(root)
+                    except _NoOpMutation as exc:
+                        problems.append(f"self-check {label}: {exc}")
+                        continue
+                reported = check_rendered_fragments(root)
+            joined = " | ".join(reported)
+            if expect is None:
+                if reported:
+                    problems.append(f"self-check {label}: expected to report nothing, got {reported!r}")
+            elif not reported:
+                problems.append(f"self-check {label}: expected to report a problem, got none")
+            elif expect not in joined:
+                problems.append(
+                    f"self-check {label}: fired, but not for the expected reason "
+                    f"(wanted text containing {expect!r}, got {joined!r})"
+                )
+    if not problems:
+        mutations = sum(1 for case in cases if case[2] is not None)
+        print(
+            f"[numbers] OK self-check: {mutations} mutations caught, {len(cases) - mutations} "
+            "control clean (the rendered rows and phrases cannot drift from their sources "
+            "without this step saying so)"
+        )
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -1176,6 +1727,7 @@ def main(argv: list[str] | None = None) -> int:
     # before it reports on anything else.
     problems: list[str] = check_branch_guards_fire()
     problems.extend(check_third_finding_guards_fire(repo_root))
+    problems.extend(check_rendered_fragments_fire(repo_root))
     covered_in_readme = 0
 
     for label, filename, keys, how in REQUIRED:
@@ -1282,6 +1834,7 @@ def main(argv: list[str] | None = None) -> int:
     problems.extend(check_record_template(repo_root))
     problems.extend(check_reported_branch(repo_root))
     problems.extend(check_third_finding_support(repo_root))
+    problems.extend(check_rendered_fragments(repo_root))
 
     if problems:
         print("[numbers] FAIL", file=sys.stderr)

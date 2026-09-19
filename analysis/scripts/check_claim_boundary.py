@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
 """Enforce the claim guards of ``manuscript/CLAIM-BOUNDARY.md`` against the published text.
 
-Three properties keep this check from passing vacuously. Being green and having been checked are
-different facts, and each property below was confirmed by breaking it deliberately and watching the
-run fail.
+Four properties keep this check from passing vacuously, or from being unsatisfiable. Being green and
+having been checked are different facts, and each property below was confirmed by breaking it
+deliberately and watching the run fail.
 
 1. **The patterns come from ``manuscript/CLAIM-BOUNDARY.md``, never from the text being checked.**
    A document carrying its own forbidden-phrase list and confirming it does not match itself would
    be checking nothing.
-2. **Exactly fifteen guards, in order, must parse.** A parser that silently yields nothing reports
-   "no hits" against any document whatsoever, so the count and the identifiers are pinned.
+2. **Exactly twenty-eight guards, in order, must parse.** A parser that silently yields nothing
+   reports "no hits" against any document whatsoever, so the count and the identifiers are pinned.
 3. **A positive control accompanies the "zero hits is correct" check.**
    ``manuscript/_claim_boundary_positive_control.md`` trips every pattern on purpose, and the run
    fails unless **every individual pattern** fires against it. Per-guard would be too weak: a guard
    with two patterns would still pass with one of them broken, which is a case that was observed.
+4. **A negative control keeps the patterns off sentences that must stay sayable.**
+   ``manuscript/_claim_boundary_negative_control.md`` lists, by hand, sentences the seal fixes and
+   sentences a correct account of the study needs, and the run fails if **any** pattern matches any
+   of them, or if the list does not hold exactly the pinned number of items. The manuscript is
+   scanned whole, including the block generated from the sealed rules, so a pattern that matched a
+   sealed sentence could never be satisfied; the first version of one guard did exactly that. The
+   list is never taken from the manuscript, for the reason property 1 gives.
 
 A further hole is closed by requiring the manuscript to be non-vacuous — an empty or skeletal
 manuscript would otherwise sail through on "no hits" — and by requiring its abstract to match the
@@ -32,8 +39,9 @@ a mislabelled value in the README on 2026-09-12. But an overreach written in Jap
 pass. Adding a Japanese pattern set is outstanding work, and "the README was checked" should be read
 with that qualification.
 
-``CLAIM-BOUNDARY.md`` itself and the positive-control fixture are excluded: the first defines the
-patterns, including illustrative examples of them, and the second exists to trip them.
+``CLAIM-BOUNDARY.md`` itself and the two fixtures are excluded from the scan of published files:
+the first defines the patterns, including illustrative examples of them, the positive control exists
+to trip them, and the negative control is checked the other way round, as above.
 
 Usage:  python analysis/scripts/check_claim_boundary.py
 """
@@ -41,8 +49,11 @@ Usage:  python analysis/scripts/check_claim_boundary.py
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import re
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -56,7 +67,14 @@ CELL_SPLIT_RE = re.compile(r"(?<!\\)\|")
 BACKTICKED_RE = re.compile(r"`([^`]+)`")
 
 #: The guards the source file must carry. Both the count and the order are pinned.
-EXPECTED_GUARD_IDS: tuple[str, ...] = tuple(f"G{i}" for i in range(1, 16))
+EXPECTED_GUARD_IDS: tuple[str, ...] = tuple(f"G{i}" for i in range(1, 29))
+
+#: Items the negative-control fixture must hold. Pinned for the same reason the guard count is: a
+#: list that quietly lost its sealed sentences would still report "no pattern matched".
+EXPECTED_NEGATIVE_ITEMS = 23
+
+#: One item of the negative-control fixture per line, each beginning with a dash.
+NEGATIVE_ITEM_RE = re.compile(r"^- ", re.MULTILINE)
 
 #: Preconditions for the manuscript being non-vacuous. Failing these means it is unfinished.
 #: ``Level 6`` used to head this list and is deliberately gone. The level declaration belonged to
@@ -98,7 +116,7 @@ class Hit:
 
 
 def parse_guards(boundary_path: Path) -> tuple[Guard, ...]:
-    """Read G1-G13 and their patterns out of the table in CLAIM-BOUNDARY.md.
+    """Read G1-G28 and their patterns out of the table in CLAIM-BOUNDARY.md.
 
     Raises:
         SystemExit: if the guard count, identifiers or pattern count differ from what is expected.
@@ -299,6 +317,84 @@ def check_positive_control(guards: tuple[Guard, ...], fixture_path: Path) -> lis
     return []
 
 
+def check_negative_control(
+    guards: tuple[Guard, ...], fixture_path: Path, expected_items: int = EXPECTED_NEGATIVE_ITEMS
+) -> list[str]:
+    """Require **no** pattern to match the negative control, and its items to be all there.
+
+    The positive control shows that each pattern can fire. This shows the opposite property, which
+    the positive control cannot: that no pattern fires on a sentence the manuscript has to be able
+    to say. A pattern broad enough to catch a sealed sentence would make the manuscript impossible
+    to pass without editing the seal, and a pattern broad enough to catch a correct limitation
+    would push the prose towards saying less than it should.
+    """
+    raw = fixture_path.read_text(encoding="utf-8")
+    problems: list[str] = []
+    items = len(NEGATIVE_ITEM_RE.findall(raw))
+    if items != expected_items:
+        problems.append(
+            f"{fixture_path.name}: holds {items} items, but {expected_items} are expected. An item "
+            "that drops out of this list stops holding its pattern away from a sentence the "
+            "manuscript needs"
+        )
+    text = normalise_whitespace(raw)
+    for guard in guards:
+        for pattern in guard.patterns:
+            match = pattern.search(text)
+            if match is not None:
+                start, end = match.span()
+                problems.append(
+                    f"{fixture_path.name}: {guard.guard_id} pattern={pattern.pattern!r} matches a "
+                    f"sentence that must stay sayable: …{text[max(0, start - 60) : end + 60]}…"
+                )
+    if not problems:
+        total = sum(len(guard.patterns) for guard in guards)
+        print(
+            f"[claim-boundary] OK: none of the {total} patterns matches the {items} sentences of "
+            "the negative control"
+        )
+    return problems
+
+
+def check_negative_control_fires(fixture_path: Path) -> list[str]:
+    """Break the negative-control check twice and require it to notice both times.
+
+    A check whose only observed outcome is "nothing matched" has not been shown to be able to say
+    anything else. Two cases, each with the diagnostic it must produce: a pattern that is too broad
+    (it matches the sentence about the permutation test's power, which the manuscript must carry),
+    and a fixture from which one item has been removed. Output from the cases is swallowed, so that
+    a case's OK line is never read as a statement about the real fixture.
+    """
+    too_broad = (Guard("G0", (re.compile(r"power of the permutation test", re.IGNORECASE),)),)
+    problems: list[str] = []
+    with contextlib.redirect_stdout(io.StringIO()):
+        broad = check_negative_control(too_broad, fixture_path)
+        with tempfile.TemporaryDirectory() as tmp:
+            lines = fixture_path.read_text(encoding="utf-8").splitlines(keepends=True)
+            first_item = next(i for i, line in enumerate(lines) if line.startswith("- "))
+            shortened = Path(tmp) / fixture_path.name
+            shortened.write_text(
+                "".join(lines[:first_item] + lines[first_item + 1 :]), encoding="utf-8"
+            )
+            dropped = check_negative_control((), shortened)
+    for label, reported, expect in (
+        ("an over-broad pattern", broad, "must stay sayable"),
+        ("a dropped item", dropped, f"holds {EXPECTED_NEGATIVE_ITEMS - 1} items"),
+    ):
+        joined = " | ".join(reported)
+        if expect not in joined:
+            problems.append(
+                f"self-check, {label}: the negative-control check did not report it for the "
+                f"expected reason (wanted text containing {expect!r}, got {joined!r})"
+            )
+    if not problems:
+        print(
+            "[claim-boundary] OK self-check: an over-broad pattern and a dropped item are both "
+            "reported by the negative-control check"
+        )
+    return problems
+
+
 def _die(message: str) -> None:
     print(f"[claim-boundary] FAIL: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -330,6 +426,7 @@ def main(argv: list[str] | None = None) -> int:
     boundary_path = repo_root / "manuscript" / "CLAIM-BOUNDARY.md"
     main_path = repo_root / "manuscript" / "main.md"
     fixture_path = repo_root / "manuscript" / "_claim_boundary_positive_control.md"
+    negative_path = repo_root / "manuscript" / "_claim_boundary_negative_control.md"
     citation_path = repo_root / "CITATION.cff"
     extra_targets: list[Path] = [p.resolve() for p in args.extra_target]
     targets = (
@@ -340,7 +437,7 @@ def main(argv: list[str] | None = None) -> int:
         *extra_targets,
     )
 
-    for path in (boundary_path, main_path, fixture_path, *targets):
+    for path in (boundary_path, main_path, fixture_path, negative_path, *targets):
         if not path.is_file():
             _die(f"a required file is missing: {path}")
 
@@ -351,6 +448,8 @@ def main(argv: list[str] | None = None) -> int:
     problems.extend(check_manuscript_not_vacuous(main_path))
     problems.extend(check_abstract_consistency(main_path, citation_path))
     problems.extend(check_positive_control(guards, fixture_path))
+    problems.extend(check_negative_control_fires(negative_path))
+    problems.extend(check_negative_control(guards, negative_path))
 
     hits: list[Hit] = []
     for path in targets:
