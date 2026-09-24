@@ -100,12 +100,14 @@ We show that both guards can stop working at once, and in the same direction. Co
 spaces defeat the usual null reporting, since a collapse like this defeats margin-and-power
 reporting, and the margin-and-power pairing fails whenever it happens. That joint failure is the
 paper. The empty cell is what produces `power = 1.0` in the record.
+When the channel-off base collapses, the margin comparison and R3 become uninformative together.
 決定空間が崩落すると二重の破綻が起き、margin と power が同時に同じ向きに壊れる。
 
 ## G17 — the floor
 
 The estimand has a null floor of 0.027813, and roughly three-quarters of the estimate is noise. As
 the base concentrates the floor rises, and most of the observed value is the floor.
+Most of the observed `tv_bar` is baseline null distance.
 距離統計量の帰無床が margin を食う。
 
 ## G18 — empirical zeros read as structural
@@ -121,7 +123,8 @@ demonstrates that the estimand is not measurable anywhere.
 ## G20 — the surrogate as the design's power
 
 The design was adequately powered. The power of the permutation test was 1.0 in the completed run,
-so the study had full power.
+so the study had full power. The protocol had enough sensitivity to detect the registered shift in
+the decision test.
 
 ## G21 — generalising the family
 
@@ -136,7 +139,7 @@ strengthens. エージェントは留まることを選んだ。
 ## G23 — attributing the None difference
 
 The channel increases null outputs, the extra None draws are driven by the higher temperature, and
-the whole difference is due to the channel.
+the whole difference is due to the channel. The channel-on setting led to more malformed outputs.
 
 ## G24 — promoting the held-out test
 
