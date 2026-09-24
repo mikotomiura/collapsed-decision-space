@@ -4,12 +4,14 @@
 Calls ``categorical_multinomial_power`` from the vendored apparatus (which needs
 ``PYTHONPATH=analysis/apparatus``) with the same inputs as the upstream power worksheet.
 
-**A point of wording that matters, and is repeated in the output header.** What reduces power is
-**not a collapsed base distribution**. The third case below -- a degenerate base with a
-collapse-scale shift -- still reaches a power of roughly 0.95. What reduces power is a **small
-attainable delta_tv**. Whether the base distribution is near-uniform or degenerate, ample delta_tv
-gives high power; saying "a collapsed distribution loses power" has it backwards, since a degenerate
-base in fact responds more sharply to the same delta_tv.
+**A point of wording that matters, and is repeated in the output header.** Everything below is the
+power of the pooled one-sample chi-square goodness-of-fit **surrogate** that the attained-power gate
+(R3) computes, not the power of the stratified permutation test the decision turns on; the latter is
+evaluated nowhere. For this surrogate, what lowers the computed power is **not a concentrated base
+distribution**. The third case below -- a degenerate base with a collapse-scale shift -- still
+reaches a power of roughly 0.95. What lowers it is a **small attainable delta_tv**. Whether the base
+is near-uniform or degenerate, ample delta_tv gives high surrogate power, and at the registered
+delta_tv of 0.10 both bases checked here give 1.0, so a pass of the gate does not tell them apart.
 
 Self-verification: the run fails if any of the four powers falls outside its expected band
 (>=0.99 / 0.10-0.30 / >=0.85 / >=0.99). Because all four are deterministic under a fixed seed and a
@@ -35,9 +37,10 @@ from erre_sandbox.integration.embodied.bank_power import (
 )
 
 HEADER_NOTE = (
-    "# What reduces power is a small attainable delta_tv,\n"
-    "# not a collapsed base distribution\n"
-    "# (see case 3: a degenerate base with delta_tv=0.01, one tenth of the\n"
+    "# Power of the pooled chi-square surrogate the R3 gate computes, not of the\n"
+    "# permutation test the decision turns on. For this surrogate, what lowers\n"
+    "# the computed power is a small attainable delta_tv, not a concentrated base\n"
+    "# (case 3: a degenerate base with delta_tv=0.01, one tenth of the\n"
     "#  pre-registered 0.10, still reaches high power)\n"
 )
 

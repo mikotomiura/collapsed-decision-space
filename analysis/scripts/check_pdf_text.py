@@ -63,7 +63,7 @@ from check_manuscript_numbers import REQUIRED, literal_of  # noqa: E402
 #: sections that had been removed, which would have failed the build for the right reason but the
 #: wrong cause; keeping it in step with ``main.md`` is part of editing ``main.md``.
 REQUIRED_PHRASES: tuple[str, ...] = (
-    "When the power gate cannot fail",
+    "Three gates, three proxies",
     "Mikoto Miura",
     "0009-0000-4196-0508",
     "Decision rules",
@@ -85,6 +85,16 @@ WIDEST_TABLE_COLUMNS: tuple[str, ...] = (
     "Role",
     "Realised outcome known at seal time?",
     "Reported after the run",
+)
+
+#: The column headers of the analysis map of section 1.4, the widest table the revision added. Its
+#: right-hand columns say when each layer was fixed and what it licenses, which is the part a page
+#: that dropped them would lose without looking incomplete.
+ANALYSIS_MAP_COLUMNS: tuple[str, ...] = (
+    "Layer",
+    "Computes, on which data",
+    "Fixed when",
+    "Licenses",
 )
 
 #: Characters the body depends on that a text font may not carry. Each is load-bearing: the
@@ -164,6 +174,13 @@ def main(argv: list[str] | None = None) -> int:
                 "(the table may have been set too wide and lost its right-hand columns)"
             )
 
+    for column in ANALYSIS_MAP_COLUMNS:
+        if normalise(column) not in flat:
+            problems.append(
+                f"a column header of the section 1.4 analysis map is absent: {column!r} "
+                "(the table may have been set too wide and lost its right-hand columns)"
+            )
+
     for glyph, name in REQUIRED_GLYPHS:
         if glyph not in raw:
             problems.append(
@@ -195,7 +212,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"[pdf-text] OK: {len(REQUIRED_PHRASES)} required phrases, "
-        f"all {len(WIDEST_TABLE_COLUMNS)} column headers of the widest table, "
+        f"all {len(WIDEST_TABLE_COLUMNS)} column headers of the section 9 table and "
+        f"{len(ANALYSIS_MAP_COLUMNS)} of the section 1.4 analysis map, "
         f"{len(REQUIRED_GLYPHS)} glyphs at risk of silent loss, and "
         f"{len(REQUIRED)} quantities read from the frozen inputs are present in the PDF "
         f"({len(flat)} characters of text)"

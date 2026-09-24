@@ -1,16 +1,18 @@
-# When the power gate cannot fail
+# Three gates, three proxies
 
-*Collapsed decision spaces defeat margin-and-power null reporting in LLM agents*
+*An instrument autopsy of a sealed LLM-agent evaluation*
 
 [![repro](https://github.com/mikotomiura/collapsed-decision-space/actions/workflows/repro.yml/badge.svg)](https://github.com/mikotomiura/collapsed-decision-space/actions/workflows/repro.yml)
 
-This repository is the research compendium for a **pre-registered protocol with a completed
-preliminary measurement reported in full** (`manuscript/main.md`). It holds the protocol, the
-frozen evidence the protocol builds on, the measurement apparatus, and a single command that
+This repository is the research compendium for **a sealed, pre-registered evaluation and an
+autopsy of the gates that decided what its outcome is worth** (`manuscript/main.md`). It holds the
+protocol, the frozen evidence the protocol builds on, the measurement apparatus, the per-draw data of
+the two prospective arms, a held-out test of one post hoc observation, and a single command that
 re-derives the completed run's verdict from its shipped draws and checks the quantities the
-protocol quotes against their sources. What that command does **not** reach is set out in §12.8 of
-the manuscript: the prospective verdicts are read as inputs rather than recomputed, because their
-draw bundles are not shipped here.
+manuscript quotes against their sources. What that command does **not** reach is set out in §12.8
+of the manuscript: the two prospective verdicts enter it as inputs, and the version of the
+compendium described here does not recompute them from the arms' per-draw annotations, although
+those annotations are shipped in `data/prospective/`.
 
 **At the time of sealing, no prospective data had been collected.** The decision rules that read
 the prospective arms are sealed before the arms are run: `seal/` holds them in machine-readable form and
@@ -18,10 +20,12 @@ the prospective arms are sealed before the arms are run: `seal/` holds them in m
 from the rules as they stood beforehand. Steps 12 and 13 of `repro.sh` are what check that, and
 they need no network, no account and no trust in the author.
 
-**Both arms have since been run**, once each, and the sealed rules reach branch **R4 (apparatus
-validity)**: in the primary model family the substrate does not license two or more zones, so the
-estimand is not measurable there. That is not read as a null result, and the claim narrows to
-single-model scope. The results section of `manuscript/main.md` reports it and
+**Each arm has since produced one complete run**, and the sealed rules reach branch **R4
+(apparatus validity)**: no context of the primary model family reaches the sealed per-context
+entropy floor, so the estimand is not measured there. That is not read as a null result, and the
+claim narrows to single-model scope. The control arm's first capture attempt was stopped from
+outside before it produced a verdict and was restarted from the beginning; §12.8 of the manuscript
+says where that is recorded. The results section of `manuscript/main.md` reports the branch and
 `manuscript/REPORTED-BRANCH.md` records the derivation; step 13 re-derives the branch from the
 sealed rules on every run.
 
@@ -42,25 +46,30 @@ That wiring is real: a completed forensic study shows the channel is causal, is 
 static location channel, and disappears without residue under ablation, while a positive control
 shows that the same estimator is able to return zero.
 
-The open question is whether the channel *propagates*. A completed measurement on one model found
-no shift in the agent's five-way zone decision exceeding a materiality margin declared in advance,
-while the power gate reported full nominal power — and looking at the support of that read-out
-afterwards showed why neither number was carrying information. Two of the five zones are never
-produced in the channel-off condition the power calculation uses as its base; the chi-square power
-gate is inflated by the empty cell, and the null floor of the distance statistic eats most of the
-declared margin. **That joint failure is the paper.** The
-protocol then estimates the same quantity in a second model family, with a control arm that re-runs
-the original model, to find out whether the failure mode belongs to the model or to the apparatus.
+The sealed evaluation asked whether the channel *propagates* into the agent's five-way zone
+decision. What this compendium establishes is about the instrument rather than the channel. **Each
+of the three gates that decide what a null report is worth ran as written, and each read a quantity
+other than the one the reading of its result depends on:**
 
-Both arms have since been run, and the rules stop at R4: the estimand is not measurable in the
-second family, so **that question is not answered by this run**. What the run does show is that
-clearing a per-context entropy floor everywhere does not certify the support the power calculation
-needs — the completed run and the control arm clear it everywhere — and that at the thresholds
-fixed in advance, a measurability gate of this shape does not flag that case, though it did fire on
-the second family. Of the two runs that produced an estimate, both of them `qwen3:8b`, neither
-returned one its own permutation test rejected.
+- the attained-power gate (R3) computes the power of a pooled chi-square surrogate, not of the
+  permutation test the decision turns on. At the registered effect size the surrogate returns 1.0 for
+  a near-uniform and a degenerate base alike, and against the completed run's channel-off base,
+  where two of the five zones never occur, it clears 0.8 at one hundredth of the margin;
+- the entropy floor (R4) reads per-context entropy, not the support of that base. The completed run
+  and the control arm clear it everywhere while their channel-off draws never produce two of the five
+  zones, and the second model fails it although each of its cells produces two or more;
+- the cap on dropped draws (R4) reads the largest per-cell rate, not how the rate differs between the
+  conditions. All three runs pass it, while a held-out test found more dropped draws in the
+  channel-on blocks of both prospective arms -- mostly an explicit `"null"` in one arm and mostly
+  missing or malformed JSON in the other, and confounded with the fixed on-then-off block order.
 
-**The subject of every claim here is the channel.** It is not walking, and it is not creativity.
+The prospective arms and the held-out test did not resolve this; they exposed it. The claim does not
+depend on the value of the 0.10 margin, says nothing about the channel's effect, and is confined to
+two models and eight frozen contexts. An earlier version of the manuscript drew a different
+conclusion from the completed run; §5.1.1 of the manuscript says why that reading is withdrawn.
+
+**Wherever this work speaks of an effect, its subject is the channel.** It is not walking, and it
+is not creativity.
 
 ## What may and may not be claimed
 
@@ -70,19 +79,25 @@ The full guard list, with the search patterns used to enforce it, is in
 **Supported by the evidence**
 
 - the channel is wired non-degenerately, including that the positive control is able to read zero
-- the channel's downstream effect was not detected under a margin fixed before the data existed
-- the margin-and-power pairing fails in both directions at once when the decision space collapses —
-  demonstrated on this apparatus and recomputed on every run, **not** surveyed for how often it
-  occurs elsewhere
-- concentration of the base distribution is not itself what reduces detection power
+- each of the three gates ran as written and read a proxy, as listed above — shown on this apparatus
+  and recomputed on every run, **not** surveyed for how often it happens elsewhere
+- for the chi-square surrogate the power gate computes, concentration of the base distribution is not
+  itself what lowers the computed power; the power of the permutation test is evaluated nowhere
+- the channel's downstream effect was not detected under a margin fixed before the data existed, in
+  the two runs that produced an estimate
 - effect-absent, low-power and apparatus-invalid are kept apart as three distinct outcomes
 - clearing a per-context entropy floor everywhere **does not certify** the support the power
   calculation depends on — it is compatible with a base distribution missing two of five zones.
   What follows for the gate is threshold-bound: at the values fixed in advance R4 does not flag
   that case, but the same rule at a higher floor would
-- the envelope is bounded: one apparatus, one sampling regime, eight frozen contexts
+- in a held-out test, recorded `None` was more frequent in the channel-on blocks of both prospective
+  runs — stated only with its qualifiers: the explicit-null qualifier holds for the control arm and
+  not for the primary arm, what was recorded as `None` differs between the arms, the difference is
+  confounded with execution order, and the test is not a formal pre-registration
+- the envelope is bounded: one apparatus, one sampling regime, two model families, eight frozen
+  contexts
 
-**Out of reach of this design** (three of thirteen guards, quoted for orientation)
+**Out of reach of this design** (three of twenty-eight guards, quoted for orientation)
 
 - any statement about human ambulation, or about creative production
 - any general statement about whether embodiment matters
@@ -91,7 +106,7 @@ The full guard list, with the search patterns used to enforce it, is in
 
 `analysis/scripts/check_claim_boundary.py` enforces the full list against the manuscript, this
 README and the citation metadata on every run, and fails if a guard pattern stops firing against
-its fixture.
+its fixture, or starts matching one of the sentences its negative control lists as sayable.
 
 ## What is in here
 
@@ -101,7 +116,9 @@ its fixture.
 | `manuscript/CLAIM-BOUNDARY.md` | The claim guards and their search patterns |
 | `manuscript/REPORTED-BRANCH.md` | How the reported decision branch is written, and what checking it establishes |
 | `seal/` | The sealed decision rules, arm specification and protocol text, with their manifest |
-| `data/raw/` | Frozen evidence from the completed studies, each pinned by SHA-256 and size; also where the prospective arms land, once they have run |
+| `data/raw/` | Frozen evidence from the completed studies, each pinned by SHA-256 and size, and the two landed prospective verdicts |
+| `data/prospective/` | The per-draw annotations, raw records and run manifests of the two prospective arms |
+| `analysis/heldout-stay/` | The held-out test of one post hoc observation: its specification, freeze record, result and witness |
 | `data/data.md` | Provenance of every frozen input, and how it is verified |
 | `analysis/apparatus/` | The measurement apparatus, 69 modules, byte-identical to the upstream source |
 | `analysis/scripts/` | Verification and extraction scripts |
@@ -126,7 +143,8 @@ installation. The script runs fourteen steps and exits non-zero if any of them f
 5. **recompute the completed run's verdict** from the shipped per-draw annotation
 6. extract the quantities the protocol quotes
 7. regenerate the power table
-8. derive the support of the decision space and the null floor of the estimand
+8. derive the support of the decision space and the permutation-null mean of the estimate (the
+   sealed script labels this step in an earlier vocabulary; §13 of the manuscript says which)
 9. compare the numbers quoted in the protocol and in this README against the frozen inputs,
    character for character
 10. run the claim-boundary check together with its positive control
@@ -161,7 +179,9 @@ installation. The script runs fourteen steps and exits non-zero if any of them f
     when these files were written, and not that no run preceded them
 
 Both legs of the public CI run exactly this, on Ubuntu and on Windows, and a third job requires the
-generated artefacts to be byte-identical across the two.
+generated artefacts to be byte-identical across the two. The fourteen steps include no test suite
+and no `pytest` run; the repository has none. The held-out test runs as its own workflow,
+`heldout-stay`, on both operating systems.
 
 If you have a clone of the upstream source repository, pointing at it also checks the upstream
 commit dates and ancestry:
@@ -243,16 +263,25 @@ the check did not have; the list it now enforces is `README_QUANTITIES` in
 | degenerate | 0.01 | 0.9533 |
 | degenerate | 0.10 | 1.0000 |
 
-Detection power here is governed by the size of the shift being looked for, not by how concentrated
-the base distribution is — the third row is the one that carries that point. The 0.1842 figure
-belongs specifically to a near-uniform base at `delta_tv` = 0.01, one tenth of the declared margin,
-and is only meaningful when quoted in that full form.
+These are powers of the pooled chi-square surrogate the power gate computes, not of the permutation
+test the decision turns on, whose power is evaluated nowhere. For that surrogate, power is governed
+by the size of the shift being looked for, not by how concentrated the base distribution is — the
+third row carries that point, and the first and fourth show that at the registered `delta_tv` it
+returns 1.0000 for both bases, so a pass does not tell them apart. The 0.1842 figure belongs
+specifically to a near-uniform base at `delta_tv` = 0.01, one tenth of the declared margin, and is
+only meaningful when quoted in that full form.
 
 ## Status
 
-The protocol is written, the evidence it rests on is frozen and verifiable, and the decision rules
-are sealed. The prospective run — two arms, 9,600 draws, roughly five hours of compute — happens
-once and without tuning, after the seal.
+The decision rules were sealed and deposited with an archive before any prospective draw was
+collected. Each prospective arm then produced one complete run, and the sealed rules reached R4. A
+held-out test of one post hoc observation was frozen at commit `61dbd96` and run once; its result
+is `analysis/heldout-stay/result.json`, and the `heldout-stay` workflow recomputes it on every
+change.
+
+The deposit carries an earlier working title of the manuscript in its title field. Its metadata is
+not edited, because the deposit's last-modified time is one of the server times the recorded witness
+anchors on, and an edit would move that anchor.
 
 One preliminary study is reported in the protocol but its machine-readable record was not retained,
 so no quantity from it is quoted anywhere. That gap is disclosed rather than worked around.
