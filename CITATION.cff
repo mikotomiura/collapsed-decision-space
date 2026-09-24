@@ -45,7 +45,7 @@ license:
   - CC-BY-4.0
 repository-code: "https://github.com/mikotomiura/collapsed-decision-space"
 version: "0.3.0-instrument-autopsy"
-date-released: "2026-09-19"
+date-released: "2026-09-24"
 # doi: to be filled in once a DOI is minted. The key is omitted until then, because an
 #      empty value would be rendered as-is by the GitHub citation widget.
 # preferred-citation: to point at the peer-reviewed version once it exists. Omitted
