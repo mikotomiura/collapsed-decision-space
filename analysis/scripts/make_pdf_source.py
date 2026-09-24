@@ -118,7 +118,10 @@ def split_long_tokens(body: str) -> tuple[str, int]:
     def replace(match: re.Match[str]) -> str:
         nonlocal count
         count += 1
-        return r"\texttt{\seqsplit{" + match.group(1) + "}}"
+        # This is raw LaTeX rather than markdown once inserted, so underscores no longer receive
+        # pandoc's normal escaping. Keep the rendered token unchanged while making it valid TeX.
+        token = match.group(1).replace("_", r"\_")
+        return r"\texttt{\seqsplit{" + token + "}}"
 
     return pattern.sub(replace, body), count
 
