@@ -119,6 +119,27 @@ def _mask(text: str) -> str:
     return text
 
 
+#: A SHA-256 digest that the layout broke in two: two hexadecimal runs separated by one space whose
+#: lengths add up to 64. The manuscript sets content digests (a model's, a file's) through
+#: ``\\seqsplit``, and pdftotext joins the pieces with a space; a piece of 11 characters is then
+#: commit-shaped. Only the exact length of a digest is accepted, so a commit identifier is not.
+_SPLIT_DIGEST = re.compile(r"(?<![0-9a-f])([0-9a-f]{8,63}) ([0-9a-f]{1,56})(?![0-9a-f])")
+
+
+def mask_page(text: str) -> str:
+    """Repair, for the page text only, the two ways the layout splits an inert identifier.
+
+    A cited DOI broken at a line end arrives as ``10.1016/j.spl. 2023.109999``: each declared DOI is
+    therefore also masked with whitespace allowed between any two of its characters -- that DOI and
+    no other. And a digest broken the same way is masked where its two pieces make 64 characters.
+    """
+    for doi in CITED_DOIS:
+        text = re.sub(r"\s*".join(re.escape(ch) for ch in doi), "", text)
+    return _SPLIT_DIGEST.sub(
+        lambda m: "" if len(m.group(1)) + len(m.group(2)) == 64 else m.group(0), text
+    )
+
+
 #: A kerning gap inside a TJ array, as pdflatex writes one between two runs of a string: ``)-50(``.
 _TJ_GAP = re.compile(r"\)\s*-?\d+(?:\.\d+)?\s*\(")
 
@@ -266,7 +287,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[pdf-identity] FAIL: no extracted text at {args.text}", file=sys.stderr)
             return 1
         page_text = args.text.read_text(encoding="utf-8", errors="replace")
-        haystacks.append(("the page, as pdftotext reads it", page_text))
+        haystacks.append(("the page, as pdftotext reads it", mask_page(page_text)))
 
     problems: list[str] = []
     for where, text in haystacks:
@@ -286,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
                     continue
                 problems.append(f"{where}: {label}: {match.group(0)!r}")
     if page_text is not None:
-        for match in COMMIT_ON_PAGE.finditer(page_text):
+        for match in COMMIT_ON_PAGE.finditer(mask_page(page_text)):
             problems.append(f"the page, as pdftotext reads it: a commit identifier: {match.group(0)!r}")
 
     print(f"[pdf-identity] {args.pdf.name}: {len(raw):,} bytes, {len(blob):,} after inflating")
