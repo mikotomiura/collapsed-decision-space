@@ -277,9 +277,10 @@ the nominal sensitivity of a surrogate, not the power of the test the decision t
 Hoenig and Heisey [44] show why a power calculation made after the data cannot be used to
 interpret a non-significant result. The sealed rules come close to that form: `power` is computed
 after the draws, on the run's own channel-off distribution, though at the registered `delta_tv`
-rather than at an observed effect, and a pass of R3 is a condition of R1, the branch that reports an
-estimate below the margin together with a non-rejection (§8). The rules are sealed and are reported as written; this
-manuscript does not read a pass of R3 as evidence about the power of the decision (§12.6).
+rather than at an observed effect, and clearing the R3 power gate (`power` ≥ 0.8) is required
+before R1, the branch that reports an estimate below the margin together with a non-rejection, can
+be reached (§8). The rules are sealed and are reported as written; this manuscript does not read
+clearing that gate as evidence about the power of the decision (§12.6).
 
 **Equivalence testing.** Lakens [36] gives the standard procedure for equivalence testing with
 pre-specified bounds. We cite it as the standard reference for the practice of fixing a bound
