@@ -61,6 +61,13 @@ PDF_WITHHELD: tuple[tuple[str, str], ...] = (
     ("the title of the author's own prior preprint", r"two-plane\s+determinism"),
 )
 
+#: A git commit identifier on the page (DA-C-15). Read against the page only: an inflated content
+#: stream is binary, and seven lowercase hexadecimal characters occur in it by chance. The
+#: lookarounds keep a number in exponent form (``3.415046e-05``) from matching.
+COMMIT_ON_PAGE = re.compile(
+    r"(?<![.\w])(?=[0-9a-f]*[a-f])(?=[0-9a-f]*[0-9])(?:[0-9a-f]{40}|[0-9a-f]{7})(?![\w-])"
+)
+
 #: Keys of the document information dictionary that carry free text.
 INFO_KEYS: tuple[str, ...] = (
     "/Title",
@@ -261,6 +268,9 @@ def main(argv: list[str] | None = None) -> int:
                 if label == "a DOI" and is_cited_doi_fragment(match.group(0)):
                     continue
                 problems.append(f"{where}: {label}: {match.group(0)!r}")
+    if page_text is not None:
+        for match in COMMIT_ON_PAGE.finditer(page_text):
+            problems.append(f"the page, as pdftotext reads it: a commit identifier: {match.group(0)!r}")
 
     print(f"[pdf-identity] {args.pdf.name}: {len(raw):,} bytes, {len(blob):,} after inflating")
     print(f"[pdf-identity]   info dictionary fields: {len(info_fields(blob))}")

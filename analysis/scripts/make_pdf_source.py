@@ -99,6 +99,17 @@ LINE_WIDTH_PT = 6.5 * 72.27
 UPSTREAM_NAME = re.compile(r"erre[_-]?sandbox", re.IGNORECASE)
 UPSTREAM_PLACEHOLDER = "upstream"
 
+#: A git commit identifier, abbreviated (7 characters) or full (40), set as code. A public commit
+#: can be searched for and leads to its repository, so the anonymous PDF withholds each one (user
+#: ruling of 2026-09-26, ``.steering`` DA-C-15); the supplement keeps them, because the frozen and
+#: sealed files that bind the claims carry them. It must contain a letter and a digit, which is what
+#: keeps a number such as ``0.038065`` out of it. ``COMMIT_ON_PAGE`` in ``check_pdf_identity.py``
+#: is the independent check on the page.
+COMMIT_SPAN = re.compile(
+    r"`((?=[0-9a-f]*[a-f])(?=[0-9a-f]*[0-9])(?:[0-9a-f]{40}|[0-9a-f]{7}))`"
+)
+COMMIT_PLACEHOLDER = "[commit withheld for review]"
+
 #: The author's own prior work in the reference list. Named by identifier, not by author, because
 #: the de-identified manuscript this script runs on in the anonymous build has already had the
 #: name replaced.
@@ -624,6 +635,7 @@ def build(
         title = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, title)
         abstract = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, abstract)
         body = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, body)
+        body = COMMIT_SPAN.sub(COMMIT_PLACEHOLDER, body)
     body, split_count = split_long_tokens(body)
     check_no_raw_environment(body)
 
