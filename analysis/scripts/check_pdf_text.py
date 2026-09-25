@@ -5,7 +5,7 @@
 real rather than theoretical, and both are silent:
 
 * XeTeX does not stop on a character its font lacks. It emits a warning and sets *nothing*, so a
-  symbol such as the logical `and` joining the branch conditions of section 8 can vanish from the
+  symbol such as the logical `and` joining the branch conditions of section E can vanish from the
   page while the build reports success.
 * A ``longtable`` row cannot be broken across a page. If a table's columns are set too narrow the
   row overflows instead of reflowing, and content can be pushed off the page. The six-column study
@@ -74,7 +74,7 @@ REQUIRED_PHRASES: tuple[str, ...] = (
     "Data, code and reproducibility",
 )
 
-#: Every column header of the widest table in the manuscript -- the eligibility audit of section 9.
+#: Every column header of the widest table in the manuscript -- the eligibility audit of section F.
 #: Losing the right-hand columns of a wide table is the specific way ``longtable`` goes wrong, and
 #: it would not be visible from a page count. This table is the one to watch because its two
 #: right-hand columns are the ones that carry the audit: the third says what was unknown at seal
@@ -87,7 +87,7 @@ WIDEST_TABLE_COLUMNS: tuple[str, ...] = (
     "Reported after the run",
 )
 
-#: The column headers of the analysis map of section 1.4, the widest table the revision added. Its
+#: The column headers of the analysis map of section 1.3, the widest table the revision added. Its
 #: right-hand columns say when each layer was fixed and what it licenses, which is the part a page
 #: that dropped them would lose without looking incomplete.
 ANALYSIS_MAP_COLUMNS: tuple[str, ...] = (
@@ -98,7 +98,7 @@ ANALYSIS_MAP_COLUMNS: tuple[str, ...] = (
 )
 
 #: Characters the body depends on that a text font may not carry. Each is load-bearing: the
-#: logical connectives join the branch conditions of section 8, the arrow gives the evaluation
+#: logical connectives join the branch conditions of section E, the arrow gives the evaluation
 #: order, lambda names the channel, and the accented letters are authors' names in the references.
 #: Dropping any of them silently changes what the page says.
 REQUIRED_GLYPHS: tuple[tuple[str, str], ...] = (
@@ -170,14 +170,14 @@ def main(argv: list[str] | None = None) -> int:
     for column in WIDEST_TABLE_COLUMNS:
         if normalise(column) not in flat:
             problems.append(
-                f"a column header of the section 9 table is absent: {column!r} "
+                f"a column header of the section F table is absent: {column!r} "
                 "(the table may have been set too wide and lost its right-hand columns)"
             )
 
     for column in ANALYSIS_MAP_COLUMNS:
         if normalise(column) not in flat:
             problems.append(
-                f"a column header of the section 1.4 analysis map is absent: {column!r} "
+                f"a column header of the section 1.3 analysis map is absent: {column!r} "
                 "(the table may have been set too wide and lost its right-hand columns)"
             )
 
@@ -212,8 +212,8 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"[pdf-text] OK: {len(REQUIRED_PHRASES)} required phrases, "
-        f"all {len(WIDEST_TABLE_COLUMNS)} column headers of the section 9 table and "
-        f"{len(ANALYSIS_MAP_COLUMNS)} of the section 1.4 analysis map, "
+        f"all {len(WIDEST_TABLE_COLUMNS)} column headers of the section F table and "
+        f"{len(ANALYSIS_MAP_COLUMNS)} of the section 1.3 analysis map, "
         f"{len(REQUIRED_GLYPHS)} glyphs at risk of silent loss, and "
         f"{len(REQUIRED)} quantities read from the frozen inputs are present in the PDF "
         f"({len(flat)} characters of text)"

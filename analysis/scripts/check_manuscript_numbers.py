@@ -57,6 +57,7 @@ from render_reported_branch import (  # noqa: E402
     sealed_branch_ids,
 )
 from verify_data_hashes import PROSPECTIVE_OUTPUTS  # noqa: E402
+import check_crossrefs  # noqa: E402
 
 #: (label, input file, key path, how to render the literal).
 #: The key path walks dictionaries only.
@@ -184,7 +185,7 @@ DERIVED_REQUIRED: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
 #: existed they were covered by nothing: step 13 reads only the predicates of the rules it
 #: reaches, so a number quoted in the results section could drift from the verdict it came from
 #: without any step noticing. That gap was found in review rather than by a failing check, and
-#: section 12.8 of the manuscript states the part of it that remains.
+#: section I.5 of the manuscript states the part of it that remains.
 #:
 #: **Only literals distinctive enough for an occurrence test are listed.** ``rho_hat`` is `1.0`
 #: in two of these files and `0.0` in the third, and a check that `'1.0' in text` passes on
@@ -264,7 +265,7 @@ def check_reported_branch(repo_root: Path) -> list[str]:
     * **both verdicts landed, no branch claimed** -- a failure. Step 13 would run, re-derive a
       branch, compare it with nothing, and exit 0. That is the hole this function closes;
     * **a branch claimed before both verdicts have landed** -- a failure, and a different one.
-      §8 of the protocol says the authors do not predict which branch will occur; a branch
+      §E of the protocol says the authors do not predict which branch will occur; a branch
       standing in the repository while the arms have not finished is that prediction, written
       down. Nothing can establish that the author did not see the evaluator's output before
       writing the marker, but this state is *observable*, so it is refused;
@@ -297,7 +298,7 @@ def check_reported_branch(repo_root: Path) -> list[str]:
         problems.append(
             f"{claimed}, but only {len(landed)} of {len(PROSPECTIVE_OUTPUTS)} prospective "
             "verdicts have landed in data/raw/. A branch standing in the repository before its "
-            "inputs do is a prediction, and §8 of the protocol says the authors do not predict "
+            "inputs do is a prediction, and §E of the protocol says the authors do not predict "
             "which branch will occur. Land both verdicts first; "
             "manuscript/REPORTED-BRANCH.md gives the procedure"
         )
@@ -786,7 +787,7 @@ def _rho_hat_identity(verdict: dict[str, Any]) -> tuple[int, float]:
 def check_third_finding_support(repo_root: Path) -> list[str]:
     """Compute the counterfactual the results section states, rather than asserting it.
 
-    The manuscript reports that at the thresholds fixed in section 6.3 the measurability gate
+    The manuscript reports that at the thresholds fixed in section C.4 the measurability gate
     does not flag the regime the paper is about: applied to the completed run and to the control
     arm, **neither** of R4's two conditions is met, while the base distribution the power
     calculation uses is missing zones. That is a claim about how three shipped records stand to
@@ -1330,7 +1331,7 @@ def _posthoc_rate(r: dict[str, Any]) -> str:
 
 
 def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
-    """Rows and phrases of section 5.1.3 (B3) and of the sentences elsewhere that quote it.
+    """Rows and phrases of section 4.3 (B3) and of the sentences elsewhere that quote it.
 
     Rendered from ``data/posthoc/``. The summary is itself generated from the per-replicate record
     by ``analysis/autopsy/render.py``, and the manifest pins the digests of both; a summary edited
@@ -1475,7 +1476,7 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         problems.append("agreement phrase: the test never equals the surrogate along D1")
     else:
         fragments.append(
-            ("agreement phrase, §5.1.3", f"they agree from `delta_tv` = {agree_from} upward and part below it")
+            ("agreement phrase, §4.3", f"they agree from `delta_tv` = {agree_from} upward and part below it")
         )
         fragments.append(
             (
@@ -1486,7 +1487,7 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         )
         if Fraction(agree_from) * 2 != Fraction("0.10"):
             problems.append(
-                f"agreement phrase, Abstract and §12.6: the text says half the margin, but the "
+                f"agreement phrase, Abstract and §6.2: the text says half the margin, but the "
                 f"agreement starts at {agree_from}"
             )
         fragments.append(
@@ -1556,7 +1557,7 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         )
     )
 
-    # Two statements §5.1.3 makes in words about the degenerate base.
+    # Two statements §4.3 makes in words about the degenerate base.
     g_surrogate = {d: v for (b, d), v in surrogate.items() if b == "G"}
     if not (g_surrogate["0.01"] < 1.0 and all(v == 1.0 for d, v in g_surrogate.items() if d != "0.01")):
         problems.append(
@@ -1714,7 +1715,7 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
                 f"| {label} `{base}` | `{float(cells[2]):.2f}` | `{cells[3]}` |",
             )
         )
-        # §1, §4.2, §5.1.1 and §12.6 say in words that at the registered delta_tv the surrogate
+        # §1, §3.2, §4.1 and §6.2 say in words that at the registered delta_tv the surrogate
         # returns 1.0 for both bases. The rows above hold the table; this holds the sentence.
         if float(cells[2]) == 0.1 and cells[3] != "1.0000":
             problems.append(
@@ -1867,7 +1868,7 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             "in the primary arm",
         ),
         (
-            "held-out freeze commit, in §1.4",
+            "held-out freeze commit, in §1.3",
             f"Specification frozen at commit `{result['freeze_commit'][:7]}`, before the "
             "condition-wise counts",
         ),
@@ -1877,15 +1878,15 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         ),
         ("held-out row", f"row {result['row']['id']} of the frozen interpretation table"),
         ("held-out row, in §1", f"(row {result['row']['id']} of the held-out test's frozen interpretation table"),
-        ("held-out row, in §1.4", f"Row {result['row']['id']} of its frozen table"),
+        ("held-out row, in §1.3", f"Row {result['row']['id']} of its frozen table"),
         ("held-out level", f"at level {result['alpha']}"),
-        ("held-out level, in §1.4", f"control first, α = {result['alpha']}"),
+        ("held-out level, in §1.3", f"control first, α = {result['alpha']}"),
         (
             "empty destinations among the prospective None, in §1",
             f"for all but {_word(empty)} of the draws dropped in the prospective arms",
         ),
         (
-            "empty destinations among the prospective None, before §8",
+            "empty destinations among the prospective None, before §E",
             f"all but {_word(empty)} of the {dropped}",
         ),
     ]
@@ -2103,7 +2104,7 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
         ("M31 the seed-varied Type-I count moves", with_digests(summary_json, _set(("reading_rules", "type_i_with_per_replicate_scorer_seed", "r2", "k"), 94)), "Type-I row, scorer seed varied"),
         ("M32 D4 becomes feasible at 0.02 on the degenerate base", with_digests(summary_json, cell_edit("G|D4|0.02", "status", value="run")), "degenerate-base feasibility"),
         ("M33 the surrogate falls below 1.0 at 0.02 on the degenerate base", with_digests(side_json, side_row("surrogate_alongside", lambda r: (r["base"], r["delta_tv"]) == ("G", "0.02"), "surrogate_power", 0.99)), "degenerate-base surrogate"),
-        ("M34 the test stops matching the surrogate at 0.05", with_digests(summary_json, cell_edit("C|D1|0.05", "summary", "test_reject", "rate", value=0.999)), "agreement phrase, §5.1.3"),
+        ("M34 the test stops matching the surrogate at 0.05", with_digests(summary_json, cell_edit("C|D1|0.05", "summary", "test_reject", "rate", value=0.999)), "agreement phrase, §4.3"),
         ("M35 a replicate stops at R4 under the null on the degenerate base less often", with_digests(summary_json, cell_edit("G|null|0", "summary", "branch_counts", "R4", value=3999)), "degenerate-base null branch counts"),
         ("M36 D5 departs from D1 at the registered delta_tv", with_digests(summary_json, cell_edit("C|D5|0.10", "summary", "mean_tv_bar", value=0.5)), "D1/D5 phrase"),
         ("M37 a direction stops being an alias", with_digests(summary_json, cell_edit("Cs|D2|0.10", "alias_of", value="Cs|D3|0.10")), "alias phrase"),
@@ -2412,6 +2413,11 @@ def main(argv: list[str] | None = None) -> int:
     problems.extend(check_reported_branch(repo_root))
     problems.extend(check_third_finding_support(repo_root))
     problems.extend(check_rendered_fragments(repo_root))
+    # Section references. The manuscript was renumbered for submission (C, 2026-09-26), and
+    # files that cannot change still cite the earlier numbers; see check_crossrefs.py. Run from
+    # here so that step 9 of the sealed repro.sh covers it without the sealed file changing.
+    problems.extend(check_crossrefs.check(repo_root, check_crossrefs._tracked(repo_root)))
+    problems.extend(check_crossrefs.self_test(repo_root))
 
     if problems:
         print("[numbers] FAIL", file=sys.stderr)

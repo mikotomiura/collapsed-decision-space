@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recompute two post hoc properties of the completed run that section 5.1.1 of the manuscript reports.
+"""Recompute two post hoc properties of the completed run that section 4.1 of the manuscript reports.
 
 Both are derived here rather than quoted, for the same reason the verdict is recomputed rather than
 copied: a number that only a person has ever calculated is an assertion.

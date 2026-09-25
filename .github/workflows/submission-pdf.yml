@@ -14,7 +14,7 @@ name: Submission PDF
 # The build is not trusted. Two silent failure modes are checked for explicitly after the fact:
 #
 #   * XeTeX sets *nothing* for a character its font lacks, and does not fail. A narrow-coverage font
-#     would quietly delete the logical connectives that join the branch conditions of section 8.
+#     would quietly delete the logical connectives that join the branch conditions of section E.
 #   * A `longtable` row cannot break across a page. If a table is set too wide, the right-hand
 #     columns are what disappears. The acute case used to be the six-column study design table,
 #     which was rotated onto its own page; that table is gone and the rotation with it, so the
