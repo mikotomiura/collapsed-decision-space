@@ -119,11 +119,13 @@ def _mask(text: str) -> str:
     return text
 
 
-#: A SHA-256 digest that the layout broke in two: two hexadecimal runs separated by one space whose
-#: lengths add up to 64. The manuscript sets content digests (a model's, a file's) through
-#: ``\\seqsplit``, and pdftotext joins the pieces with a space; a piece of 11 characters is then
-#: commit-shaped. Only the exact length of a digest is accepted, so a commit identifier is not.
-_SPLIT_DIGEST = re.compile(r"(?<![0-9a-f])([0-9a-f]{8,63}) ([0-9a-f]{1,56})(?![0-9a-f])")
+#: A SHA-256 digest that the layout broke in two: two hexadecimal runs separated by one whitespace
+#: character whose lengths add up to 64. The manuscript sets content digests (a model's, a file's)
+#: through ``\\seqsplit``, and pdftotext joins the pieces with a space (xpdf) or a newline (poppler,
+#: which is what CI runs; the first CI run of this rule failed on exactly that); a piece of 11
+#: characters is then commit-shaped. Only the exact length of a digest is accepted, so a commit
+#: identifier is not.
+_SPLIT_DIGEST = re.compile(r"(?<![0-9a-f])([0-9a-f]{8,63})\s([0-9a-f]{1,56})(?![0-9a-f])")
 
 
 def mask_page(text: str) -> str:
