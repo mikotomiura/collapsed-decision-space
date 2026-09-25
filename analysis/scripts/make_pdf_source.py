@@ -492,7 +492,19 @@ def weight_table_columns(body: str) -> tuple[str, int]:
         if any(len(row) != columns for row in cells):
             continue  # a pipe inside a cell; leave the table as pandoc would see it
         longest = [max(min(len(row[k]), 90) for row in cells) for k in range(columns)]
-        weights = [max(6, n) for n in longest]
+        # A token with no space in it cannot wrap, so a column must be wide enough for its longest
+        # one: the first TMLR build set a 19-character value in a column narrower than it, and the
+        # value ran on into the next column's text. Code is set in a wider face than prose, hence
+        # the factor.
+        unbreakable = [
+            max(
+                len(token.strip("`*"))
+                for row in cells
+                for token in (row[k].split() or [""])
+            )
+            for k in range(columns)
+        ]
+        weights = [max(6, n, 2 * u) for n, u in zip(longest, unbreakable, strict=True)]
         lines[index] = "|" + "|".join("-" * w for w in weights) + "|"
         count += 1
     return "\n".join(lines), count
@@ -578,15 +590,7 @@ def build(
         abstract = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, abstract)
         body = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, body)
 
-    front = ["---", f'title: "{title}"']
-    if anonymous:
-        front.append('tmlr-option: ""')
-    else:
-        front.append("tmlr-option: preprint")
-        # A raw LaTeX block, so that pandoc passes the TMLR author macros through rather than
-        # escaping their backslashes as markdown text.
-        front.extend(("tmlr-author: |", "  ```{=latex}", f"  {AUTHOR}", "  ```"))
-    front.extend(("abstract: |", _yaml_block(abstract), "---"))
+    front = ["---", f'title: "{title}"', "abstract: |", _yaml_block(abstract), "---"]
     source = "\n".join(front) + "\n\n" + body.lstrip("\n") + "\n"
     print(
         f"[pdf-source] {len(references)} references, {len(rows)} citations, "
@@ -624,6 +628,18 @@ def main(argv: list[str] | None = None) -> int:
     out.mkdir(parents=True, exist_ok=True)
     (out / "paper-source.md").write_text(source, encoding="utf-8", newline="\n")
     (out / "refs.bib").write_text(bib, encoding="utf-8", newline="\n")
+    # The style option and the author block are template *variables*, not metadata: pandoc parses
+    # metadata as markdown and would escape the backslashes of the TMLR author macros, or drop a raw
+    # block, leaving the title block empty (which is what the first build did). Variables pass
+    # through as they are. The anonymous build sets neither, and tmlr.sty prints its own line.
+    variables = ["variables:"]
+    if not args.anonymous:
+        variables += ["  tmlr-option: preprint", f"  tmlr-author: '{AUTHOR}'"]
+    else:
+        variables += ["  tmlr-option: ''"]
+    (out / "pandoc-vars.yaml").write_text(
+        "\n".join(variables) + "\n", encoding="utf-8", newline="\n"
+    )
     for name in TMLR_FILES:
         shutil.copyfile(args.repo_root / TMLR_DIR / name, out / name)
     (out / "figures.txt").write_text(
