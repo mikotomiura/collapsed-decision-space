@@ -176,19 +176,28 @@ zones.
 
 ### 1.3 What is new here, and what is not
 
-Most of what the table in §1 rests on is standard statistics, and we separate it out first.
+Most of what the table in §1 rests on is standard statistics or established findings about
+language-model evaluation, and we separate it out first.
 
 **Standard, and not claimed here.** The power that bears on a decision is the power of the test
-the decision uses; a figure computed for another statistic does not carry over. A Pearson
-goodness-of-fit statistic is dominated by cells with small expected counts, so an alternative that
-moves mass into an empty or nearly empty cell is detected almost at once. Entropy and support are
-different summaries of a distribution: a distribution can clear an entropy floor while occupying
-few categories, or fall below it while occupying several. Dropping a category and renormalising
-over the rest removes from the comparison any difference between conditions in how often that
-category occurs. A non-negative distance between two estimated distributions has a positive
-expected value under the null. And declaring a materiality margin in advance for an
-equivalence-style reading of language-model evaluation is established [28]; this protocol follows
-that practice rather than originating it.
+the decision uses; a figure computed for another statistic does not carry over, and using a power
+figure computed after the data to interpret a non-significant result is a documented misuse [44].
+A Pearson goodness-of-fit statistic is highly sensitive to cells with small expected counts [43], so
+an alternative that moves mass into an empty or nearly empty cell is detected almost at once.
+Entropy and support are different summaries of a distribution: a distribution can clear an entropy
+floor while occupying few categories, or fall below it while occupying several. Dropping a category
+and renormalising over the rest removes from the comparison any difference between conditions in
+how often that category occurs. A non-negative distance between two estimated distributions has a
+positive expected value under the null, and estimating such a distance well from samples is a
+problem in its own right: in the large-alphabet setting where it has been studied, the plug-in
+estimate is not rate-optimal [42]. Tests that decide directly whether two multinomial distributions
+are equivalent under an L1 or a maximum norm exist [41]; this protocol does not use one (§4.4). That
+a language model's answers move with meaning-preserving changes to the formatting of its prompt
+[45], and that requiring a structured output format can lower its performance [47], are also
+established; item 3 below is an account of what one apparatus drops, not the discovery of a new
+kind of evaluation artefact. And declaring a materiality margin in advance for an equivalence-style
+reading of language-model evaluation is established [28]; this protocol follows that practice
+rather than originating it.
 
 **Specific to this work**, to our knowledge:
 
@@ -255,16 +264,54 @@ margin is an application of an existing method, not a methodological proposal.
 estimating total-variation distance in autoregressive models. Their estimand is sequence-level and
 assumes richer access than we have. Ours is a decision-level five-way categorical distance measured
 through sampled generations. The gap between the two is the main efficiency cost of our design and
-is stated as a limitation (§12.3).
+is stated as a limitation (§12.3). Jiao, Han and Weissman [42] give minimax rates for estimating
+the L1 distance, twice the total-variation distance, between two discrete distributions from
+samples, in a non-asymptotic setting with a large alphabet, and show that there the plug-in
+estimate needs more samples than a rate-optimal one to reach the same accuracy. Our alphabet has
+five categories; `tv_bar` averages plug-in distances, and we make no claim about its efficiency.
 
 **Power in NLP evaluation.** Card and colleagues [35] document how frequently conclusions in NLP
-rest on designs without the power to support them. This protocol is written to make the
-power question answerable rather than assumed: the power attained by the realised design is
-itself a pre-declared gate (R3, §8).
+rest on designs without the power to support them. This protocol was written to make the power
+question a pre-declared gate (R3, §8) rather than an assumption, but the figure that gate reads is
+the nominal sensitivity of a surrogate, not the power of the test the decision turns on (§12.6).
+Hoenig and Heisey [44] show why a power calculation made after the data cannot be used to
+interpret a non-significant result. The sealed rules come close to that form: `power` is computed
+after the draws, on the run's own channel-off distribution, though at the registered `delta_tv`
+rather than at an observed effect, and clearing the R3 power gate (`power` ≥ 0.8) is required
+before R1, the branch that reports an estimate below the margin together with a non-rejection, can
+be reached (§8). The rules are sealed and are reported as written; this manuscript does not read
+clearing that gate as evidence about the power of the decision (§12.6).
 
 **Equivalence testing.** Lakens [36] gives the standard procedure for equivalence testing with
 pre-specified bounds. We cite it as the standard reference for the practice of fixing a bound
 before analysis. We do not run the procedure; §4.4 states our position precisely.
+
+**Equivalence of multinomial distributions.** Bastian, Dette and Koletzko [41] construct a bootstrap
+test of whether two multinomial distributions are equivalent, in the sense that a norm of the
+difference between their class probabilities, the L1 norm included, lies below a threshold. It is a
+direct test of the question that a margin on a total-variation distance points toward. This
+protocol runs neither it nor any other equivalence test (§4.4).
+
+**Goodness-of-fit in sparse multinomials.** Balakrishnan and Wasserman [43] review goodness-of-fit
+testing for multinomials with many cells relative to the sample size. The classical chi-square
+test can have poor power there, and chi-square-type distances are extremely sensitive to small
+perturbations of small cells; the truncated statistic they discuss bounds each cell's denominator
+from below so that small cells cannot dominate it. The surrogate behind R3 is a five-cell Pearson
+statistic, not a high-dimensional one, but its base has empirically empty cells, and §5.1.1
+observes the same sensitivity to small cells at its extreme. The implementation also floors its
+denominators, but at a small constant whose purpose is to avoid dividing by zero, so the floor
+leaves that sensitivity in place rather than damping it.
+
+**Sensitivity of language-model evaluation to its surface.** Sclar and colleagues [45] show that
+meaning-preserving changes to prompt formatting can move a model's measured performance by large
+amounts, and that performance across formats correlates only weakly between models. Zheng and
+colleagues [46] show that models prefer particular option positions and identifiers when choosing
+among listed options. Tam and colleagues [47] find that requiring output in a structured format
+such as JSON lowers models' performance on reasoning tasks, more so the stricter the format. The
+apparatus here fixes its prompt template, the order in which that template lists the five zones,
+and its JSON output schema, and varies none of them; what those choices contribute to the read-out
+is not measured in this work. The dropped draws of §5.1.2 are an instance of this class of
+dependence, not a discovery of it.
 
 **Preregistration for agent experiments.** Vaccaro [37] discusses preregistration for experiments
 with AI agents, which is the framework this submission sits inside.
@@ -1553,6 +1600,33 @@ Science, 15(1), article 72, 2026. doi:10.1140/epjds/s13688-026-00674-x
 [40] Miura, M. *Two-plane determinism: byte-exact cross-platform replay of LLM-in-the-loop agent
 simulations.* Preprint, 2026. doi:10.5281/zenodo.22719772 (The concept identifier is cited, since
 it resolves to the current version; the record carries no version string of its own.)
+
+[41] Bastian, P., Dette, H. and Koletzko, L. *Testing equivalence of multinomial distributions — A
+constrained bootstrap approach.* Statistics & Probability Letters, 206, article 109999, 2024.
+doi:10.1016/j.spl.2023.109999
+
+[42] Jiao, J., Han, Y. and Weissman, T. *Minimax Estimation of the L1 Distance.* IEEE Transactions
+on Information Theory, 64(10), 6672–6706, 2018. doi:10.1109/TIT.2018.2846245
+
+[43] Balakrishnan, S. and Wasserman, L. *Hypothesis testing for high-dimensional multinomials: A
+selective review.* The Annals of Applied Statistics, 12(2), 727–749, 2018.
+doi:10.1214/18-AOAS1155SF
+
+[44] Hoenig, J. M. and Heisey, D. M. *The Abuse of Power: The Pervasive Fallacy of Power
+Calculations for Data Analysis.* The American Statistician, 55(1), 19–24, 2001.
+doi:10.1198/000313001300339897
+
+[45] Sclar, M., Choi, Y., Tsvetkov, Y. and Suhr, A. *Quantifying Language Models' Sensitivity to
+Spurious Features in Prompt Design or: How I learned to start worrying about prompt formatting.*
+arXiv:2310.11324, 2023.
+
+[46] Zheng, C., Zhou, H., Meng, F., Zhou, J. and Huang, M. *Large Language Models Are Not Robust
+Multiple Choice Selectors.* arXiv:2309.03882, 2023.
+
+[47] Tam, Z. R., Wu, C.-K., Tsai, Y.-L., Lin, C.-Y., Lee, H.-y. and Chen, Y.-N. *Let Me Speak
+Freely? A Study On The Impact Of Format Restrictions On Large Language Model Performance.*
+Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing: Industry
+Track, pp. 1218–1236, 2024. doi:10.18653/v1/2024.emnlp-industry.91
 
 Reference numbers are permanent identifiers assigned in the author's central bibliography and are
 not renumbered between manuscripts.
