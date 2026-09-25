@@ -104,6 +104,28 @@ def _mask(text: str) -> str:
     return text
 
 
+#: A kerning gap inside a TJ array, as pdflatex writes one between two runs of a string: ``)-50(``.
+_TJ_GAP = re.compile(r"\)\s*-?\d+(?:\.\d+)?\s*\(")
+
+
+def is_cited_doi_fragment(found: str) -> bool:
+    """Whether a DOI-shaped match is a piece of a DOI declared as someone else's.
+
+    The TMLR bibliography sets DOIs through ``\\url``, which lets them break across lines and kerns
+    them: in the inflated streams a cited DOI arrives as ``10.1007/s10462-)-50(025-...``, and on
+    the page as ``10.1016/j.spl.`` with the rest on the next line. Neither is masked by the exact
+    comparison in :func:`_mask`, and the first TMLR build failed this check on seven cited DOIs
+    for that reason alone. A match is accepted only if, with the kerning gaps removed, it is a
+    prefix of a declared citation that runs past the registrant prefix -- so a fragment of the
+    author's own deposit, whose prefix no citation shares, still fails.
+    """
+    cleaned = _TJ_GAP.sub("", found).rstrip(").,;:")
+    registrant = cleaned.split("/", 1)[0] + "/"
+    if len(cleaned) <= len(registrant):
+        return False
+    return any(doi.startswith(cleaned) for doi in CITED_DOIS)
+
+
 def _decode_pdf_string(raw: bytes) -> str:
     """Decode one PDF string object into text.
 
@@ -236,6 +258,8 @@ def main(argv: list[str] | None = None) -> int:
         masked = _mask(text)
         for label, pattern in (*LEAK_PATTERNS, *PDF_WITHHELD):
             for match in re.finditer(pattern, masked, re.IGNORECASE):
+                if label == "a DOI" and is_cited_doi_fragment(match.group(0)):
+                    continue
                 problems.append(f"{where}: {label}: {match.group(0)!r}")
 
     print(f"[pdf-identity] {args.pdf.name}: {len(raw):,} bytes, {len(blob):,} after inflating")

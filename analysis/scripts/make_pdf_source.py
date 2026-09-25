@@ -617,13 +617,15 @@ def build(
     uncited = sorted({r.number for r in references} - cited)
     if uncited:
         _die(f"the References section lists entries nothing cites: {uncited}")
-    body, split_count = split_long_tokens(body)
-    check_no_raw_environment(body)
-
+    # Before the long tokens are made breakable, not after: that step escapes the underscore of a
+    # path such as `analysis/apparatus/erre_sandbox/...`, and the escaped form no longer matches the
+    # name. The first anonymous build put it on the page exactly that way.
     if anonymous:
         title = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, title)
         abstract = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, abstract)
         body = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, body)
+    body, split_count = split_long_tokens(body)
+    check_no_raw_environment(body)
 
     front = ["---", f'title: "{title}"', "abstract: |", _yaml_block(abstract), "---"]
     source = "\n".join(front) + "\n\n" + body.lstrip("\n") + "\n"
