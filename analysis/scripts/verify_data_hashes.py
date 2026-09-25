@@ -133,6 +133,17 @@ RECORDS_ROW_RE = re.compile(
 #: :data:`EXPECTED_RAW_ROWS`: a change should be noticed, not absorbed.
 EXPECTED_RECORD_ROWS = 4
 
+#: The rows themselves, as literal paths under `data/`. A row count alone would let one row be
+#: replaced by a duplicate of another while its file went missing (independent review, B2).
+EXPECTED_RECORD_NAMES: frozenset[str] = frozenset(
+    {
+        "completed/bank_records.jsonl",
+        "attempts/control/attempts.jsonl",
+        "attempts/control/run_records.partial.attempt1-interrupted.jsonl",
+        "attempts/primary/attempts.jsonl",
+    }
+)
+
 #: The directories, under `data/`, that the records table covers completely.
 RECORDS_DIRS: tuple[str, ...] = ("completed", "attempts")
 
@@ -468,7 +479,7 @@ class RecordEntry:
 
 
 def parse_records_table(
-    data_md: Path, expected: int = EXPECTED_RECORD_ROWS
+    data_md: Path, expected: frozenset[str] = EXPECTED_RECORD_NAMES
 ) -> tuple[tuple[RecordEntry, ...], list[str]]:
     """Parse the run-records table, returning the rows and any problem with the table itself.
 
@@ -499,14 +510,24 @@ def parse_records_table(
         )
 
     problems: list[str] = []
+    names = [entry.name for entry in entries]
+    if len(EXPECTED_RECORD_NAMES) != EXPECTED_RECORD_ROWS:
+        problems.append(
+            f"EXPECTED_RECORD_NAMES holds {len(EXPECTED_RECORD_NAMES)} paths but "
+            f"EXPECTED_RECORD_ROWS is {EXPECTED_RECORD_ROWS}"
+        )
     if not in_section:
         problems.append(
             "data/data.md has no 'Run records in `completed/` and `attempts/`' section"
         )
-    elif len(entries) != expected:
+    elif len(names) != len(set(names)):
+        duplicated = sorted({name for name in names if names.count(name) > 1})
+        problems.append(f"the run-records table has a duplicate row for {duplicated}")
+    elif set(names) != expected:
         problems.append(
-            f"data/data.md: parsed {len(entries)} rows from the run-records table, expected "
-            f"{expected}. Either the table format changed, or the set of shipped records did"
+            f"data/data.md: the run-records table names {sorted(names)}, which differ from the "
+            f"expected {sorted(expected)}. Either the table format changed, or the set of "
+            "shipped records did"
         )
     outside = [e.name for e in entries if e.name.split("/", 1)[0] not in RECORDS_DIRS]
     if outside:
@@ -935,8 +956,9 @@ def check_record_guards_fire() -> list[str]:
         problems = _run_record_guard_cases()
     if not problems:
         print(
-            "[data-hash] OK records self-check: 6 mutations caught, 1 control clean "
-            "(altered byte, truncation, stray file, dropped row, foreign directory, manifest pin)"
+            "[data-hash] OK records self-check: 7 mutations caught, 1 control clean "
+            "(altered byte, truncation, stray file, missing row, duplicate row, foreign "
+            "directory, manifest pin)"
         )
     return problems
 
@@ -948,6 +970,7 @@ def _run_record_guard_cases() -> list[str]:
         ("attempts/control/partial.jsonl", _FIXTURE_RECORD_B),
     ]
     files = dict(rows)
+    names = frozenset(files)
 
     def build(tmp: str, label: str, **kwargs: Any) -> tuple[Path, tuple[RecordEntry, ...]]:
         root = _fixture_records_repo(
@@ -956,14 +979,14 @@ def _run_record_guard_cases() -> list[str]:
             kwargs.get("data_md", _fixture_records_md(rows)),
             kwargs.get("pinned", _FIXTURE_RECORD_A),
         )
-        entries, table = parse_records_table(root / "data" / "data.md", expected=len(rows))
+        entries, table = parse_records_table(root / "data" / "data.md", expected=names)
         return root, entries if not table else ()
 
     with tempfile.TemporaryDirectory() as tmp:
         root, entries = build(tmp, "ok")
         # P6 -- the arrangement as shipped reports nothing, from any of the four checks.
         problems += _expect(
-            parse_records_table(root / "data" / "data.md", expected=len(rows))[1]
+            parse_records_table(root / "data" / "data.md", expected=names)[1]
             + check_record_files(root, entries)
             + check_no_unrecorded_records(root, entries)
             + check_records_pin(root, entries),
@@ -1000,12 +1023,21 @@ def _run_record_guard_cases() -> list[str]:
             fires=True,
             because="attempts/primary/x.jsonl",
         )
-        # M10 -- a dropped row is a row-count failure, not a silently shorter table.
+        # M10 -- a missing row is reported, not read as a shorter table.
         _, table = parse_records_table(
-            root / "data" / "data.md", expected=len(rows) + 1
+            root / "data" / "data.md", expected=names | {"attempts/primary/attempts.jsonl"}
         )
         problems += _expect(
-            table, label="M10 row count differs", fires=True, because="expected 3"
+            table, label="M10 a row is missing", fires=True, because="differ from the expected"
+        )
+        # M13 -- one row replaced by a duplicate of another: the count stays right.
+        duplicate = [rows[0], rows[0]]
+        (root / "data" / "data.md").write_text(
+            _fixture_records_md(duplicate), encoding="utf-8", newline="\n"
+        )
+        _, table = parse_records_table(root / "data" / "data.md", expected=names)
+        problems += _expect(
+            table, label="M13 a row duplicated", fires=True, because="duplicate row"
         )
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -1015,7 +1047,7 @@ def _run_record_guard_cases() -> list[str]:
             Path(tmp) / "foreign", dict(foreign), _fixture_records_md(foreign), _FIXTURE_RECORD_A
         )
         problems += _expect(
-            parse_records_table(root / "data" / "data.md", expected=2)[1],
+            parse_records_table(root / "data" / "data.md", expected=frozenset(dict(foreign)))[1],
             label="M11 row outside completed/ and attempts/",
             fires=True,
             because="outside",

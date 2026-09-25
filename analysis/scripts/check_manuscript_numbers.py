@@ -1224,6 +1224,24 @@ def _attempt_events(path: Path) -> collections.Counter[str]:
     )
 
 
+def _captures_complete(path: Path) -> list[str]:
+    """Require every capture event to be of the full sealed size, so "completed capture" is earned."""
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    starts = [row for row in rows if row["event"] == "start"]
+    # M draws per condition, two conditions (channel on, channel off), K contexts.
+    expected = {row["requested_k_contexts"] * row["requested_m_draws"] * 2 for row in starts}
+    problems: list[str] = []
+    for row in rows:
+        if row["event"] != "captured":
+            continue
+        if expected != {row["llm_calls"]} or row["sub_sealed_scale"] is not False:
+            problems.append(
+                f"{path.parent.name} attempt log: a capture of {row['llm_calls']} calls "
+                f"(sub_sealed_scale={row['sub_sealed_scale']!r}) against requested {sorted(expected)}"
+            )
+    return problems
+
+
 def _stopped_partial(path: Path) -> tuple[int, int, list[str]]:
     """Count a stopped attempt's partial record: (complete lines, trailing bytes, problems).
 
@@ -1523,6 +1541,7 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         events = _attempt_events(attempts / arm / "attempts.jsonl")
         if set(events) != {"start", "captured"}:
             problems.append(f"the {arm} attempt log records events {dict(events)!r}")
+        problems += _captures_complete(attempts / arm / "attempts.jsonl")
         fragments.append(
             (
                 f"{arm} attempt log",
@@ -1746,7 +1765,7 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
             "the unterminated tail is not NUL bytes only",
         ),
         (
-            "M17 the stopped attempt's first call index is not 1",
+            "M16 the stopped attempt's first call index is not 1",
             lambda root: _replace_bytes(
                 root / "data/attempts/control/run_records.partial.attempt1-interrupted.jsonl",
                 b'"call_index": 1,', b'"call_index": 7,',
@@ -1754,9 +1773,17 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
             "call indices are not 1..",
         ),
         (
-            "M16 the control attempt log loses a start",
+            "M17 the control attempt log loses a start",
             lambda root: _drop_first_line(root / "data/attempts/control/attempts.jsonl"),
             "control attempt log",
+        ),
+        (
+            "M18 the control arm's capture is one call short",
+            lambda root: _replace_bytes(
+                root / "data/attempts/control/attempts.jsonl",
+                b'"llm_calls": 4800', b'"llm_calls": 4799',
+            ),
+            "a capture of 4799 calls",
         ),
         (
             "M12 a rendered row is quoted a second time",

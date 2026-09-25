@@ -164,6 +164,8 @@ ACCEPTED_EXPOSURES: tuple[tuple[str, str, str], ...] = (
         "The apparatus is vendored from a named public project and the provenance checks compare "
         "the shipped modules against that project's blobs byte for byte. The package name is "
         "therefore load-bearing: renaming it would break the check, and the check is the point. "
+        "The per-draw records shipped in data/completed/ also carry the name, once per draw, "
+        "inside the prompt text; they are pinned by digest, so they cannot be rewritten either. "
         "A reviewer who searches the name will find the author.",
     ),
 )

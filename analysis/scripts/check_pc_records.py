@@ -41,6 +41,10 @@ FROZEN_SCRIPT = "analysis/scripts/heldout_stay_check.py"
 RECORDS = "data/completed/bank_records.jsonl"
 TARGET = "PC-records"
 
+#: How many checks other than PC-records the frozen self-test reports. Pinned so that two equally
+#: truncated outputs cannot agree with each other over an empty or shortened set.
+EXPECTED_OTHER_CHECKS = 48
+
 #: One per-check line of the frozen script: ``[heldout] OK    <code>: <detail>``.
 CHECK_LINE_RE = re.compile(
     r"^\[heldout\] (?P<status>OK|FAIL|SKIPPED)\s+(?P<code>[^:\s]+):"
@@ -57,7 +61,9 @@ def checks(output: str) -> list[tuple[str, str, str]]:
     return found
 
 
-def judge(without: str, with_records: str) -> list[str]:
+def judge(
+    without: str, with_records: str, expected_others: int = EXPECTED_OTHER_CHECKS
+) -> list[str]:
     """Compare the two self-test outputs; return the problems."""
     problems: list[str] = []
     base, full = checks(without), checks(with_records)
@@ -90,6 +96,11 @@ def judge(without: str, with_records: str) -> list[str]:
 
     others_base = [line for _, code, line in base if code != TARGET]
     others_full = [line for _, code, line in full if code != TARGET]
+    if len(others_base) != expected_others:
+        problems.append(
+            f"without records: {len(others_base)} checks other than {TARGET}, "
+            f"expected {expected_others}"
+        )
     if others_base != others_full:
         changed = [
             (b, f) for b, f in zip(others_base, others_full, strict=False) if b != f
@@ -145,10 +156,16 @@ def judge_fires() -> list[str]:
             "expected to skip exactly",
         ),
         ("M6 a check disappears", _BASE, _FULL.replace("[heldout] OK    B-two: detail 2\n", ""), "changed checks other than"),
+        (
+            "M7 the same check disappears from both runs",
+            _BASE.replace("[heldout] OK    B-two: detail 2\n", ""),
+            _FULL.replace("[heldout] OK    B-two: detail 2\n", ""),
+            "expected 2",
+        ),
     )  # fmt: skip
     problems: list[str] = []
     for label, without, with_records, expect in cases:
-        found = judge(without, with_records)
+        found = judge(without, with_records, expected_others=2)
         joined = " | ".join(found)
         if expect is None and found:
             problems.append(f"self-check {label}: expected nothing, got {found!r}")

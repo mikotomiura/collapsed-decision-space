@@ -143,7 +143,8 @@ installation. The script runs fourteen steps and exits non-zero if any of them f
 3. verify the frozen inputs against `data/data.md` **and** against their upstream blobs
 4. verify the threshold freeze and the whole apparatus closure
 5. **recompute the three recorded verdicts** -- the completed run's and the two prospective
-   arms' -- from the shipped per-draw annotations, and require each to match field by field
+   arms' -- from the shipped per-draw annotations, and require the verdict string, the nine gate
+   read-outs and the four per-context maps of each to match
 6. extract the quantities the protocol quotes
 7. regenerate the power table
 8. derive the support of the decision space and the permutation-null mean of the estimate (the

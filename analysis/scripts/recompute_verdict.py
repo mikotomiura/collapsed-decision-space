@@ -31,8 +31,10 @@ so the per-draw record is treated as a frozen input.
 **The comparison is itself tested on every run.** After a run agrees, each compared field of a
 copy of its record is altered in turn, and the comparison is required to report that field by
 name; a comparison that could not see a difference would otherwise pass in the same words.
-``--self-test`` perturbs the *inputs* instead (one annotation row moved, one dropped), rescoring
-each time, and requires an unperturbed control to agree. It runs in
+``--self-test`` perturbs the *inputs* instead, rescoring each time: one draw's zone moved (the
+verdict string must stay and the read-outs must move -- sensitivity to the data) and one draw
+dropped (the plan's shape breaks and the verdict must become INCONCLUSIVE -- a malformed input
+cannot pass as the record). An unperturbed control must agree. It runs in
 ``.github/workflows/compendium.yml``.
 
 Usage:  python analysis/scripts/recompute_verdict.py [--self-test]
@@ -263,11 +265,12 @@ def self_test(repo_root: Path, score: Any) -> int:
     manifest = load_json(repo_root / run.manifest)
     rows = load_annotation_rows(repo_root / run.annotation)
 
-    def rescore(rows_: list[dict[str, Any]]) -> list[str]:
-        return compare(asdict(score(annotation_rows=rows_, manifest=manifest)), recorded)[0]
+    def rescore(rows_: list[dict[str, Any]]) -> tuple[dict[str, Any], list[str]]:
+        result = asdict(score(annotation_rows=rows_, manifest=manifest))
+        return result, compare(result, recorded)[0]
 
     failures: list[str] = []
-    unperturbed = rescore(rows)
+    _, unperturbed = rescore(rows)
     if unperturbed:
         failures.append(f"the unperturbed control disagreed: {unperturbed}")
 
@@ -280,12 +283,24 @@ def self_test(repo_root: Path, score: Any) -> int:
         i for i, r in enumerate(moved) if r["pre_bias_destination_zone"] == zones[0]
     )
     moved[index]["pre_bias_destination_zone"] = zones[1]
-    if not rescore(moved):
+    # This is the case that shows sensitivity to the data: the plan keeps its shape, the verdict
+    # string is unchanged, and the numeric read-outs must move.
+    _, found = rescore(moved)
+    if not found:
         failures.append("one annotation row's zone was moved, and the recomputation still agreed")
+    elif any(problem.startswith("MISMATCH verdict:") for problem in found):
+        failures.append(f"a moved zone changed the verdict string, not only the read-outs: {found}")
 
-    # One draw dropped.
-    if not rescore(rows[1:]):
-        failures.append("one annotation row was dropped, and the recomputation still agreed")
+    # One draw dropped. This breaks the K x M shape, and the scorer treats the input as
+    # malformed; what it shows is that a malformed plan cannot pass as the recorded verdict,
+    # not that a single draw moves the numbers.
+    result, found = rescore(rows[1:])
+    if result["verdict"] != "INCONCLUSIVE" or not any(
+        problem.startswith("MISMATCH verdict:") for problem in found
+    ):
+        failures.append(
+            f"a dropped row did not turn the verdict INCONCLUSIVE ({result['verdict']!r}): {found}"
+        )
 
     if failures:
         print("[recompute] FAIL --self-test", file=sys.stderr)
@@ -293,8 +308,9 @@ def self_test(repo_root: Path, score: Any) -> int:
             print(f"  - {failure}", file=sys.stderr)
         return 1
     print(
-        "[recompute] OK --self-test: the unperturbed control agrees; a moved zone and a "
-        "dropped row are each reported as a mismatch"
+        "[recompute] OK --self-test: the unperturbed control agrees; a moved zone keeps the "
+        "verdict string and moves the read-outs; a dropped row breaks the plan's shape and "
+        "the verdict becomes INCONCLUSIVE"
     )
     return 0
 

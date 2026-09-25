@@ -1220,9 +1220,15 @@ qualification. The control arm's first capture attempt was stopped from outside 
 produced a verdict, and the arm was restarted from the beginning. The driver's append-only attempt
 logs are shipped under `data/attempts/`: the control arm's log records two starts and one
 completed capture, and the primary arm's log records one start and one completed capture. The
-stopped attempt's partial record is shipped beside the control log, byte for byte as the driver
-left it; it holds 41 complete per-call lines (call indices 1 to 41) followed by 594 NUL bytes and
-no final newline. Step 9 counts both from the shipped files. What the files cannot show is that no
+stopped attempt's partial record is shipped beside the control log, byte for byte as committed
+upstream at `d8ee75348bf92c81b19a9134b645e7f6988d0fa8` (that this is how the driver left it is
+recorded, not checked); it holds 41 complete per-call lines (call indices 1 to 41) followed by 594 NUL bytes and
+no final newline. Step 9 counts the events in both logs and the lines of the partial record from
+the shipped files, and requires each capture event to report the full 4,800 calls. Every start
+event in both logs records the driver file's SHA-256, which equals that of
+`scripts/paper02_run_arms.py` at upstream commit `4e45adb33d7472d2adf6da29a800bde9b8f58f9e`, and
+also records that the upstream working tree was not clean (`git_dirty`); what else differed from
+that commit is not recorded, and this repository does not check it. What the files cannot show is that no
 other attempt was made and discarded, which is why the complete-run count stays on the recorded
 side. Step 3 establishes only that each landed verdict is a document distinct from
 every frozen input, and its own output says so rather than leaving the stronger reading available.
@@ -1258,7 +1264,8 @@ In all three runs the contexts were run in sorted order, and within each context
 draws were requested before the 300 channel-off draws. The order is fixed by the upstream apparatus:
 the loop at lines 276–284 of `src/erre_sandbox/integration/embodied/bank.py`, with the condition
 order `("on", "off")` at line 118, at commit `4e45adb33d7472d2adf6da29a800bde9b8f58f9e` of the
-upstream repository, the commit the prospective driver ran from; the file is unchanged there since
+upstream repository, the commit the prospective driver was run at (its working tree was not clean;
+§12.8); the file is unchanged there since
 before the completed run. The shipped annotation files hold the draws in that order. Any difference
 between the conditions -- the sealed estimate, the descriptive quantities of the results section
 and the held-out difference in recorded `None` -- is therefore also a difference between earlier and
@@ -1295,7 +1302,8 @@ the upstream source repository. That closure covers the scoring and power machin
 the analyses in this repository exercise; it does not include the live driver that produced the
 draws, since regenerating draws is out of scope here (§6.2). That driver is in the
 upstream repository as `scripts/paper02_run_arms.py` at commit
-`4e45adb33d7472d2adf6da29a800bde9b8f58f9e`, the commit it ran from, and the call order it inherits
+`4e45adb33d7472d2adf6da29a800bde9b8f58f9e`, the commit it was run at (with a working tree that
+was not clean, §12.8), and the call order it inherits
 from the apparatus is described in §12.9. Neither is checked by anything in this repository.
 
 `bash repro.sh` performs fourteen steps, in order: environment installation from the lockfile; a
@@ -1406,7 +1414,7 @@ completed run and, since 2026-09-25, `data/raw/control-verdict.json` and
 reads, are therefore derivable from this repository rather than merely quoted from it. The step
 also alters each compared field of a copy of each record in turn and requires the comparison to
 name it, so that a comparison unable to see a difference cannot pass. It takes under two
-seconds.
+seconds on the author's machine.
 
 The ninth step is what turns "these numbers were not transcribed by hand" from an assurance into
 a check: it reads each quantity from the frozen JSON by key and requires the resulting literal to

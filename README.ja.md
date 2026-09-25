@@ -131,7 +131,7 @@ bash repro.sh
 3. 凍結入力を `data/data.md` **および**上流 blob と照合
 4. 閾値の凍結と apparatus 閉包全体を検証
 5. **記録された 3 つの verdict (完了済み実走と前向き 2 アーム) を、同梱の per-draw annotation から
-   再計算**し、field ごとの一致を要求
+   再計算**し、それぞれの verdict 文字列・9 つの gate 読み出し・4 つの per-context マップの一致を要求
 6. protocol が引く量を抽出
 7. power 表を再生成
 8. 決定空間の台と、推定値の permutation 帰無平均を導出 (封印済み script はこの step を以前の版の語彙で
