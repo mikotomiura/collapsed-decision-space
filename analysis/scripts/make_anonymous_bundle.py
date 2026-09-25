@@ -207,7 +207,9 @@ EXCLUDED_FILES: frozenset[str] = frozenset(
         # as bytes and finds nothing. An independent review caught it: the build reported the
         # bundle clean while shipping a file that names the author in seventy-four places. The
         # scan is now fail-closed on PDFs (see BINARY_SUFFIXES below); this line is the reason
-        # there is nothing left for it to reject.
+        # there is nothing left for it to reject. Since C (2026-09-26) the file is no longer in the
+        # tracked tree at all -- the tag `stage1-submitted` keeps it -- and the entry stays so that
+        # restoring the file cannot put it back into a bundle unnoticed.
         "manuscript/powered-null-stage1.pdf",
     }
 )
@@ -322,6 +324,60 @@ def scan(root: Path) -> tuple[list[str], dict[str, int]]:
         for label, pattern, _ in ACCEPTED_EXPOSURES:
             exposures[label] += len(re.findall(pattern, haystack, re.IGNORECASE))
     return problems, exposures
+
+
+def exposure_files(root: Path) -> dict[str, list[str]]:
+    """For each accepted exposure, the files that carry it. The occurrence count alone does not say
+    whether an exposure is one file or all of them."""
+    found: dict[str, list[str]] = {label: [] for label, _, _ in ACCEPTED_EXPOSURES}
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, ValueError):
+            text = path.read_bytes().decode("latin-1")
+        haystack = _mask_allowed(text)
+        for label, pattern, _ in ACCEPTED_EXPOSURES:
+            if re.search(pattern, haystack, re.IGNORECASE):
+                found[label].append(rel)
+    return found
+
+
+def _by_top_directory(paths: list[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for rel in paths:
+        top = rel.split("/", 1)[0] if "/" in rel else "(root)"
+        counts[top] = counts.get(top, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+#: One timestamp for every entry of the archive, so that two builds of the same commit produce the
+#: same bytes. The date means nothing; the zip format cannot represent a date before 1980.
+ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+
+
+def write_zip(out: Path) -> tuple[Path, str, int]:
+    """Write ``out`` as a deterministic zip beside it; return its path, SHA-256 and unpacked size.
+
+    ``shutil.make_archive`` records each file's modification time and the order of a directory
+    walk, so two builds of one commit differ. Here the entries are sorted and carry one fixed time,
+    one fixed mode and one compression level.
+    """
+    import hashlib  # noqa: PLC0415
+    import zipfile  # noqa: PLC0415
+
+    archive = out.with_suffix(".zip")
+    unpacked = 0
+    with zipfile.ZipFile(archive, "w") as handle:
+        for path in sorted(p for p in out.rglob("*") if p.is_file()):
+            data = path.read_bytes()
+            unpacked += len(data)
+            info = zipfile.ZipInfo(path.relative_to(out).as_posix(), date_time=ZIP_TIMESTAMP)
+            info.external_attr = 0o644 << 16
+            handle.writestr(info, data, compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
+    return archive, hashlib.sha256(archive.read_bytes()).hexdigest(), unpacked
 
 
 def anonymise_citation(path: Path) -> None:
@@ -602,22 +658,34 @@ def main(argv: list[str] | None = None) -> int:
         newline="\n",
     )
 
-    if args.zip:
-        archive = shutil.make_archive(str(out), "zip", root_dir=out)
-        size = Path(archive).stat().st_size
-        print(f"[anon] wrote {archive} ({size / 1_048_576:.1f} MB)")
-
+    files_with = exposure_files(out)
     manifest = {
         "sealed_files_unchanged": list(SEALED_PATHS),
         "leak_patterns_checked": [label for label, _ in LEAK_PATTERNS],
         "accepted_exposures": [
-            {"what": label, "occurrences": exposures[label], "why_it_cannot_be_removed": reason}
+            {
+                "what": label,
+                "occurrences": exposures[label],
+                "files": len(files_with[label]),
+                "files_by_top_directory": _by_top_directory(files_with[label]),
+                "why_it_cannot_be_removed": reason,
+            }
             for label, _, reason in ACCEPTED_EXPOSURES
         ],
     }
     (out / "anonymisation-report.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n"
     )
+
+    # The archive is written last, so that it holds the report above. It used to be written first,
+    # and the report never reached the zip a reviewer would receive.
+    if args.zip:
+        archive, digest, unpacked = write_zip(out)
+        size = archive.stat().st_size
+        print(
+            f"[anon] wrote {archive} ({size / 1_048_576:.1f} MB, {unpacked / 1_048_576:.1f} MB "
+            f"unpacked), sha256 {digest}"
+        )
     print(f"[anon] bundle at {out}")
     # Not "OK". The strings on the redaction list are gone; the bundle is still traceable to its
     # author by anyone who searches the exposure above, and a bare success line would be read as

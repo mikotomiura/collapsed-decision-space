@@ -1,6 +1,6 @@
 name: Submission PDF
 
-# Build the PDF that is submitted, from `manuscript/main.md`.
+# Build the TMLR submission PDF from `manuscript/main.md`, and read it back.
 #
 # **Manual only.** Producing a PDF is not part of reproducing the study, and `repro.sh` deliberately
 # needs nothing but `uv`. Adding a LaTeX toolchain to the reproduction path would make the central
@@ -9,188 +9,156 @@ name: Submission PDF
 #
 # **There is no second manuscript.** The PDF is derived from `manuscript/main.md`, which is the only
 # text the claim-boundary check, the abstract-consistency check and the character-level number check
-# read. A hand-maintained submission copy would be a claim surface outside all three.
+# read. `make_pdf_source.py` performs a mechanical transformation into the official TMLR style
+# (`manuscript/tmlr/`, vendored byte for byte), and `make_figures.py` draws the three figures from the
+# shipped data.
 #
-# The build is not trusted. Two silent failure modes are checked for explicitly after the fact:
-#
-#   * XeTeX sets *nothing* for a character its font lacks, and does not fail. A narrow-coverage font
-#     would quietly delete the logical connectives that join the branch conditions of section E.
-#   * A `longtable` row cannot break across a page. If a table is set too wide, the right-hand
-#     columns are what disappears. The acute case used to be the six-column study design table,
-#     which was rotated onto its own page; that table is gone and the rotation with it, so the
-#     check now watches the column headers of the widest table left.
-#
-# Neither is visible from a page count, so the PDF is read back with `pdftotext` and checked.
+# The build is not trusted. pdflatex stops on a character it has no definition for, which is why it
+# replaced XeTeX (which sets nothing and carries on), but a table can still overprint its neighbour, a
+# figure can lose a number and a citation can go unresolved without the build failing. So the PDF is
+# read back with `pdftotext`, twice: in reading order for the text, and in content-stream order for
+# the figures, whose rows are emitted as consecutive runs so that the check does not depend on how an
+# extractor lays out columns (xpdf and poppler do that differently).
 
 on:
   workflow_dispatch:
     inputs:
       anonymous:
         description: >-
-          Build the anonymised submission PDF instead of the named one, and read it back to check
-          that nothing in it identifies the author.
+          Build the anonymous submission PDF and the anonymous supplement instead of the named
+          preprint, and read the PDF back to check that nothing in it identifies the author.
         type: boolean
         default: false
 
 permissions:
   contents: read
 
-# Anonymity is not a property anyone should infer. The named build's own annotations carry the
-# repository URL nine times over, in a layer nobody reading the page can see, so the anonymous
-# build is produced here from the anonymised manuscript and then read back with
-# `check_pdf_identity.py`. Passing `anonymous: true` switches both.
 jobs:
   pdf:
-    name: build and check paper.pdf
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    name: build and check the TMLR PDF
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+      # pandoc is pinned by version and by the digest of its release package, so that a change of
+      # converter shows up as a change of this file rather than as a quiet change of the page.
+      PANDOC_VERSION: "3.5"
+      PANDOC_DEB_SHA256: "4f41d817d262ef3d17953a3e6e0fefddb971aa4f2f121544a9a86db449d945e1"
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install uv
-        if: inputs.anonymous
         uses: astral-sh/setup-uv@v7
 
       - name: Build the anonymous bundle, and take the manuscript from it
         # `make_anonymous_bundle.py` refuses to run on a dirty tree, produces the redacted
-        # manuscript, and asserts that every sealed file is byte-identical to the public copy.
-        # Swapping the manuscript in place afterwards keeps the rest of this workflow identical
-        # for both builds -- one pipeline, not two, so the anonymous PDF cannot drift from the
-        # named one in any way except the redactions.
+        # manuscript and the deterministic supplement zip, and asserts that every sealed file is
+        # byte-identical to the public copy. Swapping the redacted files in keeps the rest of the
+        # workflow identical for both builds -- one pipeline, so the anonymous PDF cannot drift from
+        # the named one except by the redactions.
         if: inputs.anonymous
         run: |
           set -eux
           uv run --project env --no-sync python analysis/scripts/make_anonymous_bundle.py \
-            --out build/anonymous
-          for f in manuscript/main.md                    analysis/scripts/make_pdf_source.py                    analysis/scripts/check_pdf_text.py; do
+            --out build/anonymous --zip
+          for f in manuscript/main.md analysis/scripts/make_pdf_source.py analysis/scripts/check_pdf_text.py; do
             cp "build/anonymous/$f" "$f"
           done
-          # make_pdf_source.py carries the author line for the title block, and
-          # check_pdf_text.py carries the author name and ORCID among the phrases it requires to
-          # survive into the page. Redacted in the manuscript but not in those two, the build
-          # would either print the name or fail looking for it.
 
-      - name: Install pandoc, XeTeX and a wide-coverage font
-        # `fonts-dejavu` carries the font chosen for its coverage of the logical connectives and
-        # accented letters the body needs. `texlive-latex-extra` is kept because the pandoc
-        # template reaches into it for several ordinary packages, but no longer for pdflscape:
-        # the landscape rotation went when the study design table did.
-        #
-        # `lmodern` is named explicitly because pandoc's default LaTeX template loads it
-        # unconditionally -- including under xelatex with a `mainfont` set, where one might assume
-        # it is unused. Omitting it fails the build with `lmodern.sty not found`, which is exactly
-        # the failure this project's other paper pipeline already recorded and this one repeated.
-        #
-        # Every style file the template needs is checked at install time. A missing package should
-        # be reported by the step that installs packages, not by a LaTeX error in the middle of a
-        # build, where the message points at the template rather than at the cause.
+      - name: Install pandoc, TeX Live and poppler
         run: |
           set -eux
+          curl -sSL -o /tmp/pandoc.deb \
+            "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+          echo "${PANDOC_DEB_SHA256}  /tmp/pandoc.deb" | sha256sum -c -
+          sudo dpkg -i /tmp/pandoc.deb
+          pandoc --version | head -1 | grep -qx "pandoc ${PANDOC_VERSION}"
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
-            pandoc \
-            texlive-xetex \
-            texlive-fonts-recommended \
-            texlive-latex-recommended \
-            texlive-latex-extra \
-            lmodern \
-            fonts-dejavu \
-            poppler-utils
-          # Only two style files are asserted, and each for a reason that is on the record rather
-          # than guessed:
-          #
-          #   lmodern   -- pandoc's default template loads it unconditionally. Its absence is what
-          #                failed the first run of this workflow.
-          #   seqsplit  -- likewise; it is what lets a 64-character digest break instead of running
-          #                off the page, which is how 17 characters of one went missing.
-          #
-          # Nothing else is asserted. An earlier version of this step listed a dozen packages the
-          # template "probably" needs and failed on selnolig, which pandoc loads only under LuaTeX
-          # and which xelatex never wants. A check that invents requirements is worse than no check:
-          # it fails builds that would have worked. What the template actually needs is proven by
-          # the build step itself, which names any missing file.
-          kpsewhich lmodern.sty
-          kpsewhich seqsplit.sty
-          fc-list | grep -q 'DejaVu Serif'
-          fc-list | grep -q 'DejaVu Sans Mono'
-          pandoc --version | head -1
-          # Diagnostics, not assertions: the packages the installed pandoc's template would load,
-          # so that a future failure can be read against the real list instead of a guessed one.
-          echo '--- packages referenced by the default LaTeX template ---'
-          pandoc -D latex | grep -E '^\s*\\\\usepackage' | sort -u || true
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-pictures lmodern poppler-utils
+          # What tmlr.sty and the template load, asserted where it is installed rather than
+          # discovered in the middle of a build.
+          for sty in lmodern eso-pic natbib seqsplit footnotehyper tikz amsmath amssymb longtable booktabs hyperref; do
+            kpsewhich "$sty.sty"
+          done
+          kpsewhich glyphtounicode.tex
 
-      - name: Pin the date to the manuscript's last change
-        # `\today` would make the PDF differ on every build. The date of the commit that last
-        # touched the manuscript is the honest answer and is stable for a given commit.
-        id: date
-        run: |
-          set -eu
-          DATE="$(git log -1 --format=%cs -- manuscript/main.md)"
-          test -n "$DATE"
-          echo "value=$DATE" >> "$GITHUB_OUTPUT"
-          echo "manuscript date: $DATE"
-
-      - name: Build the pandoc source
+      - name: Generate the pandoc source, the bibliography and the figures
         run: |
           set -eux
-          python3 analysis/scripts/make_pdf_source.py \
-            --out build/paper-source.md \
-            --date "${{ steps.date.outputs.value }}"
+          python3 analysis/scripts/make_pdf_source.py --out-dir build/pdf ${{ inputs.anonymous && '--anonymous' || '' }}
+          python3 analysis/scripts/make_figures.py --out-dir build/pdf
+          python3 analysis/scripts/make_figures.py --out-dir build/pdf --check
 
       - name: Build the PDF
-        # Typesetting variables live in the generated front matter, not here, so that a font name
-        # containing a space cannot be split into separate arguments by the shell.
+        # The date the PDF records is the date of the commit, not of the build, so that two builds
+        # of one commit agree on it.
+        working-directory: build/pdf
         run: |
           set -eux
-          pandoc build/paper-source.md \
-            --from=markdown \
-            --pdf-engine=xelatex \
-            --toc \
-            --toc-depth=2 \
-            --metadata link-citations=true \
-            --output=build/collapsed-decision-space-protocol.pdf
-          ls -l build/collapsed-decision-space-protocol.pdf
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export FORCE_SOURCE_DATE=1
+          pandoc -d ../../manuscript/tmlr/pandoc.yaml -d pandoc-vars.yaml paper-source.md -o paper.tex
+          pdflatex -interaction=nonstopmode -halt-on-error paper
+          bibtex paper
+          pdflatex -interaction=nonstopmode -halt-on-error paper
+          pdflatex -interaction=nonstopmode -halt-on-error paper
+          # A citation or cross-reference that did not resolve prints as "?" and does not fail
+          # the build; neither does a BibTeX warning about an entry it could not format.
+          ! grep -E "Citation .* undefined|Reference .* undefined|There were undefined" paper.log
+          ! grep -E "^Warning--" paper.blg
+          ls -l paper.pdf
 
       - name: Read the PDF back
+        working-directory: build/pdf
         run: |
           set -eux
-          pdftotext build/collapsed-decision-space-protocol.pdf build/extracted.txt
-          wc -c build/extracted.txt
-          pdfinfo build/collapsed-decision-space-protocol.pdf | sed -n '1,12p'
+          pdftotext -enc UTF-8 paper.pdf paper.txt
+          pdftotext -enc UTF-8 -raw paper.pdf paper-raw.txt
+          wc -c paper.txt paper-raw.txt
+          pdfinfo paper.pdf | sed -n '1,14p'
 
       - name: Check what the PDF actually contains
-        # Required phrases, every column header of the widest table, the characters at risk of
+        # Required phrases, the page budget, the first-page footnote, every figure's numbers row by
+        # row on its own page, the column headers of the widest tables, the characters at risk of
         # silent loss, and the quantities read from the frozen inputs by key.
-        run: python3 analysis/scripts/check_pdf_text.py build/extracted.txt
+        run: |
+          python3 analysis/scripts/check_pdf_text.py build/pdf/paper.txt \
+            --raw build/pdf/paper-raw.txt ${{ inputs.anonymous && '--anonymous' || '' }}
 
       - name: Check that nothing in the anonymous PDF identifies the author
         # Reads the information dictionary, any XMP packet, every link annotation and every
-        # inflated stream. The annotations are the point: they hold their target URI as plain
-        # text, and the named build carries nine of them.
+        # inflated stream, and the page. The upstream project's name and the title of the author's
+        # prior preprint fail here as well, though the supplement has to keep the former.
         if: inputs.anonymous
         run: |
-          set -eux
           uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py \
-            build/collapsed-decision-space-protocol.pdf \
-            --text build/extracted.txt
+            build/pdf/paper.pdf --text build/pdf/paper.txt
 
       - name: Check the PDF against the claim boundary
         # The PDF is published in its own right, so it is a claim surface too. The patterns come
         # from `manuscript/CLAIM-BOUNDARY.md` -- one SSOT, applied to the derived artefact as well
         # as to the source.
-        run: python3 analysis/scripts/check_claim_boundary.py --extra-target build/extracted.txt
+        run: |
+          uv run --project env --no-sync python analysis/scripts/check_claim_boundary.py \
+            --extra-target build/pdf/paper.txt
 
-      - name: Upload the PDF
+      - name: Upload the PDF, and for the anonymous build the supplement
         # `always()` so that a failing check still hands over the PDF and the text it was read
-        # from. When a check reports that something is missing from the page, the next question is
-        # what the page actually says, and that question cannot be answered from the log alone.
+        # from: when a check reports something missing from the page, the next question is what
+        # the page actually says.
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: collapsed-decision-space-protocol-${{ inputs.anonymous && 'anonymous' || 'named' }}-${{ github.sha }}
+          name: tmlr-${{ inputs.anonymous && 'anonymous' || 'named' }}-${{ github.sha }}
           path: |
-            build/collapsed-decision-space-protocol.pdf
-            build/extracted.txt
-          if-no-files-found: error
+            build/pdf/paper.pdf
+            build/pdf/paper.txt
+            build/pdf/paper-raw.txt
+            build/pdf/paper.log
+            build/anonymous.zip
+            build/anonymous/anonymisation-report.json
+          if-no-files-found: warn
           retention-days: 90

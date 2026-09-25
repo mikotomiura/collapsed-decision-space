@@ -84,6 +84,14 @@ FIGURE_END = "<!-- /TMLR:FIGURE -->"
 #: boundary rather than a guess -- above it, content was being dropped.
 LONG_TOKEN_THRESHOLD = 48
 
+#: Table geometry for the column floors of :func:`weight_table_columns`. Tables are set in
+#: ``\footnotesize`` (8 pt) by the template; 4.4 pt is the width of one character of 8 pt Latin
+#: Modern typewriter, the widest face a cell token is set in, and 14 pt is the column padding either
+#: side plus a margin. The TMLR text block is 6.5 in.
+TABLE_CHAR_PT = 4.4
+TABLE_PADDING_PT = 14.0
+LINE_WIDTH_PT = 6.5 * 72.27
+
 #: The upstream project's name, in every spelling the manuscript uses (``ERRE-Sandbox``,
 #: ``erre_sandbox``, ``ERRE_SANDBOX``). The same pattern ``make_anonymous_bundle.py`` counts as an
 #: accepted exposure; in the anonymous PDF it is withheld instead, and ``check_pdf_identity.py``
@@ -494,8 +502,9 @@ def weight_table_columns(body: str) -> tuple[str, int]:
         longest = [max(min(len(row[k]), 90) for row in cells) for k in range(columns)]
         # A token with no space in it cannot wrap, so a column must be wide enough for its longest
         # one: the first TMLR build set a 19-character value in a column narrower than it, and the
-        # value ran on into the next column's text. Code is set in a wider face than prose, hence
-        # the factor.
+        # value ran on into the next column's text. The floor is absolute, not relative: a column's
+        # share of the line must hold its longest token at the table's size (TABLE_CHAR_PT per
+        # character, plus the padding either side), and the other columns give way.
         unbreakable = [
             max(
                 len(token.strip("`*"))
@@ -504,7 +513,26 @@ def weight_table_columns(body: str) -> tuple[str, int]:
             )
             for k in range(columns)
         ]
-        weights = [max(6, n, 2 * u) for n, u in zip(longest, unbreakable, strict=True)]
+        floors = [
+            (u * TABLE_CHAR_PT + TABLE_PADDING_PT) / LINE_WIDTH_PT for u in unbreakable
+        ]
+        if sum(floors) > 1:
+            continue  # cannot be satisfied; leave pandoc's own widths and let the read-back judge
+        share = [max(6, n) for n in longest]
+        fractions = [s / sum(share) for s in share]
+        for _ in range(columns):  # raise the columns below their floor, shrink the rest
+            short = [k for k in range(columns) if fractions[k] < floors[k]]
+            if not short:
+                break
+            fixed = {k: floors[k] for k in short}
+            rest = [k for k in range(columns) if k not in fixed]
+            room = 1 - sum(fixed.values())
+            total = sum(fractions[k] for k in rest)
+            fractions = [
+                fixed[k] if k in fixed else fractions[k] * room / total
+                for k in range(columns)
+            ]
+        weights = [max(3, round(f * 300)) for f in fractions]
         lines[index] = "|" + "|".join("-" * w for w in weights) + "|"
         count += 1
     return "\n".join(lines), count

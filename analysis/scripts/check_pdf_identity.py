@@ -49,6 +49,18 @@ from make_anonymous_bundle import (  # noqa: E402
     LEAK_PATTERNS,
 )
 
+#: Strings the supplement has to keep but the anonymous PDF must not carry (``.steering`` DA-C-4 and
+#: DA-C-5, user rulings of 2026-09-26). The upstream project's name is an accepted exposure of the
+#: bundle, because the provenance checks compare bytes against that project; the PDF has no such
+#: constraint, and ``make_pdf_source.py --anonymous`` replaces it. The title of the author's own
+#: prior preprint would resolve to the author through any search; the anonymous bibliography
+#: withholds it. Both fail this check rather than being counted, because on the page they are a
+#: choice, not a constraint.
+PDF_WITHHELD: tuple[tuple[str, str], ...] = (
+    (ACCEPTED_EXPOSURES[0][0], ACCEPTED_EXPOSURES[0][1]),
+    ("the title of the author's own prior preprint", r"two-plane\s+determinism"),
+)
+
 #: Keys of the document information dictionary that carry free text.
 INFO_KEYS: tuple[str, ...] = (
     "/Title",
@@ -222,7 +234,7 @@ def main(argv: list[str] | None = None) -> int:
     problems: list[str] = []
     for where, text in haystacks:
         masked = _mask(text)
-        for label, pattern in LEAK_PATTERNS:
+        for label, pattern in (*LEAK_PATTERNS, *PDF_WITHHELD):
             for match in re.finditer(pattern, masked, re.IGNORECASE):
                 problems.append(f"{where}: {label}: {match.group(0)!r}")
 
@@ -241,17 +253,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 1
 
-    inflated = blob.decode("latin-1")
-    for label, pattern, _ in ACCEPTED_EXPOSURES:
-        in_bytes = len(re.findall(pattern, inflated, re.IGNORECASE))
-        if page_text is None:
-            on_page = "unknown, --text not given"
-        else:
-            on_page = str(len(re.findall(pattern, page_text, re.IGNORECASE)))
-        print(
-            f"[pdf-identity]   DISCLOSED: {label} -- {in_bytes} occurrence(s) in the file's "
-            f"bytes, {on_page} on the page"
-        )
+    for label, _ in PDF_WITHHELD:
+        print(f"[pdf-identity]   WITHHELD: {label} -- 0 occurrences, in the bytes and on the page")
 
     where = "the metadata, the XMP, the link annotations, and the inflated streams"
     if page_text is None:
