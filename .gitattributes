@@ -22,6 +22,9 @@
 *.yaml      text eol=lf
 *.cff       text eol=lf
 *.txt       text eol=lf
+# B3 (2026-09-25): the post hoc simulation's per-replicate record is compared byte for byte
+# across two operating systems and against the committed copy.
+*.tsv       text eol=lf
 
 # Files without an extension, which the rules above do not reach.
 SEED        text eol=lf

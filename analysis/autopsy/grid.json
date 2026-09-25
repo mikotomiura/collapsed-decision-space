@@ -1,0 +1,158 @@
+{
+  "schema": "cds-autopsy-grid-1",
+  "purpose": "Post hoc simulation of the operating characteristics of the sealed decision pipeline (scorer gates, stratified permutation test, sealed decision rules R4 -> R3 -> R1 -> R2) under known channel-off bases. A property of the design, not an estimate of any effect of the channel.",
+  "master_seed": 20260925,
+  "zones": ["agora", "chashitsu", "garden", "peripatos", "study"],
+  "m_draws": 300,
+  "k_contexts": 8,
+  "context_ids": [
+    "cproper-ctx-0", "cproper-ctx-1", "cproper-ctx-2", "cproper-ctx-3",
+    "cproper-ctx-4", "cproper-ctx-5", "cproper-ctx-6", "cproper-ctx-7"
+  ],
+  "bases": [
+    {
+      "id": "C",
+      "index": 0,
+      "label": "completed run, per-context channel-off",
+      "true_off": "empirical per-context channel-off distribution of data/raw/bank_annotation.jsonl (counts / parsed draws, exact fractions)",
+      "none_counts_from": "data/raw/bank_annotation.jsonl"
+    },
+    {
+      "id": "K",
+      "index": 1,
+      "label": "control arm, per-context channel-off",
+      "true_off": "empirical per-context channel-off distribution of data/prospective/control/run_annotation.jsonl",
+      "none_counts_from": "data/prospective/control/run_annotation.jsonl"
+    },
+    {
+      "id": "Cs",
+      "index": 2,
+      "label": "completed run with its two empty zones filled",
+      "true_off": "base C in every context, with 0.005 moved from study to agora and 0.005 from study to chashitsu",
+      "fill": {"from": "study", "to": {"agora": "0.005", "chashitsu": "0.005"}},
+      "none_counts_from": "data/raw/bank_annotation.jsonl"
+    },
+    {
+      "id": "U",
+      "index": 3,
+      "label": "near-uniform (the first base of section 5.2)",
+      "true_off": "[0.2, 0.2, 0.2, 0.2, 0.2] in every context",
+      "dist": ["0.2", "0.2", "0.2", "0.2", "0.2"],
+      "none_counts_from": "data/raw/bank_annotation.jsonl"
+    },
+    {
+      "id": "G",
+      "index": 4,
+      "label": "degenerate (the second base of section 5.2)",
+      "true_off": "[0.96, 0.01, 0.01, 0.01, 0.01] in zone order in every context",
+      "dist": ["0.96", "0.01", "0.01", "0.01", "0.01"],
+      "none_counts_from": "data/raw/bank_annotation.jsonl"
+    }
+  ],
+  "bases_not_included": "The primary arm's channel-off draws are not a base: the entropy floor stops the sealed pipeline at R4 on that arm, and the question here is what the gates and the test do once a base is admitted.",
+  "roles": "hi and lo are the indices at which the sealed _perturb_to_delta_tv, applied to the base pooled over the eight contexts, removes and adds mass. second is the largest pooled cell other than hi, smallest_nonzero the smallest positive pooled cell other than hi, and empty the pooled cells of probability zero; ties go to the lowest zone index. When the pooled base has no empty cell, empty means the two smallest pooled cells other than hi.",
+  "directions": [
+    {"id": "D1", "label": "surrogate direction: hi -> lo (the move the R3 gate builds its alternative from)"},
+    {"id": "D2", "label": "hi -> smallest_nonzero"},
+    {"id": "D3", "label": "hi -> second"},
+    {"id": "D4", "label": "second -> hi (concentrating)"},
+    {"id": "D5", "label": "hi -> empty, split equally"},
+    {"id": "D6", "label": "sign-mixed: D3 in cproper-ctx-0..3, D4 in cproper-ctx-4..7"}
+  ],
+  "direction_rules": {
+    "shift": "In every context the same true total-variation distance delta separates the channel-on distribution from the channel-off one.",
+    "support_change": "A cell is labelled support-changing when, in some context, the channel-on distribution puts positive mass on a zone the channel-off distribution gives probability zero.",
+    "aliases": "Directions that yield the same channel-on distribution in every context on a base are computed once and reported under every name.",
+    "infeasible": "If in any context the source cell holds less than delta, the cell is not run and is reported as infeasible. Nothing is clipped."
+  },
+  "deltas": ["0", "0.01", "0.02", "0.03", "0.04", "0.05", "0.075", "0.10", "0.15"],
+  "replicates": {
+    "null": {"C": 4000, "K": 4000, "Cs": 4000, "U": 4000, "G": 4000},
+    "alternative": {"C": 1000, "K": 500, "Cs": 500, "U": 500, "G": 500},
+    "alternative_directions": {
+      "C": ["D1", "D2", "D3", "D4", "D5", "D6"],
+      "K": ["D1", "D3"],
+      "Cs": ["D1", "D2", "D3", "D4", "D5", "D6"],
+      "U": ["D1", "D2", "D3", "D4", "D5", "D6"],
+      "G": ["D1", "D2", "D3", "D4", "D5", "D6"]
+    }
+  },
+  "sampling": {
+    "none_counts": "The number of draws with no zone in each (context, condition) cell is fixed at the value observed in the run the base comes from; the remaining draws of the cell are drawn from the cell's distribution. The None condition of R4 therefore cannot fire anywhere in this grid.",
+    "row_order": "Rows are written in the order of the shipped annotation: contexts in id order, the channel-on block then the channel-off block, mc_index 0..299, with the draws that yield no zone at the highest indices.",
+    "common_random_numbers": "For base b and replicate r, one array of uniforms U[context, condition, draw] is taken from numpy.random.default_rng(SeedSequence(master_seed, spawn_key=(b.index, r))). Every direction and every delta on that base reuses it; a draw is the zone whose cumulative interval contains the uniform (inverse CDF). The channel-off draws are therefore identical across the cells of a base and replicate.",
+    "cell_identity": "A cell is identified by (base, direction, delta), never by the shard or process that computes it."
+  },
+  "pipeline": {
+    "scorer": "score_bank_annotation from the vendored apparatus with its defaults (n_replicates 4000, seed 20260708, require_powered_scale true) and the manifest {run: {m_draws, k_contexts, context_ids}, env_pins: {think: false}}.",
+    "rules": "seal/decision-rules.json through the sealed evaluator's _load_rules and _evaluate_group, applied to verdict_to_dict of the scorer's output, in the sealed evaluation order with R5 left out: R5 is the control arm's gate and has no counterpart here.",
+    "die": "An evaluator exit (a quantity it reads is null) is counted as the outcome 'die'."
+  },
+  "quantities": {
+    "primary": "Two quantities, each answering its own question, neither standing in for the other. (1) Pipeline: P(branch = R2), the probability that the sealed pipeline does not report the null. R2 is reached by a permutation reject or by tv_bar >= 0.1, and the gates R4 and R3 stop evaluation before either is read, so this is the operating characteristic of the pipeline, not of the test. Called its simulated R2 rate at delta > 0 and its Type-I rate at delta = 0, and reported with its split into permutation reject only, tv_bar >= 0.1 only, and both, and with the branch counts R4 / R3 / R1 / R2 / die. (2) Test: P(test_reject), the rejection rate of the sealed stratified permutation test (the scorer's own _permutation_test and _tv_from_labels, 4000 permutations, the scorer's seed, alpha 0.05) applied to the parsed draws of all eight contexts of every replicate, with no gate in front of it. This is the quantity the manuscript's disclosure that the test's power was not evaluated refers to. When the scorer itself tested all eight contexts, its result is the same call and is reused; the self-test checks that equality.",
+    "secondary": [
+      "P(permutation_reject is true), unconditionally (a replicate that stops before the test counts as false) and conditionally on the test having run",
+      "P(scorer verdict = CHANNEL_CONFORMANCE_DETECTED)",
+      "the distribution of the branch over R4, R3, R1, R2 and die, the distribution of effective_k, and the mean of tv_bar over the replicates that produced one"
+    ],
+    "error": "Counts are integers k of R. Rates are shown as k/R with a Wilson 95% interval (z = 1.959963984540054), six decimals."
+  },
+  "permutation_seed_side": {
+    "base": "C",
+    "delta": "0",
+    "replicates": 2000,
+    "scorer_seed": "per replicate r, int(SeedSequence(master_seed, spawn_key=(99, r)).generate_state(1, dtype=numpy.uint32)[0]); the same uniforms as base C replicate r",
+    "why": "The sealed scorer permutes with one fixed seed, so every replicate of the main grid shares one sequence of permutations. This separates that property from the Type-I rate."
+  },
+  "side_analyses": {
+    "concentration_and_null_mean": {
+      "paths": [
+        {"id": "uniform_to_C", "t": ["0", "0.25", "0.5", "0.75", "0.9", "1"], "definition": "per context p(t) = (1 - t) * [0.2 x 5] + t * p_c, with p_c from base C"},
+        {"id": "C_fill", "eps": ["0", "0.001", "0.005"], "definition": "per context p_c from base C with eps moved from study to agora and eps from study to chashitsu"}
+      ],
+      "parsed_counts": "the parsed-draw counts of base C in every cell",
+      "null_datasets": 2000,
+      "conditional": {"datasets": 200, "permutations": 200},
+      "seed": "SeedSequence(master_seed, spawn_key=(200 + point index,)) for the datasets; permutations from SeedSequence(master_seed, spawn_key=(300 + point index,))",
+      "statistic": "tv_bar here is the mean over all eight contexts, with no entropy floor in front of it. It is not the scorer's tv_bar, which averages only the contexts that clear the floor, and the two are not compared directly.",
+      "columns": ["mean per-context entropy (bits)", "mean per-context sum of sqrt(p(1-p))", "support size", "E[tv_bar] under the null", "95th percentile under the null", "mean conditional permutation-null mean", "first-order approximation 0.5 * sum sqrt(2/pi) * sqrt(p(1-p)(1/n_on + 1/n_off)), averaged over contexts"],
+      "check": "the value at t = 1 is reported next to the completed run's permutation-null mean of 0.027813; it is not a gate"
+    },
+    "empty_cell_bounds": {
+      "level": "one-sided 95%",
+      "formula": "upper = 1 - 0.05 ** (1 / n) for 0 of n (exact Clopper-Pearson), computed with decimal at 40 digits and rendered to six significant digits",
+      "runs": ["completed", "control"],
+      "zones": ["agora", "chashitsu"],
+      "scopes": ["pooled channel-off", "per-context channel-off", "both conditions pooled"],
+      "rule": "a bound is computed only where the count is zero; a nonzero count is reported as its count"
+    },
+    "surrogate_sensitivity": {
+      "deltas": ["0.1", "0.02", "0.01", "0.005", "0.002", "0.001", "0.0005", "0.0002"],
+      "m_draws": 300,
+      "k_contexts": 8,
+      "pooling": true,
+      "n_replicates": 1000,
+      "seed": 20260708,
+      "bases": ["completed pooled channel-off counts", "control pooled channel-off counts"],
+      "pseudocounts": ["0", "0.01", "0.1", "0.5", "1", "2"],
+      "pseudocount_rule": "base_dist = (counts + a) / sum, passed to the sealed categorical_multinomial_power",
+      "floors": ["1e-12", "1e-9", "1e-6", "1e-3"],
+      "floor_rule": "a = 0, and the expected-count floor of the chi-square statistic replaced by the listed value in a re-implementation that must agree bit for bit with the sealed function at 1e-12",
+      "check": "the completed-run row at a = 0 must equal power_sweep in data/derived/collapse-and-floor.json, which used the same replicate count and seed"
+    },
+    "surrogate_alongside": "for every base and delta of the main grid, the sealed categorical_multinomial_power on the base pooled over the eight contexts (M 300, K 8, pooled, 4000 replicates, seed 20260708) is tabulated next to the pipeline's rate, without further comment"
+  },
+  "reading_rules": [
+    "Type-I (delta = 0, per base), for P(R2) and for P(test_reject) separately: the Wilson upper limit below 0.05 is labelled conservative, an interval containing 0.05 compatible, a lower limit above 0.05 liberal. The classification uses the unrounded interval; only the display is rounded. The text adds nothing to the label and the numbers.",
+    "Rate surface: every row of every (base, direction) is reported. For each, and for P(R2) and P(test_reject) separately, the smallest declared delta at which the estimate is at least 0.8, and the smallest at which its unrounded Wilson lower limit is at least 0.8, are stated. Nothing is interpolated. If neither is reached, the text says the declared grid (up to 0.15) does not reach it.",
+    "Registered delta 0.10 on base C, per direction: the text states the simulated P(R2) and P(test_reject) with their intervals, and next to them the branch counts R4 / R3 / R1 / R2 / die. It does not attribute a rate below 0.8 to any one branch in words; the counts say where the replicates stopped.",
+    "Surrogate against pipeline: the two are shown side by side at the same delta and nothing causal is said about their difference.",
+    "Differences between directions are stated as the largest and smallest values only.",
+    "Not said, whatever the result: anything outside the declared grid; anything about the effect of the channel; that a non-rejection shows equivalence or absence of an effect; that the design was adequately powered."
+  ],
+  "environment": {
+    "binding": "The outputs are bound to the bytes, at the declaration tag, of this file, of the code in analysis/autopsy that computes and reads them, of the data the bases are built from, of the sealed files the pipeline calls, and of env/uv.lock, which fixes Python's dependencies including numpy. Every mode that produces or checks an output verifies this binding first.",
+    "cross_os": "CI runs the full grid on ubuntu-latest and windows-latest from the same lockfile and requires both outputs to equal the committed files byte for byte. If they differ, the difference is not smoothed over: the differing files and lines are recorded in DEVIATIONS.md, the committed output stays the one produced at the declared seed on the author's machine, and the manuscript says the byte identity did not hold for those files."
+  },
+  "smoke":"Before this file was committed, only the fidelity self-test and a timing run (three cells, three replicates, master seed 1, output outside the repository, no rate table) were run. DECLARATION.md lists what they showed."
+}

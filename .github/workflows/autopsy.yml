@@ -1,0 +1,105 @@
+name: autopsy
+
+# B3 (2026-09-25): 事後 simulation (analysis/autopsy/) の軽量検査。毎 push・PR で両 OS。
+#
+# repro.sh は封印済で step を足せないので、ここは repro.sh の外にある。
+#   - 宣言の結び付け: tag autopsy-b3-declared が HEAD の祖先で、DECLARED_FILES の bytes が tag と一致
+#     (DEVIATIONS.md が名指ししたものを除く)。squash merge されると祖先関係が切れてここが赤になる
+#   - fidelity 自己検査 (simulate / side_analyses の --self-test)
+#   - 副解析と要約を再計算し、commit 済 data/posthoc/ と差分 0
+#   - 全セルの replicate 0 を再計算し、commit 済 per-replicate 記録の該当行と byte 一致
+# 全格子の再計算 (約 12 万回の封印 scorer 呼び出し) は autopsy-full.yml。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autopsy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  light:
+    name: autopsy light checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 結び付け検査に tag と祖先関係が要る
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Pin the environment from the lockfile
+        shell: bash
+        run: uv sync --frozen --no-install-project --project env
+
+      - name: Lint
+        shell: bash
+        run: uv run --project env --no-sync ruff check analysis/autopsy
+
+      - name: Regenerate the derived input the side self-test compares with (repro.sh step 8)
+        shell: bash
+        run: PYTHONPATH=analysis/apparatus uv run --project env --no-sync python analysis/scripts/collapse_and_floor.py --out data/derived/collapse-and-floor.md --json-out data/derived/collapse-and-floor.json
+
+      - name: Fidelity self-tests
+        shell: bash
+        run: |
+          uv run --project env --no-sync python analysis/autopsy/simulate.py --self-test
+          uv run --project env --no-sync python analysis/autopsy/side_analyses.py --self-test
+
+      - name: Side analyses and summary reproduce the committed files
+        shell: bash
+        run: |
+          uv run --project env --no-sync python analysis/autopsy/side_analyses.py --out data/posthoc/side-analyses.json
+          uv run --project env --no-sync python analysis/autopsy/render.py
+          git diff --exit-code -- data/posthoc
+          echo "OK: data/posthoc の再計算は commit 済と一致した"
+
+      - name: Replicate 0 of every cell reproduces the committed record
+        shell: bash
+        run: uv run --project env --no-sync python analysis/autopsy/simulate.py --check-rep0 data/posthoc/pipeline-replicates.tsv --workers 4
+
+      - name: Upload the regenerated outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: posthoc-${{ matrix.os }}
+          path: data/posthoc/
+          if-no-files-found: error
+
+  compare:
+    name: autopsy outputs byte-identical across OS
+    needs: light
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: posthoc-ubuntu-latest
+          path: from-ubuntu
+      - uses: actions/download-artifact@v4
+        with:
+          name: posthoc-windows-latest
+          path: from-windows
+      - name: Compare byte-for-byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd from-ubuntu && sha256sum ./*)
+          (cd from-windows && sha256sum ./*)
+          diff -r from-ubuntu from-windows
+          echo "OK: data/posthoc は両 OS で byte 一致した"

@@ -27,9 +27,13 @@ completed run on one model and applied to two prospective arms, its rules stop a
 validity. The three gates that decide what a null report is worth each ran as written, passing or
 firing by its own rule, and each read a quantity other than the one its reading depends on. The
 power gate reads a pooled chi-square surrogate, not the stratified permutation test the decision
-turns on, whose power is evaluated nowhere: at the registered effect size the surrogate returns 1.0
-for a near-uniform and a degenerate base alike, and 0.921 at one hundredth of the margin against an
-empirical base with two empty zones. The entropy floor reads per-context entropy, not support: two
+turns on: at the registered effect size the surrogate returns 1.0 for a near-uniform and a
+degenerate base alike, and 0.921 at one hundredth of the margin against an empirical base with two
+empty zones. A post hoc simulation of the sealed pipeline, declared before it was run, finds the test's
+rejection rate at the surrogate's 1.0 from half the registered effect size upward along the
+surrogate's own direction on the completed run's channel-off base, and below it at smaller shifts:
+at a tenth of the margin the surrogate returns 1.0 where the test rejects in 122 of 1,000
+simulated replicates. The entropy floor reads per-context entropy, not support: two
 runs of one model clear it everywhere while their channel-off draws never produce two of the five
 zones, and the second model fails it although each of its cells produced two or more zones. The cap
 on draws with no zone, which the estimand drops, reads the largest per-cell rate, not the difference
@@ -68,7 +72,7 @@ arms and a held-out test did not resolve this; they exposed it.
 
 | Gate | What it reads | What the reading of its result depends on | What the runs show |
 |---|---|---|---|
-| **R3**, attained power | Monte-Carlo power of a pooled one-sample Pearson chi-square goodness-of-fit test, against an alternative that moves mass from the largest to the smallest cell of the pooled channel-off base, at `delta_tv` = 0.10 | The power of the stratified permutation test that produces `permutation_reject`, the test the decision turns on | `power` = 1.0 in the completed run and the control arm; none is produced in the primary arm. At `delta_tv` = 0.10 the surrogate returns `1.0000` for both bases checked, near-uniform and degenerate (§5.2), so a pass does not tell them apart; against the completed run's channel-off base it returns `0.921` at one hundredth of the margin (§5.1.1). The power of the permutation test is evaluated nowhere (§12.6) |
+| **R3**, attained power | Monte-Carlo power of a pooled one-sample Pearson chi-square goodness-of-fit test, against an alternative that moves mass from the largest to the smallest cell of the pooled channel-off base, at `delta_tv` = 0.10 | The power of the stratified permutation test that produces `permutation_reject`, the test the decision turns on | `power` = 1.0 in the completed run and the control arm; none is produced in the primary arm. At `delta_tv` = 0.10 the surrogate returns `1.0000` for both bases checked, near-uniform and degenerate (§5.2), so a pass does not tell them apart; against the completed run's channel-off base it returns `0.921` at one hundredth of the margin (§5.1.1). The sealed design did not evaluate the power of the permutation test; simulated post hoc on the completed run's base, the test's rejection rate equals the surrogate's 1.0 from `delta_tv` = 0.05 upward along the surrogate's direction and is below it at smaller shifts (§5.1.3) |
 | **R4**, entropy floor (`rho_hat`) | Per-context entropy of the five-zone distribution pooled over both conditions, draws with no zone excluded, against `h_min_bits` = 0.5; `rho_hat` is the fraction of contexts that clear it | How many zones the draws occupy, and in particular the support of the channel-off base the power calculation uses (R4's sealed reading speaks of "two or more zones") | Completed run and control arm: `rho_hat` = 1.0 in both, while `agora` and `chashitsu` never appear in either channel-off base. Primary arm: the rule fired, `rho_hat` = 0.0 with per-context entropies from 0.165654 to 0.274008, although each of its 16 (context, condition) cells produced between two and four zones |
 | **R4**, cap on draws with no zone (`none_rate_max_observed`) | The largest rate, over the 16 (context, condition) cells, of draws that yield no zone, against `none_rate_max` = 0.5 | How the share of draws the estimand drops differs between the channel-on and channel-off execution blocks | All three runs pass (`0.123333`, `0.086667`, `0.066667`). The channel-on blocks hold more such draws: 206 against 124 in the completed run, where the observation arose; under the held-out test, 156 against 94 in the control arm and 107 against 61 in the primary arm |
 
@@ -238,7 +242,7 @@ analysis outside §8 begins with the tag of its layer.
 |---|---|---|---|---|
 | **[Registered]** | `tv_bar` over five zones, draws with no zone dropped; the permutation test; rules R5 → R4 → R3 → R1 → R2. Scorer run on each prospective arm; rules applied to the two verdicts | Sealed before any prospective draw (§11, §13) | The reported branch, R4. Nothing about the channel's effect in the primary arm | §4, §6–§8; results |
 | **[Prospective, descriptive]** | Quantities no rule reads, from the same two arms: per-context entropy, zones per cell, channel-off support, per-cell None rates | After the runs. No test | Descriptions of these two runs. No change to the branch | Results, after R4 |
-| **[Post hoc]** | On the completed run: channel-off support, permutation-null mean, surrogate sensitivity sweep, what the dropped draws contain | After that run was seen: the re-analysis that `seal/protocol.md` §5 leaves unregistered | Descriptions of that run and of the gates. It generated the held-out hypothesis and is not evidence for it | §5.1.1, §5.1.2 |
+| **[Post hoc]** | On the completed run: channel-off support, permutation-null mean, surrogate sensitivity sweep, what the dropped draws contain. And a seed-fixed simulation of the sealed pipeline and its permutation test under channel-off bases taken from the runs, with shifts put there by the simulation | After that run was seen: the re-analysis that `seal/protocol.md` §5 leaves unregistered. The simulation's grid, seeds and reading rules were pushed before its first full run (tag `autopsy-b3-declared`) | Descriptions of that run and of the gates; operating characteristics of the design under assumed distributions. It generated the held-out hypothesis and is not evidence for it; the simulation says nothing about the channel | §5.1.1–§5.1.3 |
 | **[Held-out]** | One-sided stratified test that recorded None is more frequent in channel-on blocks; per arm, control first, α = 1/40; class breakdown and qualifiers. On both arms' per-draw annotation and records | Specification frozen at commit `61dbd96`, before the condition-wise counts were tabulated (declared); run once (declared) | Row A of its frozen table, always quoted with its qualifiers and class breakdown. Not separable from block order; no reading as intention; nothing beyond two models and eight contexts | Results, last |
 
 Three things follow from the layering. Only the [Registered] layer is bound by the seal, and nothing
@@ -406,7 +410,7 @@ alone. They read six quantities:
 |---|---|---|
 | `tv_bar` | R1, R2, R5 | The primary estimand; compared against the materiality margin |
 | `rho_hat` | R1–R5 | Fraction of contexts whose per-context entropy of the zone distribution, pooled over both conditions with unparseable draws excluded, reaches `h_min_bits` (apparatus validity). It reads entropy, not the number of zones produced; the results section shows the two coming apart in both directions |
-| `power` | R1–R3, R5 | Monte-Carlo power of a pooled one-sample chi-square goodness-of-fit test against an alternative built by moving mass from the largest to the smallest cell of the empirical channel-off distribution: the nominal sensitivity of a surrogate diagnostic. **This is not the power of the permutation test that produces `permutation_reject`**, which is the test the decision actually turns on; the two use different statistics and are not interchangeable (§12.6). At the registered `delta_tv` it is 1.0 for both bases §5.2 checks, near-uniform and degenerate, so a pass does not distinguish them; §5.1.1 shows its sensitivity when a cell of the base is empty |
+| `power` | R1–R3, R5 | Monte-Carlo power of a pooled one-sample chi-square goodness-of-fit test against an alternative built by moving mass from the largest to the smallest cell of the empirical channel-off distribution: the nominal sensitivity of a surrogate diagnostic. **This is not the power of the permutation test that produces `permutation_reject`**, which is the test the decision actually turns on; the two use different statistics and are not interchangeable (§12.6), and §5.1.3 simulates the second post hoc. At the registered `delta_tv` it is 1.0 for both bases §5.2 checks, near-uniform and degenerate, so a pass does not distinguish them; §5.1.1 shows its sensitivity when a cell of the base is empty |
 | `permutation_reject` | R1, R2, R5 | Outcome of the permutation test at the declared α |
 | `none_rate_max_observed` | R4 | The apparatus computes the fraction of draws yielding no parseable zone **per (context, condition) cell** and records the maximum across cells. No pooled figure is produced anywhere in the run output, so the maximum is the quantity R4 is evaluated on; earlier drafts of this protocol said "pooled", which named nothing that exists. The scorer independently returns `INCONCLUSIVE` if any single cell exceeds `none_rate_max`, so R4's second condition partly duplicates a gate upstream of it. It caps the rate in any one cell; it does not read how the rate differs between the conditions (§5.1.2 and the results section) |
 | `verdict` | R5 | The categorical verdict emitted by the scorer for the control arm |
@@ -534,9 +538,11 @@ lands in a zone that was never seen. The whole sweep, as `collapse_and_floor.py`
 | `0.0002` | 1/500 | `0.39` | no |
 
 So the surrogate does not discriminate among effect sizes here: it clears `0.8` at one hundredth of
-the margin the study declared material, and a pass of it says almost nothing about whether the
-design could detect a shift of the declared size. That is a statement about the surrogate. The power
-of the permutation test the decision turns on is evaluated nowhere in this work (§12.6), and §7.2
+the margin the study declared material, and its value alone says almost nothing about whether the
+test the decision turns on could detect a shift of the declared size. That is a statement about the
+surrogate; for the declared bases and directions, §5.1.3 evaluates the test separately. The sealed
+design did not evaluate the power of the permutation test the decision turns on (§12.6); §5.1.3
+simulates it post hoc, on this base among others, and §7.2
 records that R3 is retained as a planned check even so.
 
 **The permutation-null mean of the estimate is `0.027813`.** Total variation is a non-negative
@@ -595,6 +601,149 @@ that they are not; those bytes are frozen and are left as they are, so the froze
 of the same self-test still reports this one check as skipped. The continuous integration of this
 repository re-parses the two prospective arms as well, whose records are shipped too (results
 section).
+
+#### 5.1.3 Simulated operating characteristics of the sealed pipeline
+
+**[Post hoc]** §5.1.1 and §12.6 say what the power gate reads. This subsection measures, by
+simulation, what the gate was meant to stand for: how often the sealed decision pipeline, and the
+stratified permutation test inside it, reject when the channel-off distribution of every context is
+known and the channel-on distribution is moved away from it by a stated amount. It is a property of
+the design under assumed distributions. It is not an estimate of anything the channel did, and no
+rate below turns the completed run's non-rejection into evidence that an effect is absent (§4.4).
+Nor is it a power figure computed at an observed effect, the use Hoenig and Heisey [44] show cannot
+interpret a non-significant result: every shift here is put there by the simulation, at sizes
+declared in advance.
+
+**What was declared, and when.** The grid, the seeds, the replicate counts and the rules for
+reading the results were committed and pushed before the first full run, at the commit the tag
+`autopsy-b3-declared` points at (`analysis/autopsy/grid.json` and `analysis/autopsy/DECLARATION.md`).
+Every output is bound to that commit: the scripts refuse to run unless the declared files are
+unchanged or a departure is recorded in `analysis/autopsy/DEVIATIONS.md`. That file holds two entries:
+a generated file listed by mistake among the bound ones, and a correction to how the check read
+the ledger, which had let a file cited in its prose count as waived. Neither changes a number. Every declared
+cell is reported in `data/posthoc/pipeline.md`, and the tables below are rendered from the same
+source. That the declaration was pushed before the run is recorded by the repository host's
+timeline, not by any check.
+
+**Design.** Five channel-off bases, each a distribution per context: the completed run's, the
+control arm's, the completed run's with its two empty zones given 0.005 each, and the near-uniform
+and degenerate bases of §5.2. Six directions of shift: the surrogate's own, from the largest cell to
+the smallest (on the completed run's base, into an empty zone); from the largest cell to the
+smallest non-empty one; to the second-largest; from the second-largest back to the largest; into the
+empty zones in equal parts; and a mixture that moves in opposite directions in two halves of the
+contexts. Every context is moved by the same total variation `delta_tv`, one of 0, 0.01, 0.02,
+0.03, 0.04, 0.05, 0.075, 0.10 and 0.15. A direction a context cannot supply at a given size is
+reported as infeasible rather than clipped. The draws with no zone are held at the counts of the run
+the base comes from, so R4's condition on them does not fire anywhere in the grid. Each replicate
+builds an annotation of the shipped shape, passes it to the vendored scorer with its defaults, and
+applies the sealed rules R4, R3, R1, R2 to the result through the sealed evaluator; R5, which reads
+the control arm, is left out. The grid comes to 117,000 scorer calls.
+
+Two quantities are reported, and neither stands in for the other. `P(R2)` is how often the pipeline
+does not report a null: R2 is reached through a permutation reject or through `tv_bar` ≥ 0.10, and
+R4 or R3 can stop evaluation before either is read. `P(test_reject)` is how often the sealed
+stratified permutation test rejects when it is applied to all eight contexts with no gate in front
+of it, which is the quantity §12.6 is about. Each rate is a count out of the replicates, with a
+Wilson 95% interval and the label declared for it.
+
+**Under the null** (`delta_tv` = 0; *compatible* means the interval contains 0.05, *conservative*
+that it lies below):
+
+| Base | P(R2) | P(test_reject) |
+|---|---|---|
+| completed run, channel-off per context | 195/4000 = `0.04875` [0.042499, 0.055867], compatible | 192/4000 = `0.048` [0.041798, 0.055069], compatible |
+| control arm, channel-off per context | 222/4000 = `0.0555` [0.048822, 0.063031], compatible | 222/4000 = `0.0555` [0.048822, 0.063031], compatible |
+| completed run, its two empty zones filled | 216/4000 = `0.054` [0.047414, 0.061442], compatible | 216/4000 = `0.054` [0.047414, 0.061442], compatible |
+| near-uniform | 203/4000 = `0.05075` [0.044369, 0.057993], compatible | 203/4000 = `0.05075` [0.044369, 0.057993], compatible |
+| degenerate | 0/4000 = `0.0` [0.0, 0.000959], conservative | 207/4000 = `0.05175` [0.045305, 0.059055], compatible |
+| completed run, scorer seed varied per replicate | 93/2000 = `0.0465` [0.038109, 0.05663], compatible | 92/2000 = `0.046` [0.037657, 0.056084], compatible |
+
+The sealed scorer permutes with one fixed seed, so every replicate of the grid shares one sequence of
+permutations; the last row repeats the completed run's base with the scorer's seed, which also
+seeds the R3 calculation, varied per replicate. On the degenerate base the branch counts under the
+null are R4 4,000, R3 0, R1 0, R2 0.
+
+**At the registered `delta_tv` of 0.10 on the completed run's base**, the pipeline reaches R2 in
+1,000 of 1,000 replicates in each of the four feasible directions (D1, D2, D3, D5), and the test
+alone rejects in 1,000 of 1,000; D4 and D6 are infeasible there, because one context holds less than
+0.10 in `garden`. These four are not four independent confirmations: the replicates share their
+channel-off draws, and D1 and D5 give identical statistics there from `delta_tv` = 0.05 upward. At
+the registered margin, on this base, a pass of the power gate and the test's simulated rejection
+rate agree. Along the surrogate's own direction on the same base they agree from `delta_tv` = 0.05
+upward and part below it:
+
+| `delta_tv` | surrogate (R3) | P(R2) | P(test_reject) |
+|---|---|---|---|
+| `0.01` | `1.0` | 123/1000 = `0.123` [0.104074, 0.144811] | 122/1000 = `0.122` [0.103149, 0.143744] |
+| `0.02` | `1.0` | 390/1000 = `0.39` [0.360245, 0.420596] | 392/1000 = `0.392` [0.36221, 0.422616] |
+| `0.03` | `1.0` | 803/1000 = `0.803` [0.777209, 0.826472] | 803/1000 = `0.803` [0.777209, 0.826472] |
+| `0.04` | `1.0` | 983/1000 = `0.983` [0.972944, 0.989359] | 983/1000 = `0.983` [0.972944, 0.989359] |
+| `0.05` | `1.0` | 1000/1000 = `1.0` [0.996173, 1.0] | 1000/1000 = `1.0` [0.996173, 1.0] |
+| `0.075` | `1.0` | 1000/1000 = `1.0` [0.996173, 1.0] | 1000/1000 = `1.0` [0.996173, 1.0] |
+| `0.10` | `1.0` | 1000/1000 = `1.0` [0.996173, 1.0] | 1000/1000 = `1.0` [0.996173, 1.0] |
+| `0.15` | `1.0` | 1000/1000 = `1.0` [0.996173, 1.0] | 1000/1000 = `1.0` [0.996173, 1.0] |
+
+The smallest declared `delta_tv` at which each rate reaches 0.8, as a point estimate and as the lower
+limit of its interval, for every base and direction (D1 the surrogate's direction, D2 to the smallest
+non-empty cell, D3 to the second-largest, D4 back to the largest, D5 into the empty zones, D6 the
+mixture; the bases in the order of the table above, `C`, `K`, `Cs`, `U`, `G`):
+
+| Base | Direction | P(R2): estimate / lower limit | P(test_reject): estimate / lower limit |
+|---|---|---|---|
+| `C` | D1 | 0.03 / 0.04 | 0.03 / 0.04 |
+| `C` | D2 | 0.04 / 0.04 | 0.04 / 0.04 |
+| `C` | D3 | 0.05 / 0.05 | 0.05 / 0.05 |
+| `C` | D4 | 0.04 / 0.04 | 0.04 / 0.04 |
+| `C` | D5 | 0.04 / 0.04 | 0.04 / 0.04 |
+| `C` | D6 | 0.05 / 0.05 | 0.04 / 0.05 |
+| `K` | D1 | 0.04 / 0.04 | 0.04 / 0.04 |
+| `K` | D3 | 0.05 / 0.05 | 0.05 / 0.05 |
+| `Cs` | D1 | 0.04 / 0.04 | 0.04 / 0.04 |
+| `Cs` | D2 | 0.04 / 0.04 | 0.04 / 0.04 |
+| `Cs` | D3 | 0.05 / 0.05 | 0.05 / 0.05 |
+| `Cs` | D4 | 0.04 / 0.04 | 0.04 / 0.04 |
+| `Cs` | D5 | 0.04 / 0.04 | 0.04 / 0.04 |
+| `Cs` | D6 | 0.04 / 0.05 | 0.04 / 0.05 |
+| `U` | D1 | 0.05 / 0.075 | 0.05 / 0.075 |
+| `U` | D2 | 0.05 / 0.075 | 0.05 / 0.075 |
+| `U` | D3 | 0.05 / 0.075 | 0.05 / 0.075 |
+| `U` | D4 | 0.05 / 0.075 | 0.05 / 0.075 |
+| `U` | D5 | 0.075 / 0.075 | 0.075 / 0.075 |
+| `U` | D6 | 0.05 / 0.05 | 0.05 / 0.05 |
+| `G` | D1 | 0.10 / 0.10 | 0.02 / 0.03 |
+| `G` | D2 | 0.10 / 0.10 | 0.02 / 0.03 |
+| `G` | D3 | 0.10 / 0.10 | 0.02 / 0.03 |
+| `G` | D4 | not reached in the declared grid (feasible only at 0.01) / not reached in the declared grid (feasible only at 0.01) | not reached in the declared grid (feasible only at 0.01) / not reached in the declared grid (feasible only at 0.01) |
+| `G` | D5 | 0.075 / 0.075 | 0.03 / 0.03 |
+| `G` | D6 | not reached in the declared grid (feasible only at 0.01) / not reached in the declared grid (feasible only at 0.01) | not reached in the declared grid (feasible only at 0.01) / not reached in the declared grid (feasible only at 0.01) |
+
+Some directions are the same shift on a base: on `Cs`, D2 is D1; on `U`, D2 and D3 are D1; on `G`,
+D2 and D3 are D1. Each is computed once and listed under every name. On the degenerate base D4 and
+D6 are feasible only at 0.01. On that base the test and the pipeline come apart: along D1, at
+`delta_tv` = 0.02 the test alone rejects in 411 of 500 replicates (`0.822`) while the pipeline stops
+at R4 in 500 of 500, and P(R2) first reaches 0.8 there at `delta_tv` = 0.10 (497 of 500). The
+surrogate returns 1.0 on that base from 0.02 upward (`data/posthoc/pipeline.md`). Outside the
+degenerate base, replicates stopped at R4 only in `C|D4|0.04` (1 of 1,000), `C|D4|0.05` (3 of
+1,000), `C|D4|0.075` (54 of 1,000); none stopped at R3 or ended in an evaluator exit anywhere in the
+grid.
+
+**Three smaller checks.** The empty zones of the completed run have 0 of 2,276 channel-off draws, a
+one-sided 95% upper bound of `0.00131536` for each of `agora` and `chashitsu`; `chashitsu`, absent
+from all 4,470 parsed draws, has a bound of `0.000669962`. These bound what these draws allow, not
+what the model does. The surrogate's sweep in §5.1.1 does not depend on the numerical floor under
+an expected count of zero: it is identical for every floor from `1e-12` to `1e-3`. It does depend on
+reading the zeros as exact. With a pseudocount added to every channel-off count, the smallest
+`delta_tv` in the sweep at which the surrogate clears 0.8, written as the value at the pseudocount,
+is `0.001` at 0; `0.001` at 0.01; `0.002` at 0.1; `0.002` at 0.5; `0.002` at 1; `0.005` at 2, still a
+small fraction of the margin in every case. And the null expectation of `tv_bar`, simulated at the
+completed run's parsed counts along a path of bases from near-uniform to the completed run's, falls
+at every declared point, from `0.067924` for the near-uniform base to `0.026945` at the completed
+run's base, as the approximation in §5.1.1 says it should; §5.1.1 reports `0.027813` for the
+permutation null of the completed run's own draws. That is the mean over all eight contexts,
+not the scorer's `tv_bar`, which averages only the contexts that clear the entropy floor.
+
+**What this does not cover.** Other bases, other directions, shifts that differ in size between
+contexts, and any number of draws other than the completed run's. Nothing here is about the channel.
 
 ### 5.2 Power worksheet: for the surrogate, concentration is not what lowers the computed power
 
@@ -913,8 +1062,9 @@ them matches a fixture written to trip all of them. That fixture is
 exists only so that a silently broken pattern cannot report success. A pattern that stops matching
 the fixture fails the run. A second fixture, `manuscript/_claim_boundary_negative_control.md`, holds
 the opposite: sentences this manuscript and the seal must be able to say -- the sealed reading of R4,
-the sealed note that the completed run attained power 1.0, the statement that the power of the
-permutation test is evaluated nowhere, the withdrawal of an earlier reading -- and the run fails if
+the sealed note that the completed run attained power 1.0, the statements that the sealed design
+did not evaluate the power of the permutation test and what its post hoc simulation reports, the
+withdrawal of an earlier reading -- and the run fails if
 any pattern matches one of them. The block of §8 generated from the seal is scanned with the rest of
 this manuscript, so a pattern that matched a sealed sentence could never be satisfied.
 
@@ -1096,8 +1246,9 @@ arm `tv_bar` = 0.030575 at a permutation *p* of 0.43989, and the test does not r
 primary arm no estimate is produced at all. **Both runs that produced an estimate are `qwen3:8b`**,
 so the *n* here is two runs of one model family; §12.7 gives the reason agreement across runs of
 this apparatus would not establish what it appears to. It is a statement about what has been
-observed, not about the power of any test — §12.6 records that the power of the permutation test is
-evaluated nowhere in this work — and it changes no threshold and no decision rule. Whether the
+observed, not about the power of any test — the sealed design did not evaluate the power of the
+permutation test, and the post hoc simulation of §5.1.3 describes the design under assumed
+distributions, not this run's estimate — and it changes no threshold and no decision rule. Whether the
 read-out itself, the zone vocabulary, the parser and the frozen bank, is what holds the estimate
 there is the question §12.7 raises, and this protocol cannot answer it: varying the read-out is a
 change the seal does not permit (§11).
@@ -1223,8 +1374,8 @@ Two different tests appear in this design and it matters that they are not confu
 rests on the margin comparison and, for `permutation_reject`, on a stratified label-permutation
 test of `tv_bar`. The quantity called `power` is the Monte-Carlo power of a pooled one-sample
 **chi-square goodness-of-fit** test against a constructed alternative: the nominal sensitivity of a
-surrogate diagnostic. The statistics differ, the tests differ, and the power of the permutation test
-is evaluated nowhere in this work. Earlier drafts described `power` as the attained power of the
+surrogate diagnostic. The statistics differ and the tests differ. The sealed design did not evaluate the power of the
+permutation test; §5.1.3 simulates it post hoc. Earlier drafts described `power` as the attained power of the
 realised design, which overstated the connection.
 
 Two consequences follow for what a pass of R3 can be read as. At the registered `delta_tv`, the
@@ -1236,6 +1387,18 @@ two orders of magnitude below the declared margin. R3 is retained as a planned c
 failure would still be consequential, but a **pass** of R3 is not read here as evidence about the
 power of the decision the design makes. We state that rather than let the word "power" carry a
 weight the number cannot bear.
+
+**[Post hoc]** What the simulation of §5.1.3 adds holds for the bases and directions it declared and
+for no others. On the completed run's channel-off base the test's simulated rejection rate is 1.0 at
+the registered `delta_tv` in every feasible direction, so there a pass of the gate and the test
+agree; along the surrogate's direction they agree down to half the margin and not below it. At a
+tenth of the margin the surrogate still returns 1.0 where the test rejects in the proportion §5.1.3
+tabulates, and on the degenerate base the pipeline stops at R4 in replicates where the test alone
+rejects. None of this changes how a pass of R3 is read here: a
+figure that agrees with the test at one effect size and not at others does not measure it. And the
+simulation is a property of the design under assumed distributions; it does not bear on the
+completed run's estimate (§4.4, and [44] on why a power figure cannot interpret a non-significant
+result).
 
 ### 12.7 A shared collapse would not be a replication of the channel result
 
@@ -1375,6 +1538,17 @@ sealed `repro.sh` also describes step 8 in the vocabulary of an earlier version 
 the permutation-null mean was called a floor. Its comments and its progress line are sealed bytes
 and keep that wording, and the script and output file names it calls are kept for the same reason;
 the quantity the step computes is the permutation-null mean.
+
+The post hoc simulation of §5.1.3 is outside the fourteen steps, because `repro.sh` is sealed and a
+step cannot be added to it. Its code, grid and declaration are in `analysis/autopsy/` and its
+outputs in `data/posthoc/`. The `autopsy` workflow runs on two operating systems on every change:
+it checks that the declared files are those of the tagged declaration, runs the fidelity
+self-tests, recomputes the side analyses and the summaries and requires them to equal the committed
+files, recomputes the first replicate of every cell and requires it to equal the committed record
+byte for byte, and compares the two systems' outputs. The `autopsy-full` workflow recomputes the
+whole grid, split into sixteen shards on each system, and requires both results to equal the
+committed record; it runs when the simulation or its inputs change. The numbers §5.1.3 quotes are
+read from that record by the character-level comparison of step 9, like the others.
 
 The thirteenth step is the third of the three checks named in §8. Both prospective verdicts are
 now in place, so it runs: it re-derives the branch from the sealed rules and compares it with the

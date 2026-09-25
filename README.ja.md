@@ -73,7 +73,9 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 - 3 つのゲートがどれも書かれたとおりに動き、代理量を読んでいたこと (上の一覧)。本 apparatus 上での
   実証であり毎回再計算されるが、**どれだけ広く起きるかは調べていない**
 - 検出力ゲートが計算する chi-square 代理検定では、基底分布の集中それ自体は計算上の検出力を下げないこと。
-  permutation 検定の power はどこでも評価されていない
+  permutation 検定の power は封印済の設計では評価されていない。実行前に宣言した事後 simulation では、
+  完了済 run の channel-off 基底の上で、代理の向きに沿って `delta_tv` = 0.05 以上では代理と同じ 1.0、
+  それより小さい偏りでは代理を下回る (本文 §5.1.3、`data/posthoc/`)
 - 推定値を産出した 2 つの run で、チャネルの下流効果が、データが存在する前に固定した margin の下で
   検出されなかったこと
 - effect-absent / low-power / apparatus-invalid を**三者別々**に保つこと
@@ -228,7 +230,7 @@ ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 - 完了済み測定: `verdict = NO_CHANNEL_CONFORMANCE`、`tv_bar` は宣言 margin 0.10 を下回り、
   `rho_hat` と `power` はともに 1.0
 - power: これは検出力ゲートが計算する pooled chi-square 代理検定の power であり、判定が依拠する
-  permutation 検定の power ではありません (後者はどこでも評価されていません)。この代理計算では
+  permutation 検定の power ではありません (後者は封印済の設計では評価されておらず、本文 §5.1.3 が事後にsimulation しています)。この代理計算では
   **検出力を左右するのは探している偏りの大きさであって、基底分布がどれだけ集中しているかでは
   ありません**。登録した `delta_tv` では両方の基底で 1.0000 を返すので、通過は両者を区別しません
 

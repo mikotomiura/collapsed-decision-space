@@ -6,8 +6,8 @@ Calls ``categorical_multinomial_power`` from the vendored apparatus (which needs
 
 **A point of wording that matters, and is repeated in the output header.** Everything below is the
 power of the pooled one-sample chi-square goodness-of-fit **surrogate** that the attained-power gate
-(R3) computes, not the power of the stratified permutation test the decision turns on; the latter is
-evaluated nowhere. For this surrogate, what lowers the computed power is **not a concentrated base
+(R3) computes, not the power of the stratified permutation test the decision turns on; the sealed
+design did not evaluate the latter, and analysis/autopsy/ simulates it post hoc. For this surrogate, what lowers the computed power is **not a concentrated base
 distribution**. The third case below -- a degenerate base with a collapse-scale shift -- still
 reaches a power of roughly 0.95. What lowers it is a **small attainable delta_tv**. Whether the base
 is near-uniform or degenerate, ample delta_tv gives high surrogate power, and at the registered
