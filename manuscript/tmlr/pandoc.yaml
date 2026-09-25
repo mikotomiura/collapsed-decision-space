@@ -1,0 +1,7 @@
+# pandoc defaults for the TMLR build. Heading levels shift by one because the level-one heading of
+# main.md is the title, which make_pdf_source.py has already taken off.
+from: markdown
+to: latex
+standalone: true
+template: template.tex
+shift-heading-level-by: -1

@@ -1,0 +1,60 @@
+% pandoc template for the TMLR submission of manuscript/main.md.
+%
+% Everything the official style does is left to it: `tmlr.sty` (vendored byte for byte, see
+% VENDORED.json) sets the page, the fonts, the title block and the anonymisation. Without an option
+% it prints "Anonymous authors"; the named build passes `preprint`. What is added here is only what
+% pandoc's output needs (tables, tight lists), and three things this manuscript needs:
+%
+%   * glyphtounicode, so that a symbol set in a math font reads back from the PDF as the character
+%     the manuscript wrote. The glyph check of check_pdf_text.py depends on it.
+%   * a map for the characters outside the T1 text encoding. pdflatex stops on a character it has
+%     no definition for; it does not drop it silently, which is why pdflatex was chosen
+%     (.steering DA-C-6 records the round trip that was measured).
+%   * the macros make_pdf_source.py emits instead of literal environments (figures, bibliography,
+%     appendix), because pandoc would pass a literal environment through unparsed.
+\documentclass[10pt]{article}
+\usepackage$if(tmlr-option)$[$tmlr-option$]$endif${tmlr}
+\input{glyphtounicode}
+\pdfgentounicode=1
+\usepackage{amsmath,amssymb}
+\usepackage{longtable,booktabs,array,calc}
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\AtBeginEnvironment{longtable}{\footnotesize}
+\usepackage{seqsplit}
+\usepackage{tikz}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+\setlength{\emergencystretch}{3em}
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+% Section numbers are part of the headings in main.md (they are the identifiers the rest of the
+% repository cites), so LaTeX must not add its own.
+\setcounter{secnumdepth}{-\maxdimen}
+\DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}
+\DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
+\DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
+\DeclareUnicodeCharacter{2248}{\ensuremath{\approx}}
+\DeclareUnicodeCharacter{2227}{\ensuremath{\wedge}}
+\DeclareUnicodeCharacter{2228}{\ensuremath{\vee}}
+\DeclareUnicodeCharacter{2212}{\ensuremath{-}}
+\DeclareUnicodeCharacter{03BB}{\ensuremath{\lambda}}
+\DeclareUnicodeCharacter{03B1}{\ensuremath{\alpha}}
+\newcommand{\TMLRFigureBegin}[1]{\begin{figure}[tbp]\centering\small\input{#1}\par\medskip\raggedright}
+\newcommand{\TMLRFigureEnd}{\end{figure}}
+\newcommand{\TMLRBibliography}{\bibliographystyle{tmlr}\bibliography{refs}}
+\newcommand{\TMLRAppendix}{\clearpage\appendix}
+\title{$title$}
+\author{$if(author)$$author$$endif$}
+\begin{document}
+\maketitle
+$if(abstract)$
+\begin{abstract}
+$abstract$
+\end{abstract}
+$endif$
+$body$
+\end{document}

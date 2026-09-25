@@ -1,5 +1,7 @@
 # Three gates, three proxies: an instrument autopsy of a sealed LLM-agent evaluation
 
+<!-- TMLR:DROP -->
+
 **A sealed, pre-registered evaluation, its outcome reported against the sealed rules, and an autopsy of the gates that decided what that outcome is worth. Every analysis outside the sealed rules is labelled by when it was fixed (§1.4).**
 No prospective draw existed when the decision rules were sealed. They are sealed in machine-readable
 form, so that the branch reported afterwards can be re-derived from the rules as they stood before
@@ -16,6 +18,7 @@ it (§13).
 | Protocol status | The protocol was sealed before any prospective draw was collected. Each arm then produced one complete run, on 2026-09-14 and 2026-09-15; the control arm's first capture attempt was stopped from outside before it produced a verdict, and that arm was restarted from the beginning (§12.8). The two verdicts reach branch R4, reported in the results section. A held-out test of a post hoc observation was run afterwards, outside the seal (§1.4). §11 states what the seal covers and what breaks it |
 
 ---
+<!-- /TMLR:DROP -->
 
 ## Abstract
 
@@ -1671,6 +1674,13 @@ checks that equality rather than asserting it.
 ---
 
 ## 14. AI usage disclosure
+
+<!-- TMLR:FOOTNOTE -->
+**Use of AI assistance.** This work was developed with substantial AI assistance: Claude (Anthropic) for
+implementation, documentation and drafting, and OpenAI Codex for independent review. No AI system is an
+author, and every AI-assisted output was reviewed and validated by the author. §14 states the extent,
+with commit counts a reader can recompute.
+<!-- /TMLR:FOOTNOTE -->
 
 This work was developed with substantial AI assistance, disclosed here in full.
 

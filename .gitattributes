@@ -56,3 +56,11 @@ analysis/heldout-stay/run.log -text
 # and the stopped attempt's partial record ends in NUL bytes that must survive as they are.
 data/completed/** -text
 data/attempts/** -text
+
+# C (2026-09-26): the official TMLR style files, copied byte for byte from the upstream repository.
+# Their SHA-256 digests are pinned in `manuscript/tmlr/VENDORED.json`; `.sty` and `.bst` have no
+# rule above, and `LICENSE` would otherwise match the general `LICENSE text eol=lf` rule.
+manuscript/tmlr/tmlr.sty     -text
+manuscript/tmlr/tmlr.bst     -text
+manuscript/tmlr/fancyhdr.sty -text
+manuscript/tmlr/LICENSE      -text
