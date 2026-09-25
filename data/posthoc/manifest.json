@@ -1,0 +1,18 @@
+{
+  "declaration_commit": "02b7b4258ccc754b57fee44913cf12d7990dba8f",
+  "declaration_tag": "autopsy-b3-declared",
+  "grid_sha256": "e84725bc2b7c70bab118a4fc1986753c9b28f6cb7a4cf5266045a9353be808d1",
+  "numpy": "2.4.4",
+  "outputs_sha256": {
+    "pipeline-replicates.tsv": "8d2fa21daaa002c4fa97481aea61f15bb437ca20c89dd437e72dbe6b1ec3d731",
+    "pipeline-summary.json": "18083f9e70f87e3aaa9a09c96ad0dfc154e37954e11d861f7040ce6750efe69c",
+    "side-analyses.json": "d53cbbcebae3dc3506e5d01306f8c09682b6f1e20b4b0ae46dc59aa301510969"
+  },
+  "schema": "cds-autopsy-manifest-1",
+  "sealed_sha256": {
+    "analysis/apparatus/erre_sandbox/integration/embodied/bank_power.py": "683072f9f88c67c25b2b49bfdd27eeece89147459c98a5c6c6d00058e9652d4c",
+    "analysis/apparatus/erre_sandbox/integration/embodied/bank_scorer.py": "4e04fd6b9b1473549106302e8ccf9dddfd90a9b279f2b5cbf760dfcf9b8631f6",
+    "analysis/scripts/apply_decision_rules.py": "b2e61b5f31f394643be0f11a14ce283ef03c58812862ec1f13eaed405025bf27",
+    "seal/decision-rules.json": "22ba8b7b4d5903b745f1bab67e27d0bb2a0411a227c6557115a987a8035cffbc"
+  }
+}

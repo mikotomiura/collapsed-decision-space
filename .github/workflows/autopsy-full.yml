@@ -1,0 +1,99 @@
+name: autopsy-full
+
+# B3 (2026-09-25): 宣言した全格子を両 OS で再計算し、commit 済の per-replicate 記録
+# (data/posthoc/pipeline-replicates.tsv) と 3 者 (ubuntu / windows / commit 済) で byte 一致を要求する。
+# 縮小格子ではない。16 shard に分けるが、各 (base, replicate) の結果は shard に依存しない
+# (grid.json の sampling.cell_identity)。重いので、事後 simulation かその出力を変える push と手動起動だけで走る。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "analysis/autopsy/**"
+      - "data/posthoc/**"
+      - "seal/**"
+      - "analysis/apparatus/**"
+      - "env/uv.lock"
+      - ".github/workflows/autopsy-full.yml"
+  pull_request:
+    paths:
+      - "analysis/autopsy/**"
+      - "data/posthoc/**"
+      - "seal/**"
+      - "analysis/apparatus/**"
+      - "env/uv.lock"
+      - ".github/workflows/autopsy-full.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autopsy-full-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shard:
+    name: full grid shard ${{ matrix.shard }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Pin the environment from the lockfile
+        shell: bash
+        run: uv sync --frozen --no-install-project --project env
+      - name: Compute the shard
+        shell: bash
+        run: uv run --project env --no-sync python analysis/autopsy/simulate.py --run --shard ${{ matrix.shard }} --n-shards 16 --workers 4 --out build/shards/shard-${{ matrix.shard }}.tsv
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.os }}-${{ matrix.shard }}
+          path: build/shards/
+          if-no-files-found: error
+
+  compare:
+    name: full grid byte-identical (ubuntu = windows = committed)
+    needs: shard
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+      - name: Pin the environment from the lockfile
+        shell: bash
+        run: uv sync --frozen --no-install-project --project env
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-ubuntu-latest-*
+          path: from-ubuntu
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-windows-latest-*
+          path: from-windows
+          merge-multiple: true
+      - name: Merge and compare
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv run --project env --no-sync python analysis/autopsy/simulate.py --merge from-ubuntu/*.tsv --out merged/ubuntu.tsv
+          uv run --project env --no-sync python analysis/autopsy/simulate.py --merge from-windows/*.tsv --out merged/windows.tsv
+          sha256sum merged/ubuntu.tsv merged/windows.tsv data/posthoc/pipeline-replicates.tsv
+          cmp merged/ubuntu.tsv merged/windows.tsv
+          cmp merged/ubuntu.tsv data/posthoc/pipeline-replicates.tsv
+          echo "OK: 全格子の per-replicate 記録は ubuntu = windows = commit 済で byte 一致した"
