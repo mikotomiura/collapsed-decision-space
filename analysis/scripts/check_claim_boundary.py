@@ -71,7 +71,7 @@ EXPECTED_GUARD_IDS: tuple[str, ...] = tuple(f"G{i}" for i in range(1, 29))
 
 #: Items the negative-control fixture must hold. Pinned for the same reason the guard count is: a
 #: list that quietly lost its sealed sentences would still report "no pattern matched".
-EXPECTED_NEGATIVE_ITEMS = 23
+EXPECTED_NEGATIVE_ITEMS = 24
 
 #: One item of the negative-control fixture per line, each beginning with a dash.
 NEGATIVE_ITEM_RE = re.compile(r"^- ", re.MULTILINE)

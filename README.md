@@ -82,7 +82,10 @@ The full guard list, with the search patterns used to enforce it, is in
 - each of the three gates ran as written and read a proxy, as listed above — shown on this apparatus
   and recomputed on every run, **not** surveyed for how often it happens elsewhere
 - for the chi-square surrogate the power gate computes, concentration of the base distribution is not
-  itself what lowers the computed power; the power of the permutation test is evaluated nowhere
+  itself what lowers the computed power. The sealed design did not evaluate the power of the
+  permutation test; a post hoc simulation, declared before it was run, finds its rejection rate in
+  agreement with the surrogate at the registered `delta_tv` on the completed run's channel-off base
+  and well below it at smaller shifts (manuscript §5.1.3, `data/posthoc/`)
 - the channel's downstream effect was not detected under a margin fixed before the data existed, in
   the two runs that produced an estimate
 - effect-absent, low-power and apparatus-invalid are kept apart as three distinct outcomes
@@ -269,7 +272,8 @@ the check did not have; the list it now enforces is `README_QUANTITIES` in
 | degenerate | 0.10 | 1.0000 |
 
 These are powers of the pooled chi-square surrogate the power gate computes, not of the permutation
-test the decision turns on, whose power is evaluated nowhere. For that surrogate, power is governed
+test the decision turns on, which the sealed design did not evaluate; §5.1.3 of the manuscript
+simulates it post hoc. For that surrogate, power is governed
 by the size of the shift being looked for, not by how concentrated the base distribution is — the
 third row carries that point, and the first and fourth show that at the registered `delta_tv` it
 returns 1.0000 for both bases, so a pass does not tell them apart. The 0.1842 figure belongs

@@ -18,7 +18,8 @@
 - Mean across the K frozen contexts of the total-variation distance between the channel-on and channel-off distributions over the five zones, computed after dropping unparseable draws and renormalising over the five zones. Materiality margin: 0.1.
 - power_min = 0.8 is frozen with the other constants. The completed run attained power 1.0 at these same values of M and K, which is why the prospective design is run at those values rather than smaller ones.
 - Monte-Carlo power of a chi-square goodness-of-fit test against an alternative built by moving mass from the largest to the smallest cell of the empirical channel-off distribution. It is NOT the power of the permutation test that produces permutation_reject.
-- The statistics differ, the tests differ, and the power of the permutation test is evaluated nowhere in this work.
+- The sealed design did not evaluate the power of the permutation test; a post hoc simulation reports its simulated rejection rate under assumed bases.
+- At the registered delta_tv on the completed run's channel-off base, the sealed pipeline reaches R2 in every simulated replicate and the test alone rejects in every one.
 - The parser documents None in this field as stay put; that is a statement of the parser's design, quoted as such, and not a description of what any recorded None is.
 - The deposit carries an earlier working title of this manuscript in its title field, and its metadata is not edited.
 - An earlier version of this section called the permutation-null mean a floor under the estimate and argued that collapse raises it until it takes up much of the declared margin; that reading is withdrawn.

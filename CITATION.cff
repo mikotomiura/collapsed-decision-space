@@ -13,20 +13,23 @@ abstract: >-
   validity. The three gates that decide what a null report is worth each ran as written, passing
   or firing by its own rule, and each read a quantity other than the one its reading depends on.
   The power gate reads a pooled chi-square surrogate, not the stratified permutation test the
-  decision turns on, whose power is evaluated nowhere: at the registered effect size the surrogate
-  returns 1.0 for a near-uniform and a degenerate base alike, and 0.921 at one hundredth of the
-  margin against an empirical base with two empty zones. The entropy floor reads per-context
-  entropy, not support: two runs of one model clear it everywhere while their channel-off draws
-  never produce two of the five zones, and the second model fails it although each of its cells
-  produced two or more zones. The cap on draws with no zone, which the estimand drops, reads the
-  largest per-cell rate, not the difference between conditions: all three runs pass it, but a
-  held-out test of a post hoc observation, specified before the condition-wise counts were
-  tabulated, found more such draws in the channel-on blocks of both arms (156 against 94; 107
-  against 61). Those draws were mostly the string "null" in one model's arm and missing or
-  malformed JSON in the other's, and each context ran its channel-on block first, so the
-  difference is confounded with execution order. The prospective arms and the held-out test did
-  not resolve this; they exposed it. The claim concerns the instrument, not the channel, does not
-  depend on the margin's value, and is confined to two models and eight frozen contexts.
+  decision turns on: at the registered effect size the surrogate returns 1.0 for a near-uniform
+  and a degenerate base alike, and 0.921 at one hundredth of the margin against an empirical base
+  with two empty zones. A post hoc simulation of the sealed pipeline, declared before it was run,
+  finds the two in agreement at the registered effect size on the completed run's channel-off base
+  and apart below it: at a tenth of the margin the surrogate returns 1.0 where the test rejects in
+  122 of 1,000 simulated replicates. The entropy floor reads per-context entropy, not support: two
+  runs of one model clear it everywhere while their channel-off draws never produce two of the
+  five zones, and the second model fails it although each of its cells produced two or more zones.
+  The cap on draws with no zone, which the estimand drops, reads the largest per-cell rate, not
+  the difference between conditions: all three runs pass it, but a held-out test of a post hoc
+  observation, specified before the condition-wise counts were tabulated, found more such draws in
+  the channel-on blocks of both arms (156 against 94; 107 against 61). Those draws were mostly the
+  string "null" in one model's arm and missing or malformed JSON in the other's, and each context
+  ran its channel-on block first, so the difference is confounded with execution order. The
+  prospective arms and the held-out test did not resolve this; they exposed it. The claim concerns
+  the instrument, not the channel, does not depend on the margin's value, and is confined to two
+  models and eight frozen contexts.
 type: software
 authors:
   - family-names: "Miura"

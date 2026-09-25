@@ -1176,7 +1176,22 @@ RENDER_SOURCES: tuple[str, ...] = (
     "data/attempts/control/attempts.jsonl",
     "data/attempts/control/run_records.partial.attempt1-interrupted.jsonl",
     "data/attempts/primary/attempts.jsonl",
+    "data/posthoc/pipeline-summary.json",
+    "data/posthoc/side-analyses.json",
+    "data/posthoc/pipeline-replicates.tsv",
+    "data/posthoc/manifest.json",
 )
+
+#: Labels of the post hoc simulation's bases (B3), as the manuscript's tables write them.
+_POSTHOC_BASE_LABELS: tuple[tuple[str, str], ...] = (
+    ("C", "completed run, channel-off per context"),
+    ("K", "control arm, channel-off per context"),
+    ("Cs", "completed run, its two empty zones filled"),
+    ("U", "near-uniform"),
+    ("G", "degenerate"),
+)
+_POSTHOC_SEEDVAR = ("C|null|0|seedvar", "completed run, scorer seed varied per replicate")
+_POSTHOC_NOT_REACHED = "not reached"
 
 #: Labels the manuscript's tables use. Literals, and checked as part of the rendered row: a label
 #: that drifted from the table would fail here rather than silently match nothing.
@@ -1306,6 +1321,214 @@ def _annotation_summary(path: Path) -> dict[str, Any]:
         "contexts": len({context for context, _ in cells}),
         "contexts_on_gt_off": sum(1 for c in per_context.values() if c["on"] > c["off"]),
     }
+
+
+def _posthoc_rate(r: dict[str, Any]) -> str:
+    return f"{r['k']}/{r['n']} = `{r['rate']!r}` [{r['wilson_low']!r}, {r['wilson_high']!r}]"
+
+
+def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
+    """Rows and phrases of section 5.1.3 (B3), rendered from ``data/posthoc/``.
+
+    The summary is itself generated from the per-replicate record by ``analysis/autopsy/render.py``,
+    and the manifest pins the digests of both; a summary edited by hand fails the digest comparison
+    here before any of its numbers is looked at. The autopsy workflows tie the record to a
+    recomputation of the declared grid.
+    """
+    import hashlib  # noqa: PLC0415
+
+    fragments: list[tuple[str, str]] = []
+    problems: list[str] = []
+    posthoc = root / "data" / "posthoc"
+    manifest = load_json(posthoc / "manifest.json")
+    for name, digest in manifest["outputs_sha256"].items():
+        actual = hashlib.sha256((posthoc / name).read_bytes()).hexdigest()
+        if actual != digest:
+            problems.append(f"data/posthoc/{name} does not match the digest in its manifest")
+    summary = load_json(posthoc / "pipeline-summary.json")
+    side = load_json(posthoc / "side-analyses.json")
+    cells = {c["id"]: c for c in summary["cells"]}
+    rules = summary["reading_rules"]
+
+    def stats(cell_id: str) -> dict[str, Any]:
+        return cells[cell_id]["summary"]
+
+    # Type-I, per base, both quantities, with the declared label.
+    for base, label in _POSTHOC_BASE_LABELS:
+        r2, test = rules["type_i"]["r2"][base], rules["type_i"]["test_reject"][base]
+        fragments.append(
+            (
+                f"Type-I row, {label}",
+                f"| {label} | {_posthoc_rate(r2)}, {r2['label']} | "
+                f"{_posthoc_rate(test)}, {test['label']} |",
+            )
+        )
+    sv = rules["type_i_with_per_replicate_scorer_seed"]
+    fragments.append(
+        (
+            "Type-I row, scorer seed varied",
+            f"| {_POSTHOC_SEEDVAR[1]} | {_posthoc_rate(sv['r2'])}, {sv['r2']['label']} | "
+            f"{_posthoc_rate(sv['test_reject'])}, {sv['test_reject']['label']} |",
+        )
+    )
+
+    # The registered delta on the completed run's base: one phrase, which holds only if every
+    # feasible direction gives the same counts.
+    registered = rules["registered_delta_on_C"]
+    feasible = [r for r in registered if r["status"] == "run"]
+    infeasible = [r["direction"] for r in registered if r["status"] != "run"]
+    r2_counts = {(r["r2"]["k"], r["r2"]["n"]) for r in feasible}
+    test_counts = {(r["test_reject"]["k"], r["test_reject"]["n"]) for r in feasible}
+    if len(r2_counts) != 1 or len(test_counts) != 1:
+        problems.append(
+            "registered delta_tv phrase: the manuscript states one count for every feasible "
+            f"direction, but the directions differ: {sorted(r2_counts)} / {sorted(test_counts)}"
+        )
+    else:
+        (k2, n2), (kt, nt) = next(iter(r2_counts)), next(iter(test_counts))
+        fragments.append(
+            (
+                "registered delta_tv phrase",
+                f"reaches R2 in {k2:,} of {n2:,} replicates in each of the "
+                f"{_word(len(feasible))} feasible directions "
+                f"({', '.join(r['direction'] for r in feasible)}), and the test alone rejects in "
+                f"{kt:,} of {nt:,}; {' and '.join(infeasible)} are infeasible there",
+            )
+        )
+
+    # The smallest declared delta reaching 0.8, every (base, direction).
+    for row in rules["rate_surface"]:
+        cols = []
+        for q in ("r2", "test_reject"):
+            e = row[q]
+            cols.append(
+                f"{e['smallest_delta_point_estimate_at_least_0_8'] or _POSTHOC_NOT_REACHED} / "
+                f"{e['smallest_delta_wilson_low_at_least_0_8'] or _POSTHOC_NOT_REACHED}"
+            )
+        fragments.append(
+            (
+                f"smallest-delta row, {row['base']} {row['direction']}",
+                f"| `{row['base']}` | {row['direction']} | {cols[0]} | {cols[1]} |",
+            )
+        )
+
+    # The surrogate beside the pipeline, completed run's base, the surrogate's own direction.
+    surrogate = {(r["base"], r["delta_tv"]): r["surrogate_power"] for r in side["surrogate_alongside"]}
+    for cell in summary["cells"]:
+        if cell["id"].startswith("C|D1|"):
+            s = cell["summary"]
+            fragments.append(
+                (
+                    f"surrogate row, delta_tv {cell['delta']}",
+                    f"| `{cell['delta']}` | `{surrogate[('C', cell['delta'])]!r}` | "
+                    f"{_posthoc_rate(s['r2'])} | {_posthoc_rate(s['test_reject'])} |",
+                )
+            )
+
+    # The Abstract's sentence on the same comparison, at a tenth of the margin.
+    tenth = stats("C|D1|0.01")["test_reject"]
+    fragments.append(
+        (
+            "abstract surrogate-against-test phrase",
+            f"at a tenth of the margin the surrogate returns {surrogate[('C', '0.01')]!r} where the "
+            f"test rejects in {tenth['k']} of {tenth['n']:,} simulated replicates",
+        )
+    )
+
+    # Two statements §5.1.3 makes in words about the degenerate base.
+    g_surrogate = {d: v for (b, d), v in surrogate.items() if b == "G"}
+    if not (g_surrogate["0.01"] < 1.0 and all(v == 1.0 for d, v in g_surrogate.items() if d != "0.01")):
+        problems.append(
+            "degenerate-base surrogate: the manuscript says the surrogate returns 1.0 from 0.02 "
+            f"upward on that base, but side-analyses.json gives {g_surrogate!r}"
+        )
+    feasible_g = {
+        c["id"].split("|")[1]: sorted(
+            x["delta"] for x in summary["cells"]
+            if x["id"].startswith(f"G|{c['id'].split('|')[1]}|") and x["status"] != "infeasible"
+        )
+        for c in summary["cells"] if c["id"].startswith(("G|D4|", "G|D6|"))
+    }
+    if any(v != ["0.01"] for v in feasible_g.values()):
+        problems.append(
+            "degenerate-base feasibility: the manuscript says D4 and D6 are feasible only at 0.01 "
+            f"there, but the summary gives {feasible_g!r}"
+        )
+
+    # The degenerate base: the test alone against the pipeline, where the entropy floor stops it.
+    g = stats("G|D1|0.02")
+    first = next(r for r in rules["rate_surface"] if r["base"] == "G" and r["direction"] == "D1")
+    reach = first["r2"]["smallest_delta_point_estimate_at_least_0_8"]
+    g_reach = stats(f"G|D1|{reach}")["r2"] if reach else None
+    fragments.append(
+        (
+            "degenerate-base phrase",
+            f"at `delta_tv` = 0.02 the test alone rejects in {g['test_reject']['k']} of "
+            f"{g['test_reject']['n']} replicates (`{g['test_reject']['rate']!r}`) while the pipeline "
+            f"stops at R4 in {g['branch_counts']['R4']} of {g['replicates']}",
+        )
+    )
+    if g_reach is None:
+        problems.append("degenerate-base phrase: P(R2) on the degenerate base never reaches 0.8")
+    else:
+        fragments.append(
+            (
+                "degenerate-base reach phrase",
+                f"P(R2) first reaches 0.8 there at `delta_tv` = {reach} "
+                f"({g_reach['k']} of {g_reach['n']})",
+            )
+        )
+
+    # Side analyses.
+    bounds = {
+        (r["run"], r["zone"], r["scope"]): r for r in side["empty_cell_bounds"]
+    }
+    agora = bounds[("completed", "agora", "pooled channel-off")]
+    chashitsu = bounds[("completed", "chashitsu", "pooled channel-off")]
+    both = bounds[("completed", "chashitsu", "both conditions pooled")]
+    if agora["upper_95_one_sided"] != chashitsu["upper_95_one_sided"]:
+        problems.append("empty-cell bound phrase: the two zones' pooled bounds differ")
+    fragments.append(
+        (
+            "empty-cell bound phrase",
+            f"0 of {agora['n']:,} channel-off draws, a one-sided 95% upper bound of "
+            f"`{agora['upper_95_one_sided']}` for each of `agora` and `chashitsu`; `chashitsu`, absent "
+            f"from all {both['n']:,} parsed draws, has a bound of `{both['upper_95_one_sided']}`",
+        )
+    )
+    smallest: list[str] = []
+    for a in ("0", "0.01", "0.1", "0.5", "1", "2"):
+        rows = [
+            r for r in side["surrogate_sensitivity"]["pseudocount"]
+            if r["run"] == "completed" and r["pseudocount"] == a and r["passes_gate"]
+        ]
+        smallest.append(f"`{min(float(r['delta_tv']) for r in rows)!r}` at {a}")
+    fragments.append(("pseudocount phrase", "; ".join(smallest)))
+    floors = side["surrogate_sensitivity"]["floor"]
+    by_floor: dict[str, list[float]] = {}
+    for r in floors:
+        by_floor.setdefault(r["floor"], []).append(r["power"])
+    if len({tuple(v) for v in by_floor.values()}) != 1:
+        problems.append("floor phrase: the manuscript says every floor gives the same sweep")
+    fragments.append(
+        (
+            "floor phrase",
+            f"identical for every floor from `{min(by_floor, key=float)}` to "
+            f"`{max(by_floor, key=float)}`",
+        )
+    )
+    path = [r for r in side["concentration_and_null_mean"] if r["path"] == "uniform_to_C"]
+    means = [r["null_mean_tv_bar"] for r in path]
+    if any(later >= earlier for earlier, later in zip(means, means[1:])):
+        problems.append("concentration phrase: the null expectation does not fall along the path")
+    fragments.append(
+        (
+            "concentration phrase",
+            f"falls at every declared point, from `{means[0]!r}` for the near-uniform base to "
+            f"`{means[-1]!r}` at the completed run's base",
+        )
+    )
+    return fragments, problems
 
 
 def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
@@ -1568,7 +1791,8 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             "the manuscript says the explicit-null qualifier holds for the control arm and not for "
             f"the primary arm, but result.json records {modifiers!r}"
         )
-    return fragments, problems
+    posthoc, posthoc_problems = posthoc_fragments(root)
+    return fragments + posthoc, problems + posthoc_problems
 
 
 def check_rendered_fragments(repo_root: Path) -> list[str]:
@@ -1670,7 +1894,87 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
         return lambda row: row["condition"] == "off" and row["pre_bias_destination_zone"] == zone
 
     result = "analysis/heldout-stay/result.json"
-    cases: tuple[tuple[str, Callable[[Path], None] | None, str | None], ...] = (
+    summary_json = "data/posthoc/pipeline-summary.json"
+    side_json = "data/posthoc/side-analyses.json"
+
+    def cell_rate(cell_id: str, quantity: str, k: int) -> Callable[[Any], None]:
+        def edit(payload: Any) -> None:
+            cell = next(c for c in payload["cells"] if c["id"] == cell_id)
+            cell["summary"][quantity]["k"] = k
+
+        return edit
+
+    def side_row(section: str, match: Callable[[dict[str, Any]], bool], key: str, value: Any) -> Callable[[Any], None]:  # fmt: skip
+        def edit(payload: Any) -> None:
+            node = payload
+            for part in section.split("."):
+                node = node[part]
+            next(r for r in node if match(r))[key] = value
+
+        return edit
+
+    posthoc_cases: tuple[tuple[str, Callable[[Path], None] | None, str | None], ...] = (
+        (
+            "M19 a Type-I count moves",
+            lambda root: _rewrite_json(root / summary_json, _set(("reading_rules", "type_i", "r2", "C", "k"), 196)),
+            "Type-I row, completed run, channel-off per context",
+        ),
+        (
+            "M20 one direction's count at the registered delta_tv moves",
+            lambda root: _rewrite_json(
+                root / summary_json, _set(("reading_rules", "registered_delta_on_C", 0, "r2", "k"), 999)
+            ),
+            "registered delta_tv phrase",
+        ),
+        (
+            "M21 the surrogate beside the pipeline moves",
+            lambda root: _rewrite_json(
+                root / side_json,
+                side_row("surrogate_alongside", lambda r: (r["base"], r["delta_tv"]) == ("C", "0.03"),
+                         "surrogate_power", 0.999),
+            ),
+            "surrogate row, delta_tv 0.03",
+        ),
+        (
+            "M22 an empty-cell bound moves",
+            lambda root: _rewrite_json(
+                root / side_json,
+                side_row("empty_cell_bounds",
+                         lambda r: (r["run"], r["zone"], r["scope"]) == ("completed", "agora", "pooled channel-off"),
+                         "upper_95_one_sided", "0.00131537"),
+            ),
+            "empty-cell bound phrase",
+        ),
+        (
+            "M23 one floor's sweep departs from the others",
+            lambda root: _rewrite_json(
+                root / side_json,
+                side_row("surrogate_sensitivity.floor", lambda r: (r["floor"], r["delta_tv"]) == ("1e-3", "0.001"),
+                         "power", 0.5),
+            ),
+            "floor phrase",
+        ),
+        (
+            "M24 the null expectation stops falling along the path",
+            lambda root: _rewrite_json(
+                root / side_json,
+                side_row("concentration_and_null_mean", lambda r: r["point"] == "t=0.9",
+                         "null_mean_tv_bar", 0.07),
+            ),
+            "concentration phrase",
+        ),
+        (
+            "M25 the per-replicate record changes under its summary",
+            lambda root: _replace_bytes(root / "data/posthoc/pipeline-replicates.tsv", b"\tR1\t", b"\tR2\t"),
+            "pipeline-replicates.tsv does not match the digest",
+        ),
+        (
+            "M26 the count the Abstract quotes moves",
+            lambda root: _rewrite_json(root / summary_json, cell_rate("C|D1|0.01", "test_reject", 121)),
+            "abstract surrogate-against-test phrase",
+        ),
+    )  # fmt: skip
+    cases: tuple[tuple[str, Callable[[Path], None] | None, str | None], ...] = posthoc_cases + (
         ("C1 the sources unaltered", None, None),
         (
             "M1 a held-out count moves",
