@@ -157,6 +157,18 @@ CITED_DOIS: tuple[str, ...] = (
     "10.18653/v1/2024.emnlp-industry.91",
 )
 
+#: Identities of **other people** carried by third-party files shipped byte for byte: the official
+#: TMLR style files (``manuscript/tmlr/``, pinned by digest in ``VENDORED.json``) name their own
+#: authors, and the vendoring record names the organisation that publishes them. None of these is the
+#: author of this study, and the files cannot be edited without breaking their digests. Declared by
+#: hand for the same reason ``CITED_DOIS`` is: the patterns stay broad, and each exception is written
+#: down as someone else's rather than silenced by narrowing a pattern.
+THIRD_PARTY_IDENTITIES: tuple[str, ...] = (
+    "pieter@vanoostrum.org",  # fancyhdr.sty, its author
+    "daly@mps.mpg.de",  # tmlr.bst, derived from natbib's style by its author
+    "github.com/JmlrOrg",  # VENDORED.json, the publisher of the TMLR style repository
+)
+
 #: Identifying strings that are **known to remain**, with the reason each one cannot go. These are
 #: counted and written into the bundle's own report rather than treated as failures, because a
 #: check that quietly passes over a known exposure is worse than one that names it: the reader of
@@ -299,7 +311,7 @@ def redact(text: str) -> str:
 
 
 def _mask_allowed(text: str) -> str:
-    for allowed in (*ALLOWED, *CITED_DOIS):
+    for allowed in (*ALLOWED, *CITED_DOIS, *THIRD_PARTY_IDENTITIES):
         text = text.replace(allowed, "")
     return text
 
