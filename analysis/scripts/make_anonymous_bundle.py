@@ -164,6 +164,8 @@ ACCEPTED_EXPOSURES: tuple[tuple[str, str, str], ...] = (
         "The apparatus is vendored from a named public project and the provenance checks compare "
         "the shipped modules against that project's blobs byte for byte. The package name is "
         "therefore load-bearing: renaming it would break the check, and the check is the point. "
+        "The per-draw records shipped in data/completed/ also carry the name, once per draw, "
+        "inside the prompt text; they are pinned by digest, so they cannot be rewritten either. "
         "A reviewer who searches the name will find the author.",
     ),
 )
@@ -219,7 +221,17 @@ BINARY_SUFFIXES: frozenset[str] = frozenset({".pdf", ".zip", ".gz", ".png", ".jp
 #: failed step 3 of the bundle's own reproduction -- the same 342 bytes a global ``core.autocrlf``
 #: setting had removed once before. ``data/prospective/`` joined on 2026-09-18: its digests are
 #: pinned in ``analysis/heldout-stay/freeze.json``, committed before the files themselves.
-VERBATIM_PREFIXES: tuple[str, ...] = ("data/raw/", "env/uv.lock", "data/prospective/")
+#: ``data/completed/`` and ``data/attempts/`` joined on 2026-09-25: their digests and sizes are
+#: pinned in ``data/data.md``, and the stopped attempt's partial record ends in NUL bytes that a
+#: text rewrite would not preserve. Whether the anonymous supplement should carry the per-draw
+#: records at all is a separate decision about exposure, not settled here.
+VERBATIM_PREFIXES: tuple[str, ...] = (
+    "data/raw/",
+    "env/uv.lock",
+    "data/prospective/",
+    "data/completed/",
+    "data/attempts/",
+)
 
 
 def _die(message: str) -> None:

@@ -1,0 +1,2 @@
+{"argv": ["--capture", "--arm", "primary"], "driver": {"git_dirty": true, "git_head": "4e45adb33d7472d2adf6da29a800bde9b8f58f9e", "path": "paper02_run_arms.py", "sha256": "c244ac41ebe4f8bb782e0cb959f7ffcc99c3fa76847d084a57da8e8b84183c78"}, "event": "start", "preflight_problems": [], "recorded_at": "2026-09-14T16:23:23.011636+00:00", "requested_k_contexts": 8, "requested_m_draws": 300, "smoke": false}
+{"event": "captured", "llm_calls": 4800, "recorded_at": "2026-09-14T18:44:35.276955+00:00", "sub_sealed_scale": false, "transport_retries": 0}

@@ -7,11 +7,10 @@
 
 本リポジトリは、**封印済みの事前登録評価と、その結果の価値を決めたゲートの検死 (instrument autopsy)**
 (`manuscript/main.md`) の研究コンペンディウムです。protocol 本文、その土台となる凍結済みの証拠、
-測定 apparatus、前向き 2 アームの per-draw データ、事後の観察 1 つに対する held-out 検査、そして
-完了済み run の verdict を同梱 draws から再計算し、本文が引く数値をその出所と突き合わせる 1 コマンドが
-入っています。**このコマンドが届かない範囲**は本文 §12.8 にあります — 前向き 2 アームの verdict は
-入力として読まれ、ここで述べる版のコンペンディウムは、`data/prospective/` に同梱されている per-draw
-annotation からそれらを再計算しません。
+測定 apparatus、完了済み run と前向き 2 アームの per-draw データ、アームの試行記録、事後の観察 1 つに
+対する held-out 検査、そして 3 つの verdict (完了済み run と前向き 2 アーム) を同梱 per-draw annotation
+から再計算し、本文が引く数値をその出所と突き合わせる 1 コマンドが入っています。**このコマンドが
+届かない範囲**は本文 §12.8 にあります。
 
 **封印の時点で、前向きのデータは 1 つも取得されていませんでした。** 前向きアームを読む
 決定規則は、アームを走らせる前に封印されます。`seal/` が機械可読な形でそれを保持し、`seal/SEAL-MANIFEST.json` が
@@ -19,7 +18,7 @@ annotation からそれらを再計算しません。
 それを検査するのが `repro.sh` の 12・13 ステップ目で、ネットワークもアカウントも
 著者への信頼も要りません。
 
-**その後、各アームが 1 回の完走を産出しました。** 封印済の規則が到達した分岐は **R4 (apparatus validity)** です。primary のモデル族ではどの context も封印済の per-context entropy floor に届かないため、推定量はその族では測られません。これは null の結果としては読まれず、主張は単一モデルの範囲に狭まります。control アームの最初の試行は verdict を産出する前に外から止められ、最初からやり直しました (記録の所在は本文 §12.8)。`manuscript/main.md` の結果節が報告し、`manuscript/REPORTED-BRANCH.md` が導出を記録しています。step 13 は毎回、封印済の規則から分岐を再導出します。
+**その後、各アームが 1 回の完走を産出しました。** 封印済の規則が到達した分岐は **R4 (apparatus validity)** です。primary のモデル族ではどの context も封印済の per-context entropy floor に届かないため、推定量はその族では測られません。これは null の結果としては読まれず、主張は単一モデルの範囲に狭まります。control アームの最初の試行は verdict を産出する前に外から止められ、最初からやり直しました。試行記録と止められた試行の部分記録は `data/attempts/` に同梱しています (本文 §12.8)。`manuscript/main.md` の結果節が報告し、`manuscript/REPORTED-BRANCH.md` が導出を記録しています。step 13 は毎回、封印済の規則から分岐を再導出します。
 
 **検査できないのは「封印が古いこと」です。** 著者は封印ファイルと manifest を同じ commit で
 作り直せますし、このリポジトリの内側に住む検査でそれを見ることはできません。その半分には
@@ -107,6 +106,8 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 | `seal/` | 封印済みの決定規則・アーム仕様・protocol 本文と、その manifest |
 | `data/raw/` | 完了済み研究の凍結証拠（各ファイルを SHA-256 とサイズで pin）と、着地した前向き 2 アームの verdict |
 | `data/prospective/` | 前向き 2 アームの per-draw annotation・raw records・run manifest |
+| `data/completed/` | 完了済み実走の per-draw record。`data/data.md` と実走自身の manifest が pin する |
+| `data/attempts/` | 前向きアームの append-only な試行記録と、control アームの止められた最初の試行の部分記録 |
 | `analysis/heldout-stay/` | 事後の観察 1 つに対する held-out 検査の仕様・凍結記録・結果・witness |
 | `data/data.md` | 凍結入力すべての由来と、その検証方法 |
 | `analysis/apparatus/` | 測定 apparatus 69 モジュール（上流と byte 一致） |
@@ -129,7 +130,8 @@ bash repro.sh
 2. lint
 3. 凍結入力を `data/data.md` **および**上流 blob と照合
 4. 閾値の凍結と apparatus 閉包全体を検証
-5. **完了済み実走の verdict を、同梱の per-draw annotation から再計算**
+5. **記録された 3 つの verdict (完了済み実走と前向き 2 アーム) を、同梱の per-draw annotation から
+   再計算**し、それぞれの verdict 文字列・9 つの gate 読み出し・4 つの per-context マップの一致を要求
 6. protocol が引く量を抽出
 7. power 表を再生成
 8. 決定空間の台と、推定値の permutation 帰無平均を導出 (封印済み script はこの step を以前の版の語彙で
@@ -185,8 +187,9 @@ ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 - 凍結入力が、公開されている上流リポジトリに登録された blob と byte 一致すること
 - 同梱されている決定閾値が、それを凍結した上流 commit の bytes そのものであり、
   それらの commit が完了済み実走の commit の ancestor であること
-- 完了済み実走の verdict が、同梱 annotation と同梱 apparatus から**再導出できる**こと
-  （verdict 文字列・9 つの gate 読み出し・4 つの per-context マップをすべて突合）
+- 完了済み実走の verdict と前向き 2 アームの verdict が、同梱 annotation と同梱 apparatus から
+  **再導出できる**こと（それぞれについて verdict 文字列・9 つの gate 読み出し・4 つの per-context
+  マップをすべて突合）
 - protocol が凍結入力から引く量が、1 文字たがわず一致すること
 - 封印済みファイルが内部整合であること。そして protocol の決定規則が封印ファイルの持つ規則
   そのものであること（規則テキストは二度書かれず、封印ファイルから生成されるため）

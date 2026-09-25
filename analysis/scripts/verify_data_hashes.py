@@ -35,6 +35,14 @@ sealed and they are written long after it. They are therefore excluded from the 
 checks by name. **An exclusion is a hole**, so they are given checks of their own rather than left
 unexamined, and the exclusion is closed to exactly two names. See :data:`PROSPECTIVE_OUTPUTS`.
 
+A seventh arrived on 2026-09-25 (B2), when the completed run's per-draw record and the prospective
+arms' attempt logs were shipped under ``data/completed/`` and ``data/attempts/``. They are not
+frozen inputs of the analysis and are not in ``analysis/freeze-provenance.json`` (sealed), so they
+get a table of their own in ``data/data.md`` rather than rows in the four-row raw table. The same
+checks apply to that table: exact row count, SHA-256 and byte size per file, no unrecorded file
+under either directory, the completed run's own manifest pin for ``bank_records.jsonl``, and, with
+``--upstream-repo``, the blob at the recorded upstream commit. See :func:`parse_records_table`.
+
 Usage:
     python analysis/scripts/verify_data_hashes.py
     python analysis/scripts/verify_data_hashes.py --upstream-repo /path/to/upstream/clone
@@ -107,6 +115,37 @@ PROSPECTIVE_SECTION_START_RE = re.compile(r"^##\s+Prospective outputs in\s+`?raw
 #: other filenames (the driver's own output, the frozen verdict it must not be a copy of) without
 #: the name-set check misreading them as entries.
 PROSPECTIVE_ENTRY_RE = re.compile(r"^-\s+`data/raw/(?P<name>[A-Za-z0-9_.-]+)`")
+
+#: The section of `data/data.md` that records the shipped run records (B2). Deliberately not
+#: matching :data:`RAW_SECTION_START_RE`, so neither table parser can wander into the other.
+RECORDS_SECTION_START_RE = re.compile(r"^##\s+Run records in\s+`completed/`\s+and\s+`attempts/`")
+
+#: | `<path under data/>` | `<upstream path>` | `<sha256>` | <n> bytes | `<upstream commit>` | ... |
+RECORDS_ROW_RE = re.compile(
+    r"^\|\s*`(?P<name>[^`]+)`\s*\|"
+    r"\s*`(?P<origin>[^`]+)`\s*\|"
+    r"\s*`(?P<sha256>[0-9a-f]{64})`\s*\|"
+    r"\s*(?P<size>[\d,]+)\s*bytes\s*\|"
+    r"\s*`(?P<commit>[0-9a-f]{40})`\s*\|"
+)
+
+#: How many shipped run records the table describes. Pinned for the same reason as
+#: :data:`EXPECTED_RAW_ROWS`: a change should be noticed, not absorbed.
+EXPECTED_RECORD_ROWS = 4
+
+#: The rows themselves, as literal paths under `data/`. A row count alone would let one row be
+#: replaced by a duplicate of another while its file went missing (independent review, B2).
+EXPECTED_RECORD_NAMES: frozenset[str] = frozenset(
+    {
+        "completed/bank_records.jsonl",
+        "attempts/control/attempts.jsonl",
+        "attempts/control/run_records.partial.attempt1-interrupted.jsonl",
+        "attempts/primary/attempts.jsonl",
+    }
+)
+
+#: The directories, under `data/`, that the records table covers completely.
+RECORDS_DIRS: tuple[str, ...] = ("completed", "attempts")
 
 
 @dataclass(frozen=True)
@@ -428,6 +467,173 @@ def check_frozen_input_provenance(
     return problems
 
 
+@dataclass(frozen=True)
+class RecordEntry:
+    """One row of the run-records table in `data/data.md` (paths relative to `data/`)."""
+
+    name: str
+    origin: str
+    sha256: str
+    size: int
+    commit: str
+
+
+def parse_records_table(
+    data_md: Path, expected: frozenset[str] = EXPECTED_RECORD_NAMES
+) -> tuple[tuple[RecordEntry, ...], list[str]]:
+    """Parse the run-records table, returning the rows and any problem with the table itself.
+
+    Returns problems rather than exiting, unlike :func:`parse_raw_table`, so that the self-check
+    can measure the row-count guard on a fixture.
+    """
+    entries: list[RecordEntry] = []
+    in_section = False
+    for line in data_md.read_text(encoding="utf-8").splitlines():
+        if RECORDS_SECTION_START_RE.match(line):
+            in_section = True
+            continue
+        if in_section and NEXT_SECTION_RE.match(line):
+            break
+        if not in_section:
+            continue
+        match = RECORDS_ROW_RE.match(line)
+        if match is None:
+            continue
+        entries.append(
+            RecordEntry(
+                name=match.group("name"),
+                origin=match.group("origin"),
+                sha256=match.group("sha256"),
+                size=int(match.group("size").replace(",", "")),
+                commit=match.group("commit"),
+            )
+        )
+
+    problems: list[str] = []
+    names = [entry.name for entry in entries]
+    if len(EXPECTED_RECORD_NAMES) != EXPECTED_RECORD_ROWS:
+        problems.append(
+            f"EXPECTED_RECORD_NAMES holds {len(EXPECTED_RECORD_NAMES)} paths but "
+            f"EXPECTED_RECORD_ROWS is {EXPECTED_RECORD_ROWS}"
+        )
+    if not in_section:
+        problems.append(
+            "data/data.md has no 'Run records in `completed/` and `attempts/`' section"
+        )
+    elif len(names) != len(set(names)):
+        duplicated = sorted({name for name in names if names.count(name) > 1})
+        problems.append(f"the run-records table has a duplicate row for {duplicated}")
+    elif set(names) != expected:
+        problems.append(
+            f"data/data.md: the run-records table names {sorted(names)}, which differ from the "
+            f"expected {sorted(expected)}. Either the table format changed, or the set of "
+            "shipped records did"
+        )
+    outside = [e.name for e in entries if e.name.split("/", 1)[0] not in RECORDS_DIRS]
+    if outside:
+        problems.append(
+            f"run-records table names files outside {list(RECORDS_DIRS)}: {outside}"
+        )
+    return tuple(entries), problems
+
+
+def check_record_files(repo_root: Path, entries: tuple[RecordEntry, ...]) -> list[str]:
+    """Compare each shipped run record against its recorded SHA-256 and size."""
+    problems: list[str] = []
+    for entry in entries:
+        path = repo_root / "data" / entry.name
+        if not path.is_file():
+            problems.append(f"data/{entry.name}: file is missing")
+            continue
+        actual_size = path.stat().st_size
+        actual_sha = sha256_of(path)
+        if actual_size != entry.size:
+            problems.append(
+                f"data/{entry.name}: size mismatch "
+                f"(recorded={entry.size} actual={actual_size})"
+            )
+        if actual_sha != entry.sha256:
+            problems.append(
+                f"data/{entry.name}: SHA-256 mismatch "
+                f"(recorded={entry.sha256} actual={actual_sha})"
+            )
+        if actual_size == entry.size and actual_sha == entry.sha256:
+            print(
+                f"[data-hash] OK {entry.name:<66} "
+                f"{entry.sha256[:12]}… / {entry.size:,} bytes"
+            )
+    return problems
+
+
+def check_no_unrecorded_records(
+    repo_root: Path, entries: tuple[RecordEntry, ...]
+) -> list[str]:
+    """Check that `data/completed/` and `data/attempts/` hold no file absent from the table."""
+    recorded = {entry.name for entry in entries}
+    shipped: set[str] = set()
+    for directory in RECORDS_DIRS:
+        base = repo_root / "data" / directory
+        if base.is_dir():
+            shipped |= {
+                path.relative_to(repo_root / "data").as_posix()
+                for path in base.rglob("*")
+                if path.is_file()
+            }
+    unrecorded = sorted(shipped - recorded)
+    if unrecorded:
+        return [f"run-record directories hold files not recorded in data/data.md: {unrecorded}"]
+    return []
+
+
+def check_records_pin(repo_root: Path, entries: tuple[RecordEntry, ...]) -> list[str]:
+    """Cross-check the completed run's record against the pin its own manifest wrote.
+
+    The manifest pins the SHA-256 but not the size; the size is pinned by the table alone.
+    """
+    manifest: dict[str, Any] = load_json(
+        repo_root / "data" / "raw" / "cproper-manifest.json"
+    )
+    by_name = {entry.name: entry for entry in entries}
+    record = by_name.get("completed/bank_records.jsonl")
+    if record is None:
+        return ["data/data.md has no run-records row for completed/bank_records.jsonl"]
+    pinned = manifest["artifacts"]["bank_records.jsonl"]["sha256"]
+    if pinned != record.sha256:
+        return [
+            "completed/bank_records.jsonl: data/data.md and the manifest pin disagree "
+            f"(data.md={record.sha256} manifest={pinned})"
+        ]
+    print(
+        "[data-hash] OK completed/bank_records.jsonl matches the artifacts pin in the run "
+        "manifest"
+    )
+    return []
+
+
+def check_records_upstream(
+    repo_root: Path, entries: tuple[RecordEntry, ...], upstream: Path | None
+) -> list[str]:
+    """With a clone, require each shipped record to be the blob at its recorded upstream commit."""
+    if upstream is None:
+        print(
+            "[data-hash] note: the run records' upstream blobs are compared only with "
+            "--upstream-repo (they have no entry in the sealed freeze-provenance.json)"
+        )
+        return []
+    problems: list[str] = []
+    for entry in entries:
+        path = repo_root / "data" / entry.name
+        if not path.is_file():
+            continue
+        found = check_upstream_blob(
+            upstream, entry.commit, entry.origin, git_blob_sha1(path.read_bytes())
+        )
+        problems.extend(found)
+        if not found:
+            print(f"[data-hash] OK {entry.name:<66} = blob at upstream {entry.commit[:7]}")
+    return problems
+
+
 #: The exclusion written out a second time, as literal names. This is a **pin**, not a second
 #: source: :data:`EXPECTED_RAW_ROWS` is pinned the same way and for the same reason, so that a
 #: change is noticed rather than absorbed. Widening the exclusion now takes an edit in three
@@ -700,6 +906,164 @@ def _run_guard_cases() -> list[str]:
     return problems
 
 
+#: Fixture bytes for the run-records self-check, written as literals for the reason given above
+#: :data:`_FIXTURE_FROZEN_A`. The second one ends in NUL bytes with no newline, like the stopped
+#: attempt's partial record, so the fixture carries the shape that must survive byte for byte.
+_FIXTURE_RECORD_A = b'{"call_index": 1}\n{"call_index": 2}\n'
+_FIXTURE_RECORD_B = b'{"call_index": 1}\n\x00\x00\x00'
+_FIXTURE_RECORD_COMMIT = "1" * 40
+
+
+def _fixture_records_md(rows: list[tuple[str, bytes]]) -> str:
+    lines = [
+        "# fixture",
+        "",
+        "## Run records in `completed/` and `attempts/`",
+        "",
+        "| File | Origin | SHA-256 | Size | Upstream commit | Content |",
+        "|---|---|---|---|---|---|",
+    ]
+    lines += [
+        f"| `{name}` | `upstream/{name}` | `{hashlib.sha256(blob).hexdigest()}` | "
+        f"{len(blob):,} bytes | `{_FIXTURE_RECORD_COMMIT}` | fixture |"
+        for name, blob in rows
+    ]
+    return "\n".join([*lines, "", "## next", ""])
+
+
+def _fixture_records_repo(
+    root: Path, files: dict[str, bytes], data_md: str, pinned: bytes
+) -> Path:
+    """A throwaway repository holding ``files`` under `data/` and a manifest pinning ``pinned``."""
+    for name, blob in files.items():
+        path = root / "data" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(blob)
+    (root / "data" / "raw").mkdir(parents=True, exist_ok=True)
+    manifest = {
+        "artifacts": {"bank_records.jsonl": {"sha256": hashlib.sha256(pinned).hexdigest()}}
+    }
+    (root / "data" / "raw" / "cproper-manifest.json").write_text(
+        json.dumps(manifest) + "\n", encoding="utf-8", newline="\n"
+    )
+    (root / "data" / "data.md").write_text(data_md, encoding="utf-8", newline="\n")
+    return root
+
+
+def check_record_guards_fire() -> list[str]:
+    """Measure what the run-records guards catch, on every run (see :func:`check_guards_fire`)."""
+    with contextlib.redirect_stdout(io.StringIO()):
+        problems = _run_record_guard_cases()
+    if not problems:
+        print(
+            "[data-hash] OK records self-check: 7 mutations caught, 1 control clean "
+            "(altered byte, truncation, stray file, missing row, duplicate row, foreign "
+            "directory, manifest pin)"
+        )
+    return problems
+
+
+def _run_record_guard_cases() -> list[str]:
+    problems: list[str] = []
+    rows = [
+        ("completed/bank_records.jsonl", _FIXTURE_RECORD_A),
+        ("attempts/control/partial.jsonl", _FIXTURE_RECORD_B),
+    ]
+    files = dict(rows)
+    names = frozenset(files)
+
+    def build(tmp: str, label: str, **kwargs: Any) -> tuple[Path, tuple[RecordEntry, ...]]:
+        root = _fixture_records_repo(
+            Path(tmp) / label,
+            kwargs.get("files", files),
+            kwargs.get("data_md", _fixture_records_md(rows)),
+            kwargs.get("pinned", _FIXTURE_RECORD_A),
+        )
+        entries, table = parse_records_table(root / "data" / "data.md", expected=names)
+        return root, entries if not table else ()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root, entries = build(tmp, "ok")
+        # P6 -- the arrangement as shipped reports nothing, from any of the four checks.
+        problems += _expect(
+            parse_records_table(root / "data" / "data.md", expected=names)[1]
+            + check_record_files(root, entries)
+            + check_no_unrecorded_records(root, entries)
+            + check_records_pin(root, entries),
+            label="P6 shipped records match the table and the pin",
+            fires=False,
+        )
+        # M7 -- one altered byte.
+        (root / "data" / "completed" / "bank_records.jsonl").write_bytes(
+            _FIXTURE_RECORD_A.replace(b"2", b"3")
+        )
+        problems += _expect(
+            check_record_files(root, entries),
+            label="M7 one altered byte in a shipped record",
+            fires=True,
+            because="SHA-256 mismatch",
+        )
+        # M8 -- the NUL tail normalised away, which is what a text conversion would do.
+        (root / "data" / "attempts" / "control" / "partial.jsonl").write_bytes(
+            _FIXTURE_RECORD_B.rstrip(b"\x00")
+        )
+        problems += _expect(
+            check_record_files(root, entries),
+            label="M8 NUL tail stripped",
+            fires=True,
+            because="size mismatch",
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # M9 -- a file under a covered directory with no row.
+        root, entries = build(tmp, "stray", files={**files, "attempts/primary/x.jsonl": b"{}\n"})
+        problems += _expect(
+            check_no_unrecorded_records(root, entries),
+            label="M9 unrecorded file under attempts/",
+            fires=True,
+            because="attempts/primary/x.jsonl",
+        )
+        # M10 -- a missing row is reported, not read as a shorter table.
+        _, table = parse_records_table(
+            root / "data" / "data.md", expected=names | {"attempts/primary/attempts.jsonl"}
+        )
+        problems += _expect(
+            table, label="M10 a row is missing", fires=True, because="differ from the expected"
+        )
+        # M13 -- one row replaced by a duplicate of another: the count stays right.
+        duplicate = [rows[0], rows[0]]
+        (root / "data" / "data.md").write_text(
+            _fixture_records_md(duplicate), encoding="utf-8", newline="\n"
+        )
+        _, table = parse_records_table(root / "data" / "data.md", expected=names)
+        problems += _expect(
+            table, label="M13 a row duplicated", fires=True, because="duplicate row"
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # M11 -- a row naming a file outside the covered directories.
+        foreign = [("raw/x.jsonl", _FIXTURE_RECORD_A), rows[1]]
+        root = _fixture_records_repo(
+            Path(tmp) / "foreign", dict(foreign), _fixture_records_md(foreign), _FIXTURE_RECORD_A
+        )
+        problems += _expect(
+            parse_records_table(root / "data" / "data.md", expected=frozenset(dict(foreign)))[1],
+            label="M11 row outside completed/ and attempts/",
+            fires=True,
+            because="outside",
+        )
+        # M12 -- the manifest pins something else. Table and file agree with each other, which
+        # is exactly the case an internal comparison cannot catch.
+        root, entries = build(tmp, "pin", pinned=b"something else\n")
+        problems += _expect(
+            check_records_pin(root, entries),
+            label="M12 manifest pin disagrees",
+            fires=True,
+            because="manifest pin disagree",
+        )
+    return problems
+
+
 def _die(message: str) -> None:
     print(f"[data-hash] FAIL: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -745,13 +1109,22 @@ def main(argv: list[str] | None = None) -> int:
         check_frozen_input_provenance(repo_root, args.upstream_repo, PROSPECTIVE_OUTPUTS)
     )
 
+    records, table_problems = parse_records_table(data_md)
+    print(f"[data-hash] {len(records)} rows parsed from data/data.md (## Run records)")
+    problems.extend(check_record_guards_fire())
+    problems.extend(table_problems)
+    problems.extend(check_record_files(repo_root, records))
+    problems.extend(check_no_unrecorded_records(repo_root, records))
+    problems.extend(check_records_pin(repo_root, records))
+    problems.extend(check_records_upstream(repo_root, records, args.upstream_repo))
+
     if problems:
         print("[data-hash] FAIL", file=sys.stderr)
         for problem in problems:
             print(f"  - {problem}", file=sys.stderr)
         return 1
 
-    print("[data-hash] OK: the frozen inputs match the record in data/data.md")
+    print("[data-hash] OK: the frozen inputs and the shipped run records match data/data.md")
     return 0
 
 

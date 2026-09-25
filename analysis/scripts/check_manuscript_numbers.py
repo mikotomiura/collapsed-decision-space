@@ -1173,6 +1173,9 @@ RENDER_SOURCES: tuple[str, ...] = (
     "data/raw/primary-verdict.json",
     "analysis/heldout-stay/result.json",
     "analysis/heldout-stay/freeze.json",
+    "data/attempts/control/attempts.jsonl",
+    "data/attempts/control/run_records.partial.attempt1-interrupted.jsonl",
+    "data/attempts/primary/attempts.jsonl",
 )
 
 #: Labels the manuscript's tables use. Literals, and checked as part of the rendered row: a label
@@ -1210,6 +1213,60 @@ def _word(n: int) -> str:
     if not 0 <= n < len(_NUMBER_WORDS):
         raise ValueError(f"no number word for {n}")
     return _NUMBER_WORDS[n]
+
+
+def _attempt_events(path: Path) -> collections.Counter[str]:
+    """How many of each event an append-only attempt log records."""
+    return collections.Counter(
+        json.loads(line)["event"]
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    )
+
+
+def _captures_complete(path: Path) -> list[str]:
+    """Require every capture event to be of the full sealed size, so "completed capture" is earned."""
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    starts = [row for row in rows if row["event"] == "start"]
+    # M draws per condition, two conditions (channel on, channel off), K contexts.
+    expected = {row["requested_k_contexts"] * row["requested_m_draws"] * 2 for row in starts}
+    problems: list[str] = []
+    for row in rows:
+        if row["event"] != "captured":
+            continue
+        if expected != {row["llm_calls"]} or row["sub_sealed_scale"] is not False:
+            problems.append(
+                f"{path.parent.name} attempt log: a capture of {row['llm_calls']} calls "
+                f"(sub_sealed_scale={row['sub_sealed_scale']!r}) against requested {sorted(expected)}"
+            )
+    return problems
+
+
+def _stopped_partial(path: Path) -> tuple[int, int, list[str]]:
+    """Count a stopped attempt's partial record: (complete lines, trailing bytes, problems).
+
+    A complete line is one ending in a newline that parses as a JSON object. The count is taken
+    from the bytes, never written by hand: it was once misread as 40 by counting the unterminated
+    trailing fragment as a line and subtracting one (upstream DA-B1-1). The trailing fragment is
+    required to be NUL bytes only, and the complete lines to carry call indices 1..n in order, so
+    that a different shape is reported rather than counted.
+    """
+    data = path.read_bytes()
+    body, _, tail = data.rpartition(b"\n")
+    problems: list[str] = []
+    indices: list[int] = []
+    for number, line in enumerate(body.split(b"\n") if body else [], start=1):
+        try:
+            row = json.loads(line)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            problems.append(f"{path.name}: line {number} is not JSON")
+            continue
+        indices.append(row.get("call_index") if isinstance(row, dict) else None)
+    if tail.strip(b"\x00"):
+        problems.append(f"{path.name}: the unterminated tail is not NUL bytes only")
+    if indices != list(range(1, len(indices) + 1)):
+        problems.append(f"{path.name}: call indices are not 1..{len(indices)} in order")
+    return len(indices), len(tail), problems
 
 
 def _annotation_summary(path: Path) -> dict[str, Any]:
@@ -1475,6 +1532,31 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             f"all but {_word(empty)} of the {dropped}",
         ),
     ]
+    attempts = root / "data" / "attempts"
+    complete, tail, partial_problems = _stopped_partial(
+        attempts / "control" / "run_records.partial.attempt1-interrupted.jsonl"
+    )
+    problems += partial_problems
+    for arm in ("control", "primary"):
+        events = _attempt_events(attempts / arm / "attempts.jsonl")
+        if set(events) != {"start", "captured"}:
+            problems.append(f"the {arm} attempt log records events {dict(events)!r}")
+        problems += _captures_complete(attempts / arm / "attempts.jsonl")
+        fragments.append(
+            (
+                f"{arm} attempt log",
+                f"the {arm} arm's log records {_word(events['start'])} "
+                f"start{'s' if events['start'] != 1 else ''} and {_word(events['captured'])} "
+                f"completed capture{'s' if events['captured'] != 1 else ''}",
+            )
+        )
+    fragments.append(
+        (
+            "stopped attempt's partial record",
+            f"holds {complete} complete per-call lines (call indices 1 to {complete}) followed "
+            f"by {tail} NUL bytes and no final newline",
+        )
+    )
     # Readings the prose states in words rather than numbers: both arms rejected, and the
     # explicit-null qualifier holds for the control arm only.
     confirmatory = result["confirmatory"]
@@ -1542,6 +1624,21 @@ def _rewrite_first_row(path: Path, matches: Callable[[dict[str, Any]], bool], zo
             path.write_text("\n".join(lines) + "\n", encoding="utf-8")
             return
     raise _NoOpMutation(f"no row of {path.name} matches the mutation")
+
+
+def _drop_first_line(path: Path) -> None:
+    data = path.read_bytes()
+    head, newline, rest = data.partition(b"\n")
+    if not newline:
+        raise _NoOpMutation(f"{path.name} has no complete line to drop")
+    path.write_bytes(rest)
+
+
+def _replace_bytes(path: Path, old: bytes, new: bytes) -> None:
+    data = path.read_bytes()
+    if old not in data:
+        raise _NoOpMutation(f"{path.name} does not contain {old!r}")
+    path.write_bytes(data.replace(old, new, 1))
 
 
 def _set(path: tuple[Any, ...], value: Any) -> Callable[[Any], None]:
@@ -1651,6 +1748,42 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
                 encoding="utf-8",
             ),
             "returns 1.0 for both bases at the registered delta_tv",
+        ),
+        (
+            "M14 the stopped attempt's partial record loses a complete line",
+            lambda root: _drop_first_line(
+                root / "data/attempts/control/run_records.partial.attempt1-interrupted.jsonl"
+            ),
+            "stopped attempt's partial record",
+        ),
+        (
+            "M15 the stopped attempt's tail is not NUL bytes",
+            lambda root: _replace_bytes(
+                root / "data/attempts/control/run_records.partial.attempt1-interrupted.jsonl",
+                b"\x00\x00", b"\x00x",
+            ),
+            "the unterminated tail is not NUL bytes only",
+        ),
+        (
+            "M16 the stopped attempt's first call index is not 1",
+            lambda root: _replace_bytes(
+                root / "data/attempts/control/run_records.partial.attempt1-interrupted.jsonl",
+                b'"call_index": 1,', b'"call_index": 7,',
+            ),
+            "call indices are not 1..",
+        ),
+        (
+            "M17 the control attempt log loses a start",
+            lambda root: _drop_first_line(root / "data/attempts/control/attempts.jsonl"),
+            "control attempt log",
+        ),
+        (
+            "M18 the control arm's capture is one call short",
+            lambda root: _replace_bytes(
+                root / "data/attempts/control/attempts.jsonl",
+                b'"llm_calls": 4800', b'"llm_calls": 4799',
+            ),
+            "a capture of 4799 calls",
         ),
         (
             "M12 a rendered row is quoted a second time",
