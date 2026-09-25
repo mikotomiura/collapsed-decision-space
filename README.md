@@ -83,9 +83,9 @@ The full guard list, with the search patterns used to enforce it, is in
   and recomputed on every run, **not** surveyed for how often it happens elsewhere
 - for the chi-square surrogate the power gate computes, concentration of the base distribution is not
   itself what lowers the computed power. The sealed design did not evaluate the power of the
-  permutation test; a post hoc simulation, declared before it was run, finds its rejection rate in
-  agreement with the surrogate at the registered `delta_tv` on the completed run's channel-off base
-  and well below it at smaller shifts (manuscript §5.1.3, `data/posthoc/`)
+  permutation test; a post hoc simulation, declared before it was run, finds its rejection rate
+  equal to the surrogate's 1.0 from `delta_tv` = 0.05 upward along the surrogate's direction on the
+  completed run's channel-off base, and below it at smaller shifts (manuscript §5.1.3, `data/posthoc/`)
 - the channel's downstream effect was not detected under a margin fixed before the data existed, in
   the two runs that produced an estimate
 - effect-absent, low-power and apparatus-invalid are kept apart as three distinct outcomes

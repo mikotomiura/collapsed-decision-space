@@ -29,9 +29,10 @@ firing by its own rule, and each read a quantity other than the one its reading 
 power gate reads a pooled chi-square surrogate, not the stratified permutation test the decision
 turns on: at the registered effect size the surrogate returns 1.0 for a near-uniform and a
 degenerate base alike, and 0.921 at one hundredth of the margin against an empirical base with two
-empty zones. A post hoc simulation of the sealed pipeline, declared before it was run, finds the two
-in agreement at the registered effect size on the completed run's channel-off base and apart below
-it: at a tenth of the margin the surrogate returns 1.0 where the test rejects in 122 of 1,000
+empty zones. A post hoc simulation of the sealed pipeline, declared before it was run, finds the test's
+rejection rate at the surrogate's 1.0 from half the registered effect size upward along the
+surrogate's own direction on the completed run's channel-off base, and below it at smaller shifts:
+at a tenth of the margin the surrogate returns 1.0 where the test rejects in 122 of 1,000
 simulated replicates. The entropy floor reads per-context entropy, not support: two
 runs of one model clear it everywhere while their channel-off draws never produce two of the five
 zones, and the second model fails it although each of its cells produced two or more zones. The cap
@@ -71,7 +72,7 @@ arms and a held-out test did not resolve this; they exposed it.
 
 | Gate | What it reads | What the reading of its result depends on | What the runs show |
 |---|---|---|---|
-| **R3**, attained power | Monte-Carlo power of a pooled one-sample Pearson chi-square goodness-of-fit test, against an alternative that moves mass from the largest to the smallest cell of the pooled channel-off base, at `delta_tv` = 0.10 | The power of the stratified permutation test that produces `permutation_reject`, the test the decision turns on | `power` = 1.0 in the completed run and the control arm; none is produced in the primary arm. At `delta_tv` = 0.10 the surrogate returns `1.0000` for both bases checked, near-uniform and degenerate (§5.2), so a pass does not tell them apart; against the completed run's channel-off base it returns `0.921` at one hundredth of the margin (§5.1.1). The sealed design did not evaluate the power of the permutation test; simulated post hoc on the completed run's base, the test's rejection rate agrees with the surrogate at `delta_tv` = 0.10 and falls well below it at smaller shifts (§5.1.3) |
+| **R3**, attained power | Monte-Carlo power of a pooled one-sample Pearson chi-square goodness-of-fit test, against an alternative that moves mass from the largest to the smallest cell of the pooled channel-off base, at `delta_tv` = 0.10 | The power of the stratified permutation test that produces `permutation_reject`, the test the decision turns on | `power` = 1.0 in the completed run and the control arm; none is produced in the primary arm. At `delta_tv` = 0.10 the surrogate returns `1.0000` for both bases checked, near-uniform and degenerate (§5.2), so a pass does not tell them apart; against the completed run's channel-off base it returns `0.921` at one hundredth of the margin (§5.1.1). The sealed design did not evaluate the power of the permutation test; simulated post hoc on the completed run's base, the test's rejection rate equals the surrogate's 1.0 from `delta_tv` = 0.05 upward along the surrogate's direction and is below it at smaller shifts (§5.1.3) |
 | **R4**, entropy floor (`rho_hat`) | Per-context entropy of the five-zone distribution pooled over both conditions, draws with no zone excluded, against `h_min_bits` = 0.5; `rho_hat` is the fraction of contexts that clear it | How many zones the draws occupy, and in particular the support of the channel-off base the power calculation uses (R4's sealed reading speaks of "two or more zones") | Completed run and control arm: `rho_hat` = 1.0 in both, while `agora` and `chashitsu` never appear in either channel-off base. Primary arm: the rule fired, `rho_hat` = 0.0 with per-context entropies from 0.165654 to 0.274008, although each of its 16 (context, condition) cells produced between two and four zones |
 | **R4**, cap on draws with no zone (`none_rate_max_observed`) | The largest rate, over the 16 (context, condition) cells, of draws that yield no zone, against `none_rate_max` = 0.5 | How the share of draws the estimand drops differs between the channel-on and channel-off execution blocks | All three runs pass (`0.123333`, `0.086667`, `0.066667`). The channel-on blocks hold more such draws: 206 against 124 in the completed run, where the observation arose; under the held-out test, 156 against 94 in the control arm and 107 against 61 in the primary arm |
 
@@ -537,8 +538,9 @@ lands in a zone that was never seen. The whole sweep, as `collapse_and_floor.py`
 | `0.0002` | 1/500 | `0.39` | no |
 
 So the surrogate does not discriminate among effect sizes here: it clears `0.8` at one hundredth of
-the margin the study declared material, and a pass of it says almost nothing about whether the
-design could detect a shift of the declared size. That is a statement about the surrogate. The sealed
+the margin the study declared material, and its value alone says almost nothing about whether the
+test the decision turns on could detect a shift of the declared size. That is a statement about the
+surrogate; for the declared bases and directions, §5.1.3 evaluates the test separately. The sealed
 design did not evaluate the power of the permutation test the decision turns on (§12.6); §5.1.3
 simulates it post hoc, on this base among others, and §7.2
 records that R3 is retained as a planned check even so.
@@ -616,8 +618,9 @@ declared in advance.
 reading the results were committed and pushed before the first full run, at the commit the tag
 `autopsy-b3-declared` points at (`analysis/autopsy/grid.json` and `analysis/autopsy/DECLARATION.md`).
 Every output is bound to that commit: the scripts refuse to run unless the declared files are
-unchanged or a departure is recorded in `analysis/autopsy/DEVIATIONS.md`. That file holds one entry,
-a generated file listed by mistake among the bound ones, which changes no number. Every declared
+unchanged or a departure is recorded in `analysis/autopsy/DEVIATIONS.md`. That file holds two entries:
+a generated file listed by mistake among the bound ones, and a correction to how the check read
+the ledger, which had let a file cited in its prose count as waived. Neither changes a number. Every declared
 cell is reported in `data/posthoc/pipeline.md`, and the tables below are rendered from the same
 source. That the declaration was pushed before the run is recorded by the repository host's
 timeline, not by any check.
@@ -656,16 +659,18 @@ that it lies below):
 | completed run, scorer seed varied per replicate | 93/2000 = `0.0465` [0.038109, 0.05663], compatible | 92/2000 = `0.046` [0.037657, 0.056084], compatible |
 
 The sealed scorer permutes with one fixed seed, so every replicate of the grid shares one sequence of
-permutations; the last row repeats the completed run's base with that seed varied and reads the
-same. On the degenerate base the pipeline never reaches R2 under the null because the entropy floor
-stops every replicate at R4.
+permutations; the last row repeats the completed run's base with the scorer's seed, which also
+seeds the R3 calculation, varied per replicate. On the degenerate base the branch counts under the
+null are R4 4,000, R3 0, R1 0, R2 0.
 
 **At the registered `delta_tv` of 0.10 on the completed run's base**, the pipeline reaches R2 in
 1,000 of 1,000 replicates in each of the four feasible directions (D1, D2, D3, D5), and the test
 alone rejects in 1,000 of 1,000; D4 and D6 are infeasible there, because one context holds less than
-0.10 in `garden`. At the registered margin, on this base, a pass of the power gate and the test's
-simulated rejection rate agree. Below the margin they do not. Along the surrogate's own direction on
-the same base:
+0.10 in `garden`. These four are not four independent confirmations: the replicates share their
+channel-off draws, and D1 and D5 give identical statistics there from `delta_tv` = 0.05 upward. At
+the registered margin, on this base, a pass of the power gate and the test's simulated rejection
+rate agree. Along the surrogate's own direction on the same base they agree from `delta_tv` = 0.05
+upward and part below it:
 
 | `delta_tv` | surrogate (R3) | P(R2) | P(test_reject) |
 |---|---|---|---|
@@ -708,17 +713,19 @@ mixture; the bases in the order of the table above, `C`, `K`, `Cs`, `U`, `G`):
 | `G` | D1 | 0.10 / 0.10 | 0.02 / 0.03 |
 | `G` | D2 | 0.10 / 0.10 | 0.02 / 0.03 |
 | `G` | D3 | 0.10 / 0.10 | 0.02 / 0.03 |
-| `G` | D4 | not reached / not reached | not reached / not reached |
+| `G` | D4 | not reached in the declared grid (feasible only at 0.01) / not reached in the declared grid (feasible only at 0.01) | not reached in the declared grid (feasible only at 0.01) / not reached in the declared grid (feasible only at 0.01) |
 | `G` | D5 | 0.075 / 0.075 | 0.03 / 0.03 |
-| `G` | D6 | not reached / not reached | not reached / not reached |
+| `G` | D6 | not reached in the declared grid (feasible only at 0.01) / not reached in the declared grid (feasible only at 0.01) | not reached in the declared grid (feasible only at 0.01) / not reached in the declared grid (feasible only at 0.01) |
 
-On the near-uniform base D1, D2 and D3 are the same shift, and on the degenerate base so are D1, D2
-and D3; each is computed once and listed under every name. On the degenerate base D4 and D6 are
-feasible only at 0.01. On that base the test and the pipeline come apart for another reason: at
+Some directions are the same shift on a base: on `Cs`, D2 is D1; on `U`, D2 and D3 are D1; on `G`,
+D2 and D3 are D1. Each is computed once and listed under every name. On the degenerate base D4 and
+D6 are feasible only at 0.01. On that base the test and the pipeline come apart: along D1, at
 `delta_tv` = 0.02 the test alone rejects in 411 of 500 replicates (`0.822`) while the pipeline stops
-at R4 in 500 of 500, and P(R2) first reaches 0.8 there at `delta_tv` = 0.10 (497 of 500). There the
-rule that decides whether a shift is seen is the entropy floor, not the test. The surrogate returns
-1.0 on that base from 0.02 upward (`data/posthoc/pipeline.md`).
+at R4 in 500 of 500, and P(R2) first reaches 0.8 there at `delta_tv` = 0.10 (497 of 500). The
+surrogate returns 1.0 on that base from 0.02 upward (`data/posthoc/pipeline.md`). Outside the
+degenerate base, replicates stopped at R4 only in `C|D4|0.04` (1 of 1,000), `C|D4|0.05` (3 of
+1,000), `C|D4|0.075` (54 of 1,000); none stopped at R3 or ended in an evaluator exit anywhere in the
+grid.
 
 **Three smaller checks.** The empty zones of the completed run have 0 of 2,276 channel-off draws, a
 one-sided 95% upper bound of `0.00131536` for each of `agora` and `chashitsu`; `chashitsu`, absent
@@ -731,7 +738,8 @@ is `0.001` at 0; `0.001` at 0.01; `0.002` at 0.1; `0.002` at 0.5; `0.002` at 1; 
 small fraction of the margin in every case. And the null expectation of `tv_bar`, simulated at the
 completed run's parsed counts along a path of bases from near-uniform to the completed run's, falls
 at every declared point, from `0.067924` for the near-uniform base to `0.026945` at the completed
-run's base, as the approximation in §5.1.1 says it should. That is the mean over all eight contexts,
+run's base, as the approximation in §5.1.1 says it should; §5.1.1 reports `0.027813` for the
+permutation null of the completed run's own draws. That is the mean over all eight contexts,
 not the scorer's `tv_bar`, which averages only the contexts that clear the entropy floor.
 
 **What this does not cover.** Other bases, other directions, shifts that differ in size between
@@ -1383,9 +1391,10 @@ weight the number cannot bear.
 **[Post hoc]** What the simulation of §5.1.3 adds holds for the bases and directions it declared and
 for no others. On the completed run's channel-off base the test's simulated rejection rate is 1.0 at
 the registered `delta_tv` in every feasible direction, so there a pass of the gate and the test
-agree. At a tenth of the margin the surrogate still returns 1.0 where the test rejects in the
-proportion §5.1.3 tabulates, and on the degenerate base it is the entropy floor, not the test, that
-decides whether the pipeline sees a shift. None of this changes how a pass of R3 is read here: a
+agree; along the surrogate's direction they agree down to half the margin and not below it. At a
+tenth of the margin the surrogate still returns 1.0 where the test rejects in the proportion §5.1.3
+tabulates, and on the degenerate base the pipeline stops at R4 in replicates where the test alone
+rejects. None of this changes how a pass of R3 is read here: a
 figure that agrees with the test at one effect size and not at others does not measure it. And the
 simulation is a property of the design under assumed distributions; it does not bear on the
 completed run's estimate (§4.4, and [44] on why a power figure cannot interpret a non-significant

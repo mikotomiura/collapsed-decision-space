@@ -16,8 +16,9 @@ abstract: >-
   decision turns on: at the registered effect size the surrogate returns 1.0 for a near-uniform
   and a degenerate base alike, and 0.921 at one hundredth of the margin against an empirical base
   with two empty zones. A post hoc simulation of the sealed pipeline, declared before it was run,
-  finds the two in agreement at the registered effect size on the completed run's channel-off base
-  and apart below it: at a tenth of the margin the surrogate returns 1.0 where the test rejects in
+  finds the test's rejection rate at the surrogate's 1.0 from half the registered effect size
+  upward along the surrogate's own direction on the completed run's channel-off base, and below it
+  at smaller shifts: at a tenth of the margin the surrogate returns 1.0 where the test rejects in
   122 of 1,000 simulated replicates. The entropy floor reads per-context entropy, not support: two
   runs of one model clear it everywhere while their channel-off draws never produce two of the
   five zones, and the second model fails it although each of its cells produced two or more zones.

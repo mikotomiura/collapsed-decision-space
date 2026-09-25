@@ -26,9 +26,11 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import fnmatch
 import io
 import json
 import multiprocessing
+import re
 import sys
 import time
 from dataclasses import dataclass
@@ -38,9 +40,11 @@ from typing import Any
 
 from _common import (
     CONDITIONS,
+    DECLARED_FILES,
     REPO_ROOT,
     Base,
     apply_moves,
+    binding_problems,
     build_bases,
     cdf_of,
     declaration_commit,
@@ -49,6 +53,7 @@ from _common import (
     moves_for,
     roles_of,
     total_variation,
+    waived_paths,
 )
 
 import numpy as np  # noqa: E402  (after _common, which sets sys.path)
@@ -481,6 +486,35 @@ def self_test() -> int:
     if run_unit(unit) != run_unit(unit):
         problems.append("(e) run_unit is not deterministic")
     print("[autopsy] (d)(e) synthetic shape and determinism checked")
+
+    # (f) the binding check itself, on synthetic bytes (DV-2): a one-byte change fails; a mention
+    # of the path in prose waives nothing; a Waives line waives it; a waiver of an unchanged or
+    # unbound file fails; an absent file is a difference like any other.
+    same = {p: b"x" for p in DECLARED_FILES}
+    grid_rel = "analysis/autopsy/grid.json"
+    changed = {**same, grid_rel: b"y"}
+    cases = (
+        ("unchanged", same, "", False),
+        ("one byte changed", changed, "", True),
+        ("named in prose only", changed, f"The file `{grid_rel}` was edited.\n", True),
+        ("waived", changed, f"- **Waives**: `{grid_rel}`\n", False),
+        ("waiver of an unchanged file", same, f"- **Waives**: `{grid_rel}`\n", True),
+        ("waiver of an unbound file", same, "- **Waives**: `README.md`\n", True),
+        ("absent from the working tree", {**same, grid_rel: None}, "", True),
+    )
+    for label, current, ledger, should_fail in cases:
+        problems_here, _ = binding_problems(same, current, waived_paths(ledger))
+        if bool(problems_here) != should_fail:
+            problems.append(f"(f) binding check, {label}: expected fail={should_fail}, got {problems_here}")
+    # (g) the full workflow's path filter covers every bound file
+    workflow = (REPO_ROOT / ".github" / "workflows" / "autopsy-full.yml").read_text(encoding="utf-8")
+    patterns = set(re.findall(r'^\s+- "([^"]+)"$', workflow, re.M))
+    for relative in (*DECLARED_FILES, "analysis/autopsy/DEVIATIONS.md", "data/posthoc/pipeline-replicates.tsv"):
+        if relative.startswith("data/derived/"):
+            continue  # generated, not tracked; regenerated from a bound input
+        if not any(fnmatch.fnmatch(relative, pat) for pat in patterns):
+            problems.append(f"(g) autopsy-full.yml's path filter does not cover {relative}")
+    print("[autopsy] (f)(g) binding check mutations and the full workflow's path filter checked")
 
     if problems:
         for p in problems:

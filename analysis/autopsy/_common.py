@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -68,11 +69,50 @@ def _git(*args: str) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, check=False)
 
 
+WAIVER_LINE = re.compile(r"^- \*\*Waives\*\*: `([^`]+)`$")
+
+
+def waived_paths(deviations: str) -> set[str]:
+    """The paths a deviation ledger waives: only lines of the exact form ``- **Waives**: `path```.
+
+    A path mentioned anywhere else in the ledger's prose waives nothing. (DV-2: an earlier version
+    matched any backticked mention, so a file cited in an explanation was waived by accident.)
+    """
+    return {m.group(1) for line in deviations.splitlines() if (m := WAIVER_LINE.match(line))}
+
+
+def binding_problems(
+    declared: dict[str, bytes | None], current: dict[str, bytes | None], waived: set[str]
+) -> tuple[list[str], list[str]]:
+    """Compare declared and current bytes of every bound file. Returns (problems, waived notes).
+
+    ``None`` means the file does not exist (at the tag, or in the working tree). A difference or an
+    absence is a problem unless the path is waived; a waiver that covers nothing is a problem too,
+    so the ledger cannot carry stale entries that would silently cover a later change.
+    """
+    problems: list[str] = []
+    notes: list[str] = []
+    for relative in DECLARED_FILES:
+        if declared[relative] is not None and declared[relative] == current[relative]:
+            continue
+        if relative in waived:
+            notes.append(relative)
+            continue
+        problems.append(f"{relative} differs from the declared bytes and no waiver names it")
+    for relative in sorted(waived - set(DECLARED_FILES)):
+        problems.append(f"DEVIATIONS.md waives {relative}, which is not a bound file")
+    for relative in sorted(waived & set(DECLARED_FILES)):
+        if declared[relative] is not None and declared[relative] == current[relative]:
+            problems.append(f"DEVIATIONS.md waives {relative}, which does not differ")
+    return problems, notes
+
+
 def declaration_commit() -> str:
     """The commit the declaration tag points at, after checking the binding. Exits on failure.
 
     Every file in :data:`DECLARED_FILES` must be byte-identical to its copy at the tagged commit,
-    unless ``DEVIATIONS.md`` names it, and the tagged commit must be an ancestor of ``HEAD``.
+    unless a ``Waives`` line of ``DEVIATIONS.md`` names it, and the tagged commit must be an
+    ancestor of ``HEAD``.
     """
     rev = _git("rev-parse", "--verify", f"refs/tags/{DECLARATION_TAG}^{{commit}}")
     if rev.returncode != 0:
@@ -83,18 +123,18 @@ def declaration_commit() -> str:
     deviations = (
         DEVIATIONS_PATH.read_text(encoding="utf-8") if DEVIATIONS_PATH.is_file() else ""
     )
+    declared: dict[str, bytes | None] = {}
+    current: dict[str, bytes | None] = {}
     for relative in DECLARED_FILES:
-        declared = _git("show", f"{commit}:{relative}")
-        current = (REPO_ROOT / relative).read_bytes()
-        if declared.returncode == 0 and declared.stdout == current:
-            continue
-        if f"`{relative}`" in deviations:
-            print(f"[autopsy] {relative} differs from the declaration; recorded in DEVIATIONS.md")
-            continue
-        sys.exit(
-            f"[autopsy] FAIL: {relative} differs from the declared bytes at {commit} and "
-            "DEVIATIONS.md does not name it"
-        )
+        shown = _git("show", f"{commit}:{relative}")
+        declared[relative] = shown.stdout if shown.returncode == 0 else None
+        path = REPO_ROOT / relative
+        current[relative] = path.read_bytes() if path.is_file() else None
+    problems, notes = binding_problems(declared, current, waived_paths(deviations))
+    for relative in notes:
+        print(f"[autopsy] {relative} differs from the declaration; waived in DEVIATIONS.md")
+    if problems:
+        sys.exit("[autopsy] FAIL: " + "; ".join(problems) + f" (declaration {commit})")
     return commit
 
 

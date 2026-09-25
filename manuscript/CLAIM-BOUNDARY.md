@@ -33,8 +33,9 @@
   what the surrogate returns for bases in general. Against the completed run's channel-off base,
   with two empty cells, it clears `0.8` at one hundredth of the margin. **The sealed design did not
   evaluate the power of the permutation test.** A post hoc simulation, declared before it was run
-  (§5.1.3), finds the test's rejection rate in agreement with the surrogate at the registered
-  `delta_tv` on the completed run's channel-off base and well below it at smaller shifts; it is a
+  (§5.1.3), finds the test's rejection rate equal to the surrogate's 1.0 from `delta_tv` = 0.05
+  upward along the surrogate's direction on the completed run's channel-off base, and below it at
+  smaller shifts; it is a
   property of the design under assumed distributions and is not read as the design being adequate.
 - **For this surrogate calculation, concentration of the base distribution is not itself what
   lowers the computed power** — what lowers it is a small attainable shift. Stated this way because
