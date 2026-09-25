@@ -1,0 +1,94 @@
+name: compendium
+
+# B2 (2026-09-25) で出荷した run records を、凍結範囲の外側から検査する workflow。
+#
+# held-out 検査の script と heldout-stay.yml は凍結済 (heldout_stay_check.py の FROZEN_PATHS) で、
+# heldout-stay.yml は --self-test を records なしで呼ぶ。そのため PC-records は SKIPPED と表示され、
+# その理由の文言 ("it is not shipped") も凍結 bytes なので変えられない。ここでは凍結 script を
+# 変えずに呼び、出荷した data/completed/bank_records.jsonl を渡して PC-records を PASS させる。
+#
+#   check_pc_records.py        : 凍結 self-test を records なし / ありで 2 回走らせ、PC-records が
+#                                SKIPPED → PASS に変わり、**他の全項目の行が 2 回で同一**であることを要求
+#   recompute_verdict.py --self-test : 3 verdict の再計算 (repro.sh step 5) の入力側変異。
+#                                zone を 1 つ動かす / 1 行落とすと不一致になり、無変更の対照は一致する
+#
+# 前者の出力は両 OS で byte 一致を compare job で要求する。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compendium-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compendium:
+    name: compendium checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 凍結 self-test を heldout-stay.yml と同じ checkout 条件で走らせる
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Pin the environment from the lockfile
+        shell: bash
+        run: uv sync --frozen --no-install-project --project env
+
+      - name: PC-records with the shipped completed-run records
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/check_pc_records.py --out build/compendium/pc-records.txt
+
+      - name: Verdict recomputation, input mutations
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/recompute_verdict.py --self-test
+
+      - name: Upload the PC-records output
+        uses: actions/upload-artifact@v4
+        with:
+          name: compendium-${{ matrix.os }}
+          path: build/compendium/
+          if-no-files-found: error
+
+  compare:
+    name: compendium output byte-identical across OS
+    needs: compendium
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download ubuntu output
+        uses: actions/download-artifact@v4
+        with:
+          name: compendium-ubuntu-latest
+          path: from-ubuntu
+
+      - name: Download windows output
+        uses: actions/download-artifact@v4
+        with:
+          name: compendium-windows-latest
+          path: from-windows
+
+      - name: Compare byte-for-byte
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd from-ubuntu && sha256sum ./*)
+          (cd from-windows && sha256sum ./*)
+          diff -r from-ubuntu from-windows
+          echo "OK: PC-records の出力は両 OS で byte 一致した"

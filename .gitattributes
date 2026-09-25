@@ -47,3 +47,9 @@ data/prospective/** -text
 # The held-out check's run log is compared byte for byte by `heldout_stay_check.py --verify`, and
 # `.log` has no rule above.
 analysis/heldout-stay/run.log -text
+
+# B2 (2026-09-25): the completed run's per-draw record and the prospective arms' attempt logs,
+# copied byte for byte from upstream. Their SHA-256 digests and sizes are pinned in `data/data.md`,
+# and the stopped attempt's partial record ends in NUL bytes that must survive as they are.
+data/completed/** -text
+data/attempts/** -text

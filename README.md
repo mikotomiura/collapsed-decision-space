@@ -7,12 +7,11 @@
 This repository is the research compendium for **a sealed, pre-registered evaluation and an
 autopsy of the gates that decided what its outcome is worth** (`manuscript/main.md`). It holds the
 protocol, the frozen evidence the protocol builds on, the measurement apparatus, the per-draw data of
-the two prospective arms, a held-out test of one post hoc observation, and a single command that
-re-derives the completed run's verdict from its shipped draws and checks the quantities the
-manuscript quotes against their sources. What that command does **not** reach is set out in §12.8
-of the manuscript: the two prospective verdicts enter it as inputs, and the version of the
-compendium described here does not recompute them from the arms' per-draw annotations, although
-those annotations are shipped in `data/prospective/`.
+the completed run and of the two prospective arms, the arms' attempt logs, a held-out test of one
+post hoc observation, and a single command that re-derives all three verdicts -- the completed
+run's and the two prospective arms' -- from their shipped per-draw annotations and checks the
+quantities the manuscript quotes against their sources. What that command does **not** reach is
+set out in §12.8 of the manuscript.
 
 **At the time of sealing, no prospective data had been collected.** The decision rules that read
 the prospective arms are sealed before the arms are run: `seal/` holds them in machine-readable form and
@@ -24,8 +23,9 @@ they need no network, no account and no trust in the author.
 (apparatus validity)**: no context of the primary model family reaches the sealed per-context
 entropy floor, so the estimand is not measured there. That is not read as a null result, and the
 claim narrows to single-model scope. The control arm's first capture attempt was stopped from
-outside before it produced a verdict and was restarted from the beginning; §12.8 of the manuscript
-says where that is recorded. The results section of `manuscript/main.md` reports the branch and
+outside before it produced a verdict and was restarted from the beginning; the attempt logs and
+the stopped attempt's partial record are shipped in `data/attempts/` (§12.8 of the manuscript).
+The results section of `manuscript/main.md` reports the branch and
 `manuscript/REPORTED-BRANCH.md` records the derivation; step 13 re-derives the branch from the
 sealed rules on every run.
 
@@ -118,6 +118,8 @@ its fixture, or starts matching one of the sentences its negative control lists 
 | `seal/` | The sealed decision rules, arm specification and protocol text, with their manifest |
 | `data/raw/` | Frozen evidence from the completed studies, each pinned by SHA-256 and size, and the two landed prospective verdicts |
 | `data/prospective/` | The per-draw annotations, raw records and run manifests of the two prospective arms |
+| `data/completed/` | The completed run's per-draw record, pinned in `data/data.md` and by the run's own manifest |
+| `data/attempts/` | The prospective arms' append-only attempt logs, and the partial record of the control arm's stopped first attempt |
 | `analysis/heldout-stay/` | The held-out test of one post hoc observation: its specification, freeze record, result and witness |
 | `data/data.md` | Provenance of every frozen input, and how it is verified |
 | `analysis/apparatus/` | The measurement apparatus, 69 modules, byte-identical to the upstream source |
@@ -140,7 +142,8 @@ installation. The script runs fourteen steps and exits non-zero if any of them f
 2. lint
 3. verify the frozen inputs against `data/data.md` **and** against their upstream blobs
 4. verify the threshold freeze and the whole apparatus closure
-5. **recompute the completed run's verdict** from the shipped per-draw annotation
+5. **recompute the three recorded verdicts** -- the completed run's and the two prospective
+   arms' -- from the shipped per-draw annotations, and require each to match field by field
 6. extract the quantities the protocol quotes
 7. regenerate the power table
 8. derive the support of the decision space and the permutation-null mean of the estimate (the
@@ -199,9 +202,10 @@ The distinction matters more than the green badge, so it is stated here rather t
 - The frozen inputs are byte-identical to the blobs registered in the public upstream repository.
 - The decision thresholds shipped here are the exact bytes of the upstream commits that froze them,
   and those commits are ancestors of the commit carrying the completed run.
-- The verdict of the completed run is **re-derivable** from the shipped annotation and the shipped
-  apparatus: the verdict string, all nine gate read-outs and all four per-context maps are
-  recomputed and required to match.
+- The verdict of the completed run and the verdicts of the two prospective arms are
+  **re-derivable** from the shipped annotations and the shipped apparatus: for each, the verdict
+  string, all nine gate read-outs and all four per-context maps are recomputed and required to
+  match.
 - Every quantity in the list below occurs, as the frozen inputs render it, in the protocol -- and
   for the subset the README quotes, in this README too. The test is occurrence, not uniqueness: a
   value that appears in several places is not protected against one of them being altered.

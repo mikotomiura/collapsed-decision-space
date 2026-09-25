@@ -538,11 +538,16 @@ same tag on every row and records nothing about whether a parse succeeded; the a
 column that tells a rejected plan from a JSON `null`. The parser documents `None` in this field as
 `stay put`; that is a statement of the parser's design, quoted as such, and not a description of
 what any recorded `None` is. And the re-parse needs the completed run's per-draw records, which are
-tracked upstream and pinned by digest in `data/raw/cproper-manifest.json`:
-`analysis/scripts/heldout_stay_check.py --self-test --cproper-records <path>` performs it, and
-`analysis/heldout-stay/freeze.json` pins the class counts it must reproduce. The continuous
-integration of this repository re-parses the two prospective arms, whose records are shipped
-(results section).
+shipped in `data/completed/bank_records.jsonl` and pinned by digest in
+`data/raw/cproper-manifest.json`:
+`analysis/scripts/heldout_stay_check.py --self-test --cproper-records data/completed/bank_records.jsonl`
+performs it, `analysis/heldout-stay/freeze.json` pins the class counts it must reproduce, and the
+`compendium` workflow runs it on two operating systems. The frozen held-out script, its
+specification and its own workflow were written before the records were shipped, and still say
+that they are not; those bytes are frozen and are left as they are, so the frozen workflow's run
+of the same self-test still reports this one check as skipped. The continuous integration of this
+repository re-parses the two prospective arms as well, whose records are shipped too (results
+section).
 
 ### 5.2 Power worksheet: for the surrogate, concentration is not what lowers the computed power
 
@@ -1145,10 +1150,11 @@ matters in general.
 
 ### 12.5 Provenance gaps we are carrying
 
-The ES-1 verdict record is not shipped (§3), and in the version of the compendium this manuscript
-describes the 17.7 MB per-draw record of the completed run is referenced by hash in `data/data.md`
-rather than included, to keep the repository small (§5.1.2 gives the path by which a reader can
-re-parse it). A
+The ES-1 verdict record is not shipped (§3). The per-draw record of the completed run was, in
+earlier versions of this compendium, referenced by hash rather than included, to keep the
+repository small; since 2026-09-25 it is shipped byte for byte in `data/completed/`, checked by
+step 3 against its size and digest in `data/data.md` and against the digest the run's own manifest
+pinned, and re-parsed as §5.1.2 describes. A
 separate report of the upstream apparatus's determinism properties is citable [40], but it is a
 different body of evidence and does not stand in for the missing ES-1 record: the gap below is
 stated, not closed.
@@ -1201,21 +1207,24 @@ bank -- which is outside this protocol and is not a change we may make to it (§
 
 ### 12.8 What the checks reach on the prospective arms, and what they do not
 
-The reproduction script evaluates the sealed rules against the two landed verdicts. It does not
-recompute those verdicts from the arms' per-draw annotations, as step 5 does for the completed run.
-Those annotations, and the arms' raw per-draw records, are shipped in `data/prospective/`, and the
-held-out workflow recomputes its own result from them on two operating systems. Recomputing the two
-landed verdicts from the same annotations is a separate step, which the version of the compendium
-this manuscript describes does not take; until it does, whether the landed verdicts represent the
-draws they came from is recorded rather than checked. Three further things about the prospective
-arms are recorded by us rather than checked by this repository: the dates; that each bundle passed
-seal verification before its verdict was landed; and that each arm produced one complete run. The
-last needs a qualification. The control arm's first capture attempt was stopped from outside before
-it had produced a verdict, and the arm was restarted from the beginning; the driver's append-only
-attempt log records both starts. That log and the stopped attempt's partial record are in the
-upstream repository, under `experiments/20260914-paper02-run/artifacts/control/` at commit
-`d8ee75348bf92c81b19a9134b645e7f6988d0fa8`; the version of the compendium this manuscript describes
-does not ship them. Step 3 establishes only that each landed verdict is a document distinct from
+The reproduction script evaluates the sealed rules against the two landed verdicts, and, since
+2026-09-25, step 5 also recomputes both verdicts from the arms' per-draw annotations and manifests
+in `data/prospective/`, exactly as it does for the completed run, and requires them to agree with
+the landed files field by field. Whether the landed verdicts follow from the annotations shipped
+beside them is therefore checked, not recorded. That the annotations agree with the raw per-draw
+records they were read from is the held-out workflow's check, which recomputes its own result from
+both on two operating systems. Three further things about the prospective arms are recorded by us
+rather than checked by this repository: the dates; that each bundle passed seal verification
+before its verdict was landed; and that each arm produced one complete run. The last needs a
+qualification. The control arm's first capture attempt was stopped from outside before it had
+produced a verdict, and the arm was restarted from the beginning. The driver's append-only attempt
+logs are shipped under `data/attempts/`: the control arm's log records two starts and one
+completed capture, and the primary arm's log records one start and one completed capture. The
+stopped attempt's partial record is shipped beside the control log, byte for byte as the driver
+left it; it holds 41 complete per-call lines (call indices 1 to 41) followed by 594 NUL bytes and
+no final newline. Step 9 counts both from the shipped files. What the files cannot show is that no
+other attempt was made and discarded, which is why the complete-run count stays on the recorded
+side. Step 3 establishes only that each landed verdict is a document distinct from
 every frozen input, and its own output says so rather than leaving the stronger reading available.
 
 Two further limits are worth naming exactly, because both were found in review rather than by a
@@ -1292,7 +1301,8 @@ from the apparatus is described in §12.9. Neither is checked by anything in thi
 `bash repro.sh` performs fourteen steps, in order: environment installation from the lockfile; a
 lint check; verification of the frozen inputs against both `data/data.md` and their upstream blobs;
 verification of the threshold freeze and of the whole apparatus closure; **recomputation of the
-completed run's verdict from the shipped annotation and manifest**; mechanical extraction of the
+completed run's verdict and of the two prospective verdicts from the shipped annotations and
+manifests**; mechanical extraction of the
 quantities quoted in §3 and §5.1; regeneration of the power table of §5.2; derivation of the
 support of the decision space and of the permutation-null mean reported in §5.1.1; a character-level
 comparison of the numbers quoted in this manuscript against the frozen inputs they come from; the
@@ -1388,10 +1398,15 @@ While the sweep was being written every mutation was failing for one unrelated r
 code alone the sweep reported success.
 
 The recomputation step is the strongest of these. Every other step compares a record against a
-shipped file; this one runs the scorer on the shipped per-draw annotation, at the sealed
+shipped file; this one runs the scorer on each shipped per-draw annotation, at the sealed
 Monte-Carlo settings, and requires the resulting verdict string, all nine gate read-outs and all
-four per-context maps to agree with `data/raw/cproper-verdict.json`. The whole of §5.1 is therefore
-derivable from this repository rather than merely quoted from it. It takes under two seconds.
+four per-context maps to agree with the recorded verdict: `data/raw/cproper-verdict.json` for the
+completed run and, since 2026-09-25, `data/raw/control-verdict.json` and
+`data/raw/primary-verdict.json` for the two arms. The whole of §5.1, and the two verdicts step 13
+reads, are therefore derivable from this repository rather than merely quoted from it. The step
+also alters each compared field of a copy of each record in turn and requires the comparison to
+name it, so that a comparison unable to see a difference cannot pass. It takes under two
+seconds.
 
 The ninth step is what turns "these numbers were not transcribed by hand" from an assurance into
 a check: it reads each quantity from the frozen JSON by key and requires the resulting literal to

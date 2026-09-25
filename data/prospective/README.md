@@ -20,7 +20,9 @@ run driver wrote them on 2026-09-15:
   held-out check from these files and requires byte equality with `analysis/heldout-stay/result.json`.
 - These are **results, not frozen inputs** in the sense of `data/data.md`, and they are not in
   `data/raw/`. The sealed verdicts in `data/raw/{control,primary}-verdict.json` were computed from the
-  annotation files here; `repro.sh` (sealed) does not recompute them.
+  annotation files here. Since 2026-09-25 step 5 of `repro.sh` recomputes both from the annotation
+  and manifest files here and requires them to match (`analysis/scripts/recompute_verdict.py`,
+  which is not sealed; `repro.sh` itself is unchanged).
 - `.gitattributes` marks this directory `-text`, and the anonymous bundle copies it verbatim, so that
   a checkout with `core.autocrlf = true` does not change the bytes the digests describe.
 - A `None` read-out records that no zone was read for the draw, and it does not mean the same thing
