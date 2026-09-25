@@ -140,9 +140,12 @@ jobs:
       - name: Check the PDF against the claim boundary
         # The PDF is published in its own right, so it is a claim surface too. The patterns come
         # from `manuscript/CLAIM-BOUNDARY.md` -- one SSOT, applied to the derived artefact as well
-        # as to the source.
+        # as to the source. The check compares the abstract with CITATION.cff and needs PyYAML;
+        # the locked environment is not synced here (it would install torch), so PyYAML is
+        # supplied at the version `env/uv.lock` pins. The first run of this workflow used
+        # `--no-sync` alone and failed on the import.
         run: |
-          uv run --project env --no-sync python analysis/scripts/check_claim_boundary.py \
+          uv run --no-project --with "pyyaml==6.0.3" python analysis/scripts/check_claim_boundary.py \
             --extra-target build/pdf/paper.txt
 
       - name: Upload the PDF, and for the anonymous build the supplement
