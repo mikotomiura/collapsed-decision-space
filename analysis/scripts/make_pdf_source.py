@@ -161,7 +161,7 @@ def _split_authors(text: str) -> tuple[tuple[str, ...], bool, str]:
     return tuple(surnames), et_al, " and ".join(fields)
 
 
-def parse_references(text: str) -> tuple[Reference, ...]:
+def parse_references(text: str, *, anonymous: bool = False) -> tuple[Reference, ...]:
     """Read the References section of ``main.md`` into structured entries.
 
     Fails on any entry it cannot read completely, rather than emitting a bibliography that has
@@ -185,7 +185,9 @@ def parse_references(text: str) -> tuple[Reference, ...]:
         entry = " ".join(part.strip() for part in lines)
         if not _REF_START.match(entry):
             continue
-        m = re.match(r"^\[(\d+)\] (.+?)\. \*(.+?)\*\s*(.*)$", entry)
+        # The period after the author list is optional: the de-identified manuscript the anonymous
+        # build runs on writes the author's own entry as "Author, Anonymous" with none.
+        m = re.match(r"^\[(\d+)\] (.+?)\.? \*(.+?)\*\s*(.*)$", entry)
         if not m:
             _die(f"cannot parse reference entry: {entry[:80]!r}")
         number, author_text, title, rest = (
@@ -194,9 +196,14 @@ def parse_references(text: str) -> tuple[Reference, ...]:
             m.group(3),
             m.group(4),
         )
-        if not author_text.endswith("."):
-            author_text += "."
-        surnames, et_al, author_field = _split_authors(author_text)
+        if anonymous and number in SELF_CITATIONS:
+            # Replaced wholesale by render_bib; its author list is the redaction placeholder and
+            # is not a list of surnames with initials.
+            surnames, et_al, author_field = ("Anonymous",), False, "Anonymous"
+        else:
+            if not author_text.endswith("."):
+                author_text += "."
+            surnames, et_al, author_field = _split_authors(author_text)
         note = ""
         note_match = re.search(
             r"\b(doi:\S+?|arXiv:\d{4}\.\d{4,5})(?=[,.]?\s|[,.]?$)", rest
@@ -592,7 +599,7 @@ def build(
     abstract = _extract_main_abstract(manuscript)
     if not abstract:
         _die("the abstract could not be extracted from main.md")
-    references = parse_references(text)
+    references = parse_references(text, anonymous=anonymous)
 
     title, body = split_title(text)
     body = drop_block(body)
