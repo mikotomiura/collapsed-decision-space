@@ -97,18 +97,42 @@ LINE_WIDTH_PT = 6.5 * 72.27
 #: accepted exposure; in the anonymous PDF it is withheld instead, and ``check_pdf_identity.py``
 #: fails the anonymous build if any occurrence reaches the page.
 UPSTREAM_NAME = re.compile(r"erre[_-]?sandbox", re.IGNORECASE)
-UPSTREAM_PLACEHOLDER = "upstream"
+#: Visibly a placeholder, so that a path such as ``analysis/apparatus/UPSTREAM/...`` is not mistaken
+#: for one the supplement contains; the bundle's ANONYMISED.md names the substitution.
+UPSTREAM_PLACEHOLDER = "UPSTREAM"
 
-#: A git commit identifier, abbreviated (7 characters) or full (40), set as code. A public commit
-#: can be searched for and leads to its repository, so the anonymous PDF withholds each one (user
-#: ruling of 2026-09-26, ``.steering`` DA-C-15); the supplement keeps them, because the frozen and
-#: sealed files that bind the claims carry them. It must contain a letter and a digit, which is what
-#: keeps a number such as ``0.038065`` out of it. ``COMMIT_ON_PAGE`` in ``check_pdf_identity.py``
-#: is the independent check on the page.
+#: A git commit identifier set as code, abbreviated (7 to 39 characters) or full (40), in either
+#: case. A public commit can be searched for and leads to its repository, so the anonymous PDF
+#: withholds each one (user ruling of 2026-09-26, ``.steering`` DA-C-15); the supplement keeps them,
+#: because the frozen and sealed files that bind the claims carry them. It must contain a letter and
+#: a digit, which is what keeps a number such as ``20260708`` out of it. ``COMMIT_ON_PAGE`` in
+#: ``check_pdf_identity.py`` is the independent check on the page.
 COMMIT_SPAN = re.compile(
-    r"`((?=[0-9a-f]*[a-f])(?=[0-9a-f]*[0-9])(?:[0-9a-f]{40}|[0-9a-f]{7}))`"
+    r"`((?=[0-9a-fA-F]*[a-fA-F])(?=[0-9a-fA-F]*[0-9])[0-9a-fA-F]{7,40})`"
 )
 COMMIT_PLACEHOLDER = "[commit withheld for review]"
+
+#: The repository's git tags, which a search also resolves to the repository (TASK-POST review).
+#: Listed by hand: a shallow CI checkout carries no tags to read them from, so
+#: ``check_pdf_identity.py`` holds the same list and fails if any reaches the page.
+TAG_NAMES: tuple[str, ...] = ("autopsy-b3-declared", "stage1-submitted")
+TAG_PLACEHOLDER = "[tag withheld for review]"
+
+#: Sentences of the manuscript that the anonymous build rewrites, each matched exactly and required
+#: to occur once. The first names the author's own prior preprint by its subtitle, which a search
+#: resolves as surely as its title (TASK-POST review); the second names the venue this work was
+#: submitted to before (user ruling of 2026-09-26, DA-C-16). The named build carries both as written.
+ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
+    (
+        "The determinism and byte-exact cross-platform replay properties of the upstream apparatus\n",
+        "The determinism properties of the upstream apparatus\n",
+    ),
+    (
+        "The tag `stage1-submitted` in this repository marks the state submitted to PCI Registered "
+        "Reports\nin September 2026.",
+        "A tag in this repository marks the state of an earlier submission of this work.",
+    ),
+)
 
 #: The author's own prior work in the reference list. Named by identifier, not by author, because
 #: the de-identified manuscript this script runs on in the anonymous build has already had the
@@ -124,6 +148,27 @@ TMLR_FILES: tuple[str, ...] = ("tmlr.sty", "tmlr.bst", "fancyhdr.sty", "template
 def _die(message: str) -> None:
     print(f"[pdf-source] {message}", file=sys.stderr)
     raise SystemExit(1)
+
+
+def verify_vendored(repo_root: Path) -> int:
+    """Require the vendored TMLR files to be the bytes ``VENDORED.json`` records.
+
+    The style is official only while it is unmodified, and nothing else in the build would notice a
+    local edit to ``tmlr.sty``: it would typeset, and the page would look like the venue's.
+    """
+    import hashlib  # noqa: PLC0415
+    import json  # noqa: PLC0415
+
+    record = json.loads(
+        (repo_root / TMLR_DIR / "VENDORED.json").read_text(encoding="utf-8")
+    )
+    for name, digest in record["sha256"].items():
+        actual = hashlib.sha256((repo_root / TMLR_DIR / name).read_bytes()).hexdigest()
+        if actual != digest:
+            _die(
+                f"{TMLR_DIR / name} is not the vendored file VENDORED.json records ({actual[:12]})"
+            )
+    return len(record["sha256"])
 
 
 # --------------------------------------------------------------------------------------------------
@@ -632,10 +677,28 @@ def build(
     # path such as `analysis/apparatus/erre_sandbox/...`, and the escaped form no longer matches the
     # name. The first anonymous build put it on the page exactly that way.
     if anonymous:
+        for old, new in ANONYMOUS_REWRITES:
+            if body.count(old) != 1:
+                _die(
+                    f"an anonymous rewrite no longer matches main.md exactly once: {old[:60]!r}"
+                )
+            body = body.replace(old, new)
         title = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, title)
         abstract = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, abstract)
         body = UPSTREAM_NAME.sub(UPSTREAM_PLACEHOLDER, body)
         body = COMMIT_SPAN.sub(COMMIT_PLACEHOLDER, body)
+        for tag in TAG_NAMES:
+            body = body.replace(f"`{tag}`", TAG_PLACEHOLDER)
+    # A citation marker the conversion did not recognise -- a range, a list without the space the
+    # pattern expects -- would reach the page as a bare "[41–43]". Anything of that shape left
+    # outside code is a failure, not a style variant.
+    residue = [
+        m.group(0)
+        for m in re.finditer(r"\[\d+(?:\s*[,–-]\s*\d+)*\]", body)
+        if not any(s <= m.start() < e for s, e in _shielded_spans(body))
+    ]
+    if residue:
+        _die(f"citation-shaped markers survived conversion: {residue[:5]}")
     body, split_count = split_long_tokens(body)
     check_no_raw_environment(body)
 
@@ -670,6 +733,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    vendored = verify_vendored(args.repo_root)
+    print(f"[pdf-source] the {vendored} vendored TMLR files match VENDORED.json")
     source, bib, figures = build(
         args.repo_root, anonymous=args.anonymous, write_citations=args.write_citations
     )

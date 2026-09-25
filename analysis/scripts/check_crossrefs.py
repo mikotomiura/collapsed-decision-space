@@ -37,10 +37,14 @@ from pathlib import Path
 HEADING = re.compile(r"^#{2,4} ([0-9]+(?:\.[0-9]+)*|[A-Z](?:\.[0-9]+)*)\.? ", re.M)
 TOKEN = re.compile(r"§([0-9]+(?:\.[0-9]+)*|[A-Z](?:\.[0-9]+)*)(?![0-9A-Za-z])")
 
-#: A ``§`` preceded by one of these names a section of another document, not of the manuscript.
+#: A ``§`` preceded by one of these names a section of another document, not of the manuscript:
+#: a named file (backticked, with a document suffix, and not the manuscript itself), the sealed
+#: protocol, the held-out specification, or the claim boundary. An arbitrary code span is not
+#: enough: a stale reference right after an unrelated code span would otherwise be hidden
+#: (TASK-POST review).
 FOREIGN = re.compile(
-    r"(`(?!manuscript/main\.md`)[^`]+`\s*|protocol(?:\.md)?`?\s*|SPEC(?:\.ja\.md)?`?\s*"
-    r"|CLAIM-BOUNDARY(?:\.md)?`?\s*)$"
+    r"(`(?!manuscript/main\.md`)[^`\s]+\.(?:md|json|toml|yml|sh|py)`\s*|protocol(?:\.md)?`?\s*"
+    r"|SPEC(?:\.ja\.md)?`?\s*|CLAIM-BOUNDARY(?:\.md)?`?\s*)$"
 )
 
 #: The repository's own documents whose ``§`` references are checked, besides the manuscript. A
@@ -55,22 +59,35 @@ DOCUMENTS: tuple[str, ...] = (
     "env.md",
 )
 
-#: Files that must not change, and the shapes in which they cite a section of the manuscript.
+#: Files that must not change. Walked on the filesystem, not listed through git: step 9 of the
+#: sealed repro.sh runs this check, and repro.sh has never needed git -- it runs from an archive,
+#: from the de-identified bundle and from a downloaded zip. The first version called
+#: ``git ls-files``, failed outside a checkout, and found nothing inside an ignored directory
+#: (TASK-POST review).
 FROZEN_SCOPE: tuple[str, ...] = (
     "repro.sh",
     "analysis/freeze-provenance.json",
-    "analysis/heldout-stay/",
-    "analysis/autopsy/",
-    "data/posthoc/",
+    "analysis/heldout-stay",
+    "analysis/autopsy",
+    "data/posthoc",
     "data/prospective/README.md",
-    "seal/",
+    "seal",
 )
+FROZEN_SUFFIXES: frozenset[str] = frozenset(
+    {".md", ".json", ".sh", ".py", ".txt", ".tsv", ""}
+)
+
+#: The shapes in which a frozen file cites a section of the manuscript. ``DOTTED`` is general: a
+#: dotted ``§N.M`` that is not one of the file's own headings cites the manuscript's numbering (the
+#: held-out specification cites "§12.1 の confound", and numbers its own sections by integers only),
+#: and must be listed like the explicit shapes.
 FROZEN_SHAPES: tuple[re.Pattern[str], ...] = (
     re.compile(r"manuscript/main\.md,? section [0-9]+(?:\.[0-9]+)*"),
     re.compile(r"本文 ?§[0-9]+(?:\.[0-9]+)*"),
     re.compile(r"§[0-9]+(?:\.[0-9]+)* of the manuscript"),
     re.compile(r"(?<=base of )section [0-9]+(?:\.[0-9]+)*"),
 )
+DOTTED = re.compile(r"§([0-9]+\.[0-9]+(?:\.[0-9]+)*)")
 
 SECTION_MAP = Path("manuscript/tmlr/section-map.json")
 GENERATED = re.compile(r"<!-- BEGIN GENERATED.*?<!-- END GENERATED[^\n]*-->", re.S)
@@ -93,23 +110,45 @@ def unresolved(text: str, known: set[str], where: str) -> list[str]:
     return problems
 
 
-def frozen_citations(root: Path, files: list[str]) -> set[tuple[str, int, str]]:
-    found: set[tuple[str, int, str]] = set()
-    for rel in files:
-        for number, line in enumerate(
-            (root / rel).read_text(encoding="utf-8").splitlines(), start=1
-        ):
-            for shape in FROZEN_SHAPES:
-                for match in shape.finditer(line):
-                    found.add((rel, number, match.group(0)))
+def frozen_citations_text(text: str) -> list[tuple[int, str]]:
+    """(line, literal) of every citation of the manuscript's numbering in one frozen file."""
+    own = headings(text)
+    found: list[tuple[int, str]] = []
+    for number, line in enumerate(text.splitlines(), start=1):
+        spans: list[tuple[int, int]] = []
+        for shape in FROZEN_SHAPES:
+            for match in shape.finditer(line):
+                spans.append((match.start(), match.end()))
+                found.append((number, match.group(0)))
+        for match in DOTTED.finditer(line):
+            inside = any(s <= match.start() < e for s, e in spans)
+            if not inside and match.group(1) not in own:
+                found.append((number, match.group(0)))
     return found
+
+
+def frozen_files(root: Path) -> list[str]:
+    files: list[str] = []
+    for entry in FROZEN_SCOPE:
+        path = root / entry
+        if path.is_file():
+            files.append(entry)
+        elif path.is_dir():
+            files += sorted(
+                p.relative_to(root).as_posix()
+                for p in path.rglob("*")
+                if p.is_file()
+                and p.suffix in FROZEN_SUFFIXES
+                and "__pycache__" not in p.parts
+            )
+    return files
 
 
 def map_row(entry: dict[str, object]) -> str:
     return f"| `{entry['file']}` | {entry['line']} | {entry['old']} | §{entry['new']} |"
 
 
-def check(root: Path, tracked: list[str]) -> list[str]:
+def check(root: Path) -> list[str]:
     main = (root / "manuscript" / "main.md").read_text(encoding="utf-8")
     known = headings(main)
     problems = unresolved(GENERATED.sub("", main), known, "manuscript/main.md")
@@ -139,29 +178,21 @@ def check(root: Path, tracked: list[str]) -> list[str]:
             problems.append(
                 f"main.md carries the appendix L row for {rel}:{line} {count} times, not once"
             )
-    scope = sorted(
-        rel
-        for rel in tracked
-        if any(rel == s or rel.startswith(s) for s in FROZEN_SCOPE)
-    )
-    found = frozen_citations(root, [rel for rel in scope if (root / rel).is_file()])
-    for rel, line, literal in sorted(found - listed):
-        problems.append(
-            f"{rel}:{line}: {literal!r} cites a manuscript section but is not in {SECTION_MAP}"
-        )
+    files = frozen_files(root)
+    # A scope with a missing entry is a failure, not a pass: a check that found nothing to read has
+    # read nothing.
+    missing = [e for e in FROZEN_SCOPE if not (root / e).exists()]
+    if missing:
+        problems.append(f"frozen files to check are missing: {missing}")
+    for rel in files:
+        text = (root / rel).read_text(encoding="utf-8", errors="replace")
+        for line, literal in frozen_citations_text(text):
+            if (rel, line, literal) not in listed:
+                problems.append(
+                    f"{rel}:{line}: {literal!r} cites a manuscript section but is not in "
+                    f"{SECTION_MAP}"
+                )
     return problems
-
-
-def _tracked(root: Path) -> list[str]:
-    import subprocess  # noqa: PLC0415
-
-    out = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "-z"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    return [name for name in out.split("\0") if name]
 
 
 def self_test(root: Path) -> list[str]:
@@ -184,13 +215,21 @@ def self_test(root: Path) -> list[str]:
         problems.append(
             "self-test: a qualified reference to the manuscript was treated as foreign"
         )
+    if not unresolved("`unrelated` §12.8", known, "t"):
+        problems.append(
+            "self-test: a stale reference after a code span was treated as foreign"
+        )
     if not frozen_citations_text("# manuscript/main.md section 9.9; more"):
         problems.append("self-test: an unlisted frozen citation was not found")
+    if frozen_citations_text(
+        "## 3. Own\n\nsee §3 of this file"
+    ) or not frozen_citations_text("## 12. Own\n\nthe confound of §12.1"):
+        problems.append(
+            "self-test: a dotted citation was not told apart from an own section"
+        )
+    if not frozen_files(root):
+        problems.append("self-test: the frozen scope is empty")
     return problems
-
-
-def frozen_citations_text(text: str) -> list[str]:
-    return [m.group(0) for shape in FROZEN_SHAPES for m in shape.finditer(text)]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -205,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
         "--self-test", action="store_true", help="also check that failures fire"
     )
     args = parser.parse_args(argv)
-    problems = check(args.repo_root, _tracked(args.repo_root))
+    problems = check(args.repo_root)
     if args.self_test:
         problems += self_test(args.repo_root)
     if problems:

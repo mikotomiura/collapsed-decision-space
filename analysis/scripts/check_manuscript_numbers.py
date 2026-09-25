@@ -2416,7 +2416,7 @@ def main(argv: list[str] | None = None) -> int:
     # Section references. The manuscript was renumbered for submission (C, 2026-09-26), and
     # files that cannot change still cite the earlier numbers; see check_crossrefs.py. Run from
     # here so that step 9 of the sealed repro.sh covers it without the sealed file changing.
-    problems.extend(check_crossrefs.check(repo_root, check_crossrefs._tracked(repo_root)))
+    problems.extend(check_crossrefs.check(repo_root))
     problems.extend(check_crossrefs.self_test(repo_root))
 
     if problems:

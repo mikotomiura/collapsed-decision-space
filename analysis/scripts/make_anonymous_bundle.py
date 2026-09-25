@@ -664,7 +664,13 @@ def main(argv: list[str] | None = None) -> int:
         "the sealed rules is arranged to need neither.\n\n"
         "The files under `seal/` are **byte-identical** to the public and deposited copies. That "
         "is deliberate: it is what lets a reader compare this bundle with a third-party archive "
-        "once the identifiers are disclosed at camera-ready.\n"
+        "once the identifiers are disclosed at camera-ready.\n\n"
+        "**The anonymous PDF withholds more than this bundle can.** On its pages the upstream "
+        "project's name is printed as `UPSTREAM` (so a path such as "
+        "`analysis/apparatus/UPSTREAM/cognition/prompting.py` is found here under the package "
+        "directory of `analysis/apparatus/`), each git commit identifier and tag name as a "
+        "bracketed placeholder, and the author's own prior preprint without its title. The files "
+        "of this bundle carry all of them, because the checks that bind the claims read them.\n"
         + disclosed,
         encoding="utf-8",
         newline="\n",

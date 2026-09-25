@@ -3,7 +3,7 @@
   "commit": "7bf90efe3a0debbba703c05c43f3ff7e4d4a2992",
   "commit_date": "2023-06-30",
   "licence": "Apache-2.0 (LICENSE, upstream repository); fancyhdr.sty is the LPPL file the upstream repository ships",
-  "note": "Byte-for-byte copies of the official TMLR style files. Do not edit; check_tmlr_vendor (in check_pdf_source.py) compares these digests.",
+  "note": "Byte-for-byte copies of the official TMLR style files. Do not edit; make_pdf_source.py (verify_vendored) compares these digests before every build and fails on a difference.",
   "sha256": {
     "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
     "fancyhdr.sty": "3d2922548e0e5f1a6c5676eda6ebb6dc20d7d305b4d8c2be5f1c833fb1084e6d",

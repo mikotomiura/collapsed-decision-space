@@ -58,14 +58,22 @@ from make_anonymous_bundle import (  # noqa: E402
 #: choice, not a constraint.
 PDF_WITHHELD: tuple[tuple[str, str], ...] = (
     (ACCEPTED_EXPOSURES[0][0], ACCEPTED_EXPOSURES[0][1]),
-    ("the title of the author's own prior preprint", r"two-plane\s+determinism"),
+    # The title, allowing for pdftotext joining a word it found hyphenated at a line break
+    # ("twoplane"), and the subtitle, which a search resolves as surely (TASK-POST review).
+    ("the title of the author's own prior preprint", r"two-?\s*plane\s+determinism"),
+    ("the subtitle of the author's own prior preprint", r"byte-?\s*exact\s+cross-?\s*platform"),
+    # The repository's tags (TASK-POST review), the same list make_pdf_source.py withholds.
+    ("a tag of the repository", r"autopsy-b3-declared|stage1-submitted"),
+    # The venue this work was submitted to before (user ruling of 2026-09-26, DA-C-16).
+    ("the earlier venue", r"PCI\s+Registered\s+Reports"),
 )
 
-#: A git commit identifier on the page (DA-C-15). Read against the page only: an inflated content
-#: stream is binary, and seven lowercase hexadecimal characters occur in it by chance. The
-#: lookarounds keep a number in exponent form (``3.415046e-05``) from matching.
+#: A git commit identifier on the page (DA-C-15), abbreviated or full, either case. Read against
+#: the page only: an inflated content stream is binary, and short runs of hexadecimal characters
+#: occur in it by chance. The lookarounds keep a number in exponent form (``3.415046e-05``) and
+#: a hyphenated identifier from matching.
 COMMIT_ON_PAGE = re.compile(
-    r"(?<![.\w])(?=[0-9a-f]*[a-f])(?=[0-9a-f]*[0-9])(?:[0-9a-f]{40}|[0-9a-f]{7})(?![\w-])"
+    r"(?<![.\w])(?=[0-9a-fA-F]*[a-fA-F])(?=[0-9a-fA-F]*[0-9])[0-9a-fA-F]{7,40}(?![\w-])"
 )
 
 #: Keys of the document information dictionary that carry free text.
@@ -265,7 +273,16 @@ def main(argv: list[str] | None = None) -> int:
         masked = _mask(text)
         for label, pattern in (*LEAK_PATTERNS, *PDF_WITHHELD):
             for match in re.finditer(pattern, masked, re.IGNORECASE):
-                if label == "a DOI" and is_cited_doi_fragment(match.group(0)):
+                # A cited DOI split by the layout: accepted only where the split is visible -- a
+                # kerning gap or a string end inside the match, or the line ending right after it.
+                # A fragment that simply stops mid-line is not a line break and still fails.
+                found = match.group(0)
+                broken = (
+                    _TJ_GAP.search(found) is not None
+                    or found.endswith(")")
+                    or masked[match.end() : match.end() + 1] in ("\n", "\r", "")
+                )
+                if label == "a DOI" and broken and is_cited_doi_fragment(found):
                     continue
                 problems.append(f"{where}: {label}: {match.group(0)!r}")
     if page_text is not None:

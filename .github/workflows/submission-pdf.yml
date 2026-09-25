@@ -107,8 +107,10 @@ jobs:
           pdflatex -interaction=nonstopmode -halt-on-error paper
           # A citation or cross-reference that did not resolve prints as "?" and does not fail
           # the build; neither does a BibTeX warning about an entry it could not format.
-          ! grep -E "Citation .* undefined|Reference .* undefined|There were undefined" paper.log
-          ! grep -E "^Warning--" paper.blg
+          # Written as `if`, not as `! grep`: bash exempts a command negated with `!` from
+          # `set -e`, so `! grep` that matched would not have stopped the step (TASK-POST review).
+          if grep -E "Citation .* undefined|Reference .* undefined|There were undefined" paper.log; then exit 1; fi
+          if grep -E "^Warning--" paper.blg; then exit 1; fi
           ls -l paper.pdf
 
       - name: Read the PDF back

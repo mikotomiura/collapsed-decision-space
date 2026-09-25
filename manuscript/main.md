@@ -25,8 +25,7 @@ it (§J).
 A pre-registered evaluation that may end in a null has to fix in advance what a null would be
 worth. We report an instrument autopsy of one that did: a sealed evaluation of whether an
 agent-internal channel, a scalar from a language-model agent's recent movement composed into its
-sampling temperature, shifts a five-way zone decision beyond a declared margin. Applied to two
-prospective arms, its rules stop at R4, apparatus validity. The three gates that decide what a null
+sampling temperature, shifts a five-way zone decision beyond a declared margin. Sealed after a completed run on one model and applied to two prospective arms, its rules stop at R4, apparatus validity. The three gates that decide what a null
 report is worth each ran as written, and each read a quantity other than the one its reading
 depends on. The power gate reads a pooled chi-square surrogate, not the stratified permutation test
 the decision turns on. A post hoc simulation of the sealed pipeline, declared before it was run,
@@ -1734,17 +1733,20 @@ names, and fails if any other file in those groups cites a section of the manusc
 
 | File | Line | Earlier number | Now |
 |---|---|---|---|
-| `repro.sh` | 52 | 6.3 | §C.4 |
-| `analysis/freeze-provenance.json` | 4 | 10.2 | §G.2 |
-| `analysis/freeze-provenance.json` | 82 | 12.5 | §I.4 |
-| `analysis/heldout-stay/SPEC.ja.md` | 21 | 8 | §E |
-| `analysis/heldout-stay/SPEC.ja.md` | 169 | 6.3 | §C.4 |
 | `analysis/autopsy/DECLARATION.md` | 8 | 1.4 | §1.3 |
 | `analysis/autopsy/grid.json` | 38 | 5.2 | §B.1 |
 | `analysis/autopsy/grid.json` | 46 | 5.2 | §B.1 |
+| `analysis/freeze-provenance.json` | 4 | 10.2 | §G.2 |
+| `analysis/freeze-provenance.json` | 82 | 12.5 | §I.4 |
+| `analysis/heldout-stay/SPEC.ja.md` | 21 | 8 | §E |
+| `analysis/heldout-stay/SPEC.ja.md` | 147 | 12.1 | §6.1 |
+| `analysis/heldout-stay/SPEC.ja.md` | 169 | 6.3 | §C.4 |
+| `analysis/heldout-stay/freeze.json` | 133 | 12.1 | §6.1 |
+| `analysis/heldout-stay/result.json` | 668 | 12.1 | §6.1 |
 | `data/posthoc/pipeline.md` | 21 | 5.2 | §B.1 |
 | `data/posthoc/pipeline.md` | 22 | 5.2 | §B.1 |
 | `data/prospective/README.md` | 3 | 6 | §C |
+| `repro.sh` | 52 | 6.3 | §C.4 |
 
 ## M. Further results of the prospective run
 
@@ -1759,7 +1761,7 @@ keep that from being true by construction. The gate is not inert: the same two c
 same thresholds, did fire on the primary arm, which is how this run reached R4 at all. And the
 thresholds are what decide it rather than the shape of the rule — the completed run's per-context
 entropies run from 0.628287 to 0.754149, so a floor set above 0.68 rather than at 0.5 would have put
-`rho_hat` at 0.375 and fired R4 on the completed run too. What the paragraph above says about
+`rho_hat` at 0.375 and fired R4 on the completed run too. What the entropy-floor paragraph of §5 says about
 certification holds at any floor; what this paragraph says about flagging is a statement about these
 thresholds, and §G.2 records that they were fixed before any of this was computed. Detecting the
 regime of §4.1 took the support and permutation-null diagnostics computed there, which run on

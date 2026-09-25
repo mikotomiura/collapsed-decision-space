@@ -66,7 +66,7 @@ other than the one the reading of its result depends on:**
 The prospective arms and the held-out test did not resolve this; they exposed it. The claim does not
 depend on the value of the 0.10 margin, says nothing about the channel's effect, and is confined to
 two models and eight frozen contexts. An earlier version of the manuscript drew a different
-conclusion from the completed run; §4.1 of the manuscript says why that reading is withdrawn.
+conclusion from the completed run; §N.4 of the manuscript says why that reading is withdrawn.
 
 **Wherever this work speaks of an effect, its subject is the channel.** It is not walking, and it
 is not creativity.

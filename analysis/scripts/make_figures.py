@@ -15,7 +15,7 @@ Two checks keep a figure tied to its data, and they are separate on purpose.
   a node edited after generation, fails here.
 * **Page level** (``check_pdf_text.py``). The figures set their numbers as text, so the page carries
   them. :func:`expected_rows` gives, per figure, rows of a label followed by values in order, and
-  the PDF check requires each row on one line of the ``pdftotext -layout`` text of the page that
+  the PDF check requires each row, in content-stream order (``pdftotext -raw``), on the page that
   carries the figure's caption. A number that was generated correctly but did not reach the page --
   clipped, overprinted, lost to a missing glyph -- fails there.
 
@@ -86,6 +86,8 @@ OPS: dict[str, str] = {
 MARK = "% cds-value "
 #: What a figure prints where there is no value. Not "--", which TeX sets as an en dash.
 MISSING = "n/a"
+#: Marks each bar of Figure 3 with the count it stands for, so its length can be read back.
+BAR_MARK = "% cds-bar "
 
 
 def _load_json(path: Path) -> Any:
@@ -228,7 +230,8 @@ def fig_distribution(root: Path) -> str:
                 pattern = ", pattern=north east lines" if category == "None" else ""
                 out.append(
                     rf"\fill[fill={FILLS[category]}{pattern}, draw=black, line width=0.2pt] "
-                    rf"({x:.4f},{y + 0.03:.3f}) rectangle ({x + width:.4f},{y + row_h - 0.03:.3f});"
+                    rf"({x:.4f},{y + 0.03:.3f}) rectangle ({x + width:.4f},{y + row_h - 0.03:.3f}); "
+                    + f"{BAR_MARK}{key}.ctx{context}.{condition}.{category}"
                 )
                 x += width
             # The zone counts are markers only: they fix the bar lengths above.
@@ -451,8 +454,27 @@ def expected_rows(root: Path) -> dict[str, list[tuple[str, list[str]]]]:
         (base, [values["surface"].get(f"{base}.{d}", MISSING) for d in DIRECTIONS])
         for base in BASES
     ]
-    pipe = [(f"{rid} {label}:", []) for rid, label in _rule_labels(root)]
+    # Figure 1: each rule's label followed by its predicates, as the page reads them, so that a
+    # predicate lost from a box fails even though the box's label survives (TASK-POST review).
+    predicates = pipeline_values(root)
+    pipe = [
+        (f"{rid} {label}:", _plain(predicates[rid]).split())
+        for rid, label in _rule_labels(root)
+    ]
     return {"pipeline": pipe, "distribution": dist, "power": power}
+
+
+def _plain(tex: str) -> str:
+    """The text a TeX predicate of Figure 1 reads as on the page."""
+    for old, new in (
+        (r"$\wedge$", "∧"),
+        (r"$\vee$", "∨"),
+        (r"$\geq$", "≥"),
+        (r"$\leq$", "≤"),
+        (r"\_", "_"),
+    ):
+        tex = tex.replace(old, new)
+    return re.sub(r"\\texttt\{([^}]*)\}", r"\1", tex)
 
 
 def _rule_labels(root: Path) -> list[tuple[str, str]]:
@@ -473,11 +495,75 @@ def parse_markers(tex: str) -> tuple[dict[str, str], list[str]]:
         if key in found:
             problems.append(f"marker {key} appears twice")
         found[key] = value
-        if body.strip() and "{" + value + "}" not in body and value not in body:
+        # A number must be the whole text of its node: "0" or "1.0" occur by chance in any line
+        # of TikZ. Only a long text (a rule's predicates) may stand inside a longer node text.
+        exact = "{" + value + "}" in body
+        if body.strip() and not exact and not (len(value) >= 12 and value in body):
             problems.append(
                 f"marker {key}={value} does not match the text its node sets"
             )
     return found, problems
+
+
+_RECT = re.compile(r"\(([-\d.]+),[-\d.]+\) rectangle \(([-\d.]+),[-\d.]+\);")
+
+
+def check_bars(tex: str, markers: dict[str, str], bar: float = 3.2) -> list[str]:
+    """Every bar of Figure 3 must be as long as the counts it stands for.
+
+    The counts are read back from the figure's own markers and the length from the drawn rectangle,
+    so this compares two things the generator wrote separately, not one value with itself.
+    """
+    problems: list[str] = []
+    seen = 0
+    for line in tex.splitlines():
+        if BAR_MARK not in line:
+            continue
+        seen += 1
+        body, key = line.split(BAR_MARK, 1)
+        match = _RECT.search(body)
+        row = key.rsplit(".", 1)[0]
+        counts = [int(markers.get(f"{row}.{c}", "-1")) for c in (*ZONES, "None")]
+        count = int(markers.get(key, "-1"))
+        if match is None or min(counts) < 0 or count < 0:
+            problems.append(
+                f"bar {key}: its rectangle or its counts cannot be read back"
+            )
+            continue
+        drawn = float(match.group(2)) - float(match.group(1))
+        want = bar * count / sum(counts)
+        if abs(drawn - want) > 2e-4:
+            problems.append(
+                f"bar {key} is {drawn:.4f} long; its counts give {want:.4f}"
+            )
+    if seen == 0:
+        problems.append("no bar of the distribution figure carries a bar marker")
+    return problems
+
+
+def check_anchor(root: Path, markers: dict[str, str]) -> list[str]:
+    """Figure 3's None counts, summed per arm and condition, must equal the held-out result's.
+
+    ``analysis/heldout-stay/result.json`` was computed by the frozen held-out script from the same
+    annotations by a different code path, so agreement is evidence that the figure reads them
+    correctly, which recomputing the figure's own values could not give.
+    """
+    result = _load_json(root / "analysis" / "heldout-stay" / "result.json")
+    problems: list[str] = []
+    for arm in ("control", "primary"):
+        for condition in ("on", "off"):
+            total = sum(
+                int(v)
+                for k, v in markers.items()
+                if k.startswith(f"{arm}.ctx") and k.endswith(f".{condition}.None")
+            )
+            want = int(result["arms"][arm]["none"][condition])
+            if total != want:
+                problems.append(
+                    f"Figure 3 shows {total} None draws for {arm}/{condition}; the held-out "
+                    f"result records {want}"
+                )
+    return problems
 
 
 def check_figures(root: Path, out_dir: Path) -> list[str]:
@@ -488,8 +574,12 @@ def check_figures(root: Path, out_dir: Path) -> list[str]:
         if not path.is_file():
             problems.append(f"{path} is missing")
             continue
-        found, parse_problems = parse_markers(path.read_text(encoding="utf-8"))
+        tex = path.read_text(encoding="utf-8")
+        found, parse_problems = parse_markers(tex)
         problems += [f"fig-{name}: {p}" for p in parse_problems]
+        if name == "distribution":
+            problems += [f"fig-{name}: {p}" for p in check_bars(tex, found)]
+            problems += [f"fig-{name}: {p}" for p in check_anchor(root, found)]
         want = expected[name]
         for key in sorted(set(want) | set(found)):
             if found.get(key) != want.get(key):
@@ -536,6 +626,32 @@ def self_test(root: Path, out_dir: Path) -> list[str]:
             problems.append(
                 "self-test: a number removed from a generated figure was not caught"
             )
+        power.write_text(original, encoding="utf-8")
+        dist = work / "fig-distribution.tex"
+        dist_original = dist.read_text(encoding="utf-8")
+        # A bar drawn longer than its counts give.
+        lengthened = re.sub(
+            r"rectangle \(([-\d.]+),",
+            lambda m: f"rectangle ({float(m.group(1)) + 0.05:.4f},",
+            dist_original,
+            count=1,
+        )
+        dist.write_text(lengthened, encoding="utf-8")
+        if not any(
+            "long; its counts give" in p
+            for p in check_bars(lengthened, parse_markers(lengthened)[0])
+        ):
+            problems.append("self-test: a bar drawn at the wrong length was not caught")
+        # One None draw moved from one context to another in the markers: the per-context values
+        # change consistently, the held-out totals do not -- so only the anchor can see it.
+        found = parse_markers(dist_original)[0]
+        moved = dict(found)
+        moved["control.ctx0.on.None"] = str(int(moved["control.ctx0.on.None"]) + 1)
+        if not check_anchor(root, moved):
+            problems.append(
+                "self-test: a None total that disagrees with the held-out result was not caught"
+            )
+        dist.write_text(dist_original, encoding="utf-8")
     return problems
 
 
@@ -567,7 +683,8 @@ def main(argv: list[str] | None = None) -> int:
         counts = {k: len(v) for k, v in expected_markers(args.repo_root).items()}
         print(
             f"[figures] OK: every value marker in the three figures matches the data ({counts}); "
-            "an edited and a removed node are both caught"
+            "an edited and a removed node, a bar at the wrong length and a None total that disagrees with "
+            "the held-out result are all caught"
         )
         return 0
     args.out_dir.mkdir(parents=True, exist_ok=True)

@@ -115,7 +115,8 @@ def row_on_page(page: str, label: str, values: list[str]) -> bool:
     column of labels and a column of numbers as separate blocks, and xpdf and poppler do so
     differently, so a row check on layout text measured the extractor rather than the page.
     """
-    pattern = re.escape(label) + "".join(r"\s+" + re.escape(v) for v in values) + r"(?!\S)"
+    # Bounded on both sides, so that a label "C" cannot match the tail of "...ABC".
+    pattern = r"(?<!\S)" + re.escape(label) + "".join(r"\s+" + re.escape(v) for v in values) + r"(?!\S)"
     return re.search(pattern, " ".join(page.split())) is not None
 
 
