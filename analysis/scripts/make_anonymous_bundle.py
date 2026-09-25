@@ -150,6 +150,11 @@ CITED_DOIS: tuple[str, ...] = (
     "10.1177/1948550617697177",
     "10.1007/s10462-025-11412-6",
     "10.1140/epjds/s13688-026-00674-x",
+    "10.1016/j.spl.2023.109999",
+    "10.1109/TIT.2018.2846245",
+    "10.1214/18-AOAS1155SF",
+    "10.1198/000313001300339897",
+    "10.18653/v1/2024.emnlp-industry.91",
 )
 
 #: Identifying strings that are **known to remain**, with the reason each one cannot go. These are
