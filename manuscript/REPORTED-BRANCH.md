@@ -11,7 +11,7 @@ comparison does *not* establish. The last part matters most.
 
 There are two obvious ways to write the reported branch, and both are wrong.
 
-**Write it before the results exist.** Then it is a prediction. §8 of the manuscript says the
+**Write it before the results exist.** Then it is a prediction. §E of the manuscript says the
 opposite in as many words: *"R1, R2, R3 and R4 are all permissible outcomes, and the authors do
 not predict which will occur."* A branch committed in advance would contradict the sealed text of
 the protocol.
@@ -36,7 +36,7 @@ The single statement is a marker in the results section of `manuscript/main.md`:
 `analysis/scripts/render_reported_branch.py` renders it into `manuscript/reported-branch.txt`, and
 step 9 (`check_manuscript_numbers.py`) fails if the two disagree.
 
-This is the arrangement §8 already uses for the decision rules themselves, for the reason the
+This is the arrangement §E already uses for the decision rules themselves, for the reason the
 manuscript gives there: *two statements of the same rules drift; one statement and a renderer
 cannot.* If the branch were written into both the prose and the compared file, revising one and
 forgetting the other would leave a repository whose results section says one thing and whose
@@ -113,7 +113,7 @@ regenerated on every run and is not tracked, and commit order is the author's to
 same author writes the manuscript's claim and performs the hand derivation, so the double entry
 above reduces the chance of an honest mistake, not the possibility of a dishonest one.
 
-This is the same boundary §13 of the manuscript draws around the deposit witness: an offline
+This is the same boundary §J of the manuscript draws around the deposit witness: an offline
 check can establish that two records agree and that a record is closed against itself. It cannot
 reach outside the repository. Stating the limit is the repair available for the part that no
 check repairs.

@@ -11,7 +11,7 @@ script.
 whitespace removed. A comment line does not annotate the branch; it becomes part of it. So the
 file is one token, and everything else about the decision has to live somewhere else.
 
-**It must not be a second statement of the claim.** The manuscript already says, in §8, why the
+**It must not be a second statement of the claim.** The manuscript already says, in §E, why the
 decision rules are generated from the sealed file rather than written out beside it: two
 statements of the same thing drift, and one statement with a renderer cannot. The reported branch
 is in exactly that position. If the results section named one branch and this file named another,
@@ -53,7 +53,7 @@ from _provenance import load_json  # noqa: E402
 #: sees in the PDF. Stated here so the limit is not mistaken for a stronger one.
 MARKER_RE = re.compile(r"<!--\s*REPORTED-BRANCH:\s*(?P<branch>[A-Za-z0-9_-]+)\s*-->")
 
-#: The bounds of the block §8 generates from the sealed rules. A marker inside it would be
+#: The bounds of the block §E generates from the sealed rules. A marker inside it would be
 #: overwritten by the renderer that owns that block, and -- worse -- would look generated while
 #: being the one part of the file that is a human claim.
 GENERATED_BEGIN_RE = re.compile(r"<!--\s*BEGIN GENERATED FROM\b")

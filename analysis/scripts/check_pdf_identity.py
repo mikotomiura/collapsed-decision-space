@@ -49,6 +49,33 @@ from make_anonymous_bundle import (  # noqa: E402
     LEAK_PATTERNS,
 )
 
+#: Strings the supplement has to keep but the anonymous PDF must not carry (``.steering`` DA-C-4 and
+#: DA-C-5, user rulings of 2026-09-26). The upstream project's name is an accepted exposure of the
+#: bundle, because the provenance checks compare bytes against that project; the PDF has no such
+#: constraint, and ``make_pdf_source.py --anonymous`` replaces it. The title of the author's own
+#: prior preprint would resolve to the author through any search; the anonymous bibliography
+#: withholds it. Both fail this check rather than being counted, because on the page they are a
+#: choice, not a constraint.
+PDF_WITHHELD: tuple[tuple[str, str], ...] = (
+    (ACCEPTED_EXPOSURES[0][0], ACCEPTED_EXPOSURES[0][1]),
+    # The title, allowing for pdftotext joining a word it found hyphenated at a line break
+    # ("twoplane"), and the subtitle, which a search resolves as surely (TASK-POST review).
+    ("the title of the author's own prior preprint", r"two-?\s*plane\s+determinism"),
+    ("the subtitle of the author's own prior preprint", r"byte-?\s*exact\s+cross-?\s*platform"),
+    # The repository's tags (TASK-POST review), the same list make_pdf_source.py withholds.
+    ("a tag of the repository", r"autopsy-b3-declared|stage1-submitted"),
+    # The venue this work was submitted to before (user ruling of 2026-09-26, DA-C-16).
+    ("the earlier venue", r"PCI\s+Registered\s+Reports"),
+)
+
+#: A git commit identifier on the page (DA-C-15), abbreviated or full, either case. Read against
+#: the page only: an inflated content stream is binary, and short runs of hexadecimal characters
+#: occur in it by chance. The lookarounds keep a number in exponent form (``3.415046e-05``) and
+#: a hyphenated identifier from matching.
+COMMIT_ON_PAGE = re.compile(
+    r"(?<![.\w])(?=[0-9a-fA-F]*[a-fA-F])(?=[0-9a-fA-F]*[0-9])[0-9a-fA-F]{7,40}(?![\w-])"
+)
+
 #: Keys of the document information dictionary that carry free text.
 INFO_KEYS: tuple[str, ...] = (
     "/Title",
@@ -90,6 +117,51 @@ def _mask(text: str) -> str:
     for allowed in (*ALLOWED, *CITED_DOIS):
         text = text.replace(allowed, "")
     return text
+
+
+#: A SHA-256 digest that the layout broke in two: two hexadecimal runs separated by one whitespace
+#: character whose lengths add up to 64. The manuscript sets content digests (a model's, a file's)
+#: through ``\\seqsplit``, and pdftotext joins the pieces with a space (xpdf) or a newline (poppler,
+#: which is what CI runs; the first CI run of this rule failed on exactly that); a piece of 11
+#: characters is then commit-shaped. Only the exact length of a digest is accepted, so a commit
+#: identifier is not.
+_SPLIT_DIGEST = re.compile(r"(?<![0-9a-f])([0-9a-f]{8,63})\s([0-9a-f]{1,56})(?![0-9a-f])")
+
+
+def mask_page(text: str) -> str:
+    """Repair, for the page text only, the two ways the layout splits an inert identifier.
+
+    A cited DOI broken at a line end arrives as ``10.1016/j.spl. 2023.109999``: each declared DOI is
+    therefore also masked with whitespace allowed between any two of its characters -- that DOI and
+    no other. And a digest broken the same way is masked where its two pieces make 64 characters.
+    """
+    for doi in CITED_DOIS:
+        text = re.sub(r"\s*".join(re.escape(ch) for ch in doi), "", text)
+    return _SPLIT_DIGEST.sub(
+        lambda m: "" if len(m.group(1)) + len(m.group(2)) == 64 else m.group(0), text
+    )
+
+
+#: A kerning gap inside a TJ array, as pdflatex writes one between two runs of a string: ``)-50(``.
+_TJ_GAP = re.compile(r"\)\s*-?\d+(?:\.\d+)?\s*\(")
+
+
+def is_cited_doi_fragment(found: str) -> bool:
+    """Whether a DOI-shaped match is a piece of a DOI declared as someone else's.
+
+    The TMLR bibliography sets DOIs through ``\\url``, which lets them break across lines and kerns
+    them: in the inflated streams a cited DOI arrives as ``10.1007/s10462-)-50(025-...``, and on
+    the page as ``10.1016/j.spl.`` with the rest on the next line. Neither is masked by the exact
+    comparison in :func:`_mask`, and the first TMLR build failed this check on seven cited DOIs
+    for that reason alone. A match is accepted only if, with the kerning gaps removed, it is a
+    prefix of a declared citation that runs past the registrant prefix -- so a fragment of the
+    author's own deposit, whose prefix no citation shares, still fails.
+    """
+    cleaned = _TJ_GAP.sub("", found).rstrip(").,;:")
+    registrant = cleaned.split("/", 1)[0] + "/"
+    if len(cleaned) <= len(registrant):
+        return False
+    return any(doi.startswith(cleaned) for doi in CITED_DOIS)
 
 
 def _decode_pdf_string(raw: bytes) -> str:
@@ -217,14 +289,28 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[pdf-identity] FAIL: no extracted text at {args.text}", file=sys.stderr)
             return 1
         page_text = args.text.read_text(encoding="utf-8", errors="replace")
-        haystacks.append(("the page, as pdftotext reads it", page_text))
+        haystacks.append(("the page, as pdftotext reads it", mask_page(page_text)))
 
     problems: list[str] = []
     for where, text in haystacks:
         masked = _mask(text)
-        for label, pattern in LEAK_PATTERNS:
+        for label, pattern in (*LEAK_PATTERNS, *PDF_WITHHELD):
             for match in re.finditer(pattern, masked, re.IGNORECASE):
+                # A cited DOI split by the layout: accepted only where the split is visible -- a
+                # kerning gap or a string end inside the match, or the line ending right after it.
+                # A fragment that simply stops mid-line is not a line break and still fails.
+                found = match.group(0)
+                broken = (
+                    _TJ_GAP.search(found) is not None
+                    or found.endswith(")")
+                    or masked[match.end() : match.end() + 1] in ("\n", "\r", "")
+                )
+                if label == "a DOI" and broken and is_cited_doi_fragment(found):
+                    continue
                 problems.append(f"{where}: {label}: {match.group(0)!r}")
+    if page_text is not None:
+        for match in COMMIT_ON_PAGE.finditer(mask_page(page_text)):
+            problems.append(f"the page, as pdftotext reads it: a commit identifier: {match.group(0)!r}")
 
     print(f"[pdf-identity] {args.pdf.name}: {len(raw):,} bytes, {len(blob):,} after inflating")
     print(f"[pdf-identity]   info dictionary fields: {len(info_fields(blob))}")
@@ -241,17 +327,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 1
 
-    inflated = blob.decode("latin-1")
-    for label, pattern, _ in ACCEPTED_EXPOSURES:
-        in_bytes = len(re.findall(pattern, inflated, re.IGNORECASE))
-        if page_text is None:
-            on_page = "unknown, --text not given"
-        else:
-            on_page = str(len(re.findall(pattern, page_text, re.IGNORECASE)))
-        print(
-            f"[pdf-identity]   DISCLOSED: {label} -- {in_bytes} occurrence(s) in the file's "
-            f"bytes, {on_page} on the page"
-        )
+    for label, _ in PDF_WITHHELD:
+        print(f"[pdf-identity]   WITHHELD: {label} -- 0 occurrences, in the bytes and on the page")
 
     where = "the metadata, the XMP, the link annotations, and the inflated streams"
     if page_text is None:

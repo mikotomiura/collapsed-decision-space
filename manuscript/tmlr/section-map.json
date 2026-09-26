@@ -1,0 +1,103 @@
+{
+  "purpose": "The manuscript was reordered into TMLR order on 2026-09-26 (body, References, appendices) and its sections renumbered. Files that cannot be edited -- sealed, frozen or declared -- still cite the earlier numbers. Each such citation is listed here with the section it now means; appendix L of main.md carries the same table, and check_crossrefs.py requires the two to agree, every literal to still stand at its line, and no other citation of that kind to exist in those files.",
+  "frozen_citations": [
+    {
+      "file": "analysis/autopsy/DECLARATION.md",
+      "line": 8,
+      "literal": "§1.4 of the manuscript",
+      "old": "1.4",
+      "new": "1.3"
+    },
+    {
+      "file": "analysis/autopsy/grid.json",
+      "line": 38,
+      "literal": "section 5.2",
+      "old": "5.2",
+      "new": "B.1"
+    },
+    {
+      "file": "analysis/autopsy/grid.json",
+      "line": 46,
+      "literal": "section 5.2",
+      "old": "5.2",
+      "new": "B.1"
+    },
+    {
+      "file": "analysis/freeze-provenance.json",
+      "line": 4,
+      "literal": "manuscript/main.md section 10.2",
+      "old": "10.2",
+      "new": "G.2"
+    },
+    {
+      "file": "analysis/freeze-provenance.json",
+      "line": 82,
+      "literal": "manuscript/main.md, section 12.5",
+      "old": "12.5",
+      "new": "I.4"
+    },
+    {
+      "file": "analysis/heldout-stay/SPEC.ja.md",
+      "line": 21,
+      "literal": "本文 §8",
+      "old": "8",
+      "new": "E"
+    },
+    {
+      "file": "analysis/heldout-stay/SPEC.ja.md",
+      "line": 147,
+      "literal": "§12.1",
+      "old": "12.1",
+      "new": "6.1"
+    },
+    {
+      "file": "analysis/heldout-stay/SPEC.ja.md",
+      "line": 169,
+      "literal": "本文 §6.3",
+      "old": "6.3",
+      "new": "C.4"
+    },
+    {
+      "file": "analysis/heldout-stay/freeze.json",
+      "line": 133,
+      "literal": "§12.1",
+      "old": "12.1",
+      "new": "6.1"
+    },
+    {
+      "file": "analysis/heldout-stay/result.json",
+      "line": 668,
+      "literal": "§12.1",
+      "old": "12.1",
+      "new": "6.1"
+    },
+    {
+      "file": "data/posthoc/pipeline.md",
+      "line": 21,
+      "literal": "section 5.2",
+      "old": "5.2",
+      "new": "B.1"
+    },
+    {
+      "file": "data/posthoc/pipeline.md",
+      "line": 22,
+      "literal": "section 5.2",
+      "old": "5.2",
+      "new": "B.1"
+    },
+    {
+      "file": "data/prospective/README.md",
+      "line": 3,
+      "literal": "§6 of the manuscript",
+      "old": "6",
+      "new": "C"
+    },
+    {
+      "file": "repro.sh",
+      "line": 52,
+      "literal": "manuscript/main.md section 6.3",
+      "old": "6.3",
+      "new": "C.4"
+    }
+  ]
+}

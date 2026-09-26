@@ -55,7 +55,7 @@ the table below is a reading of it.
 ## Environment registered for the prospective run
 
 The prospective run happens after in-principle acceptance. Its conditions are frozen in
-`manuscript/main.md` §6.
+`manuscript/main.md` §C.
 
 | Item | Value |
 |---|---|
@@ -67,7 +67,7 @@ The prospective run happens after in-principle acceptance. Its conditions are fr
 | Scale | two arms × 4,800 = 9,600 draws, projected at roughly 5.09 h |
 
 > Substituting the model, changing the backend version, altering any threshold, the seed, *M*, *K*,
-> or the frozen context bank are **not** treated as minor deviations (`manuscript/main.md` §11).
+> or the frozen context bank are **not** treated as minor deviations (`manuscript/main.md` §H).
 
 ## Environment the reproduction script was run under
 
