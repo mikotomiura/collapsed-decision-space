@@ -88,6 +88,13 @@ MARK = "% cds-value "
 MISSING = "n/a"
 #: Marks each bar of Figure 3 with the count it stands for, so its length can be read back.
 BAR_MARK = "% cds-bar "
+#: Marks each plotted point of Figure 2 with the curve and shift it stands for, so that its place
+#: and its marker can be read back.
+POINT_MARK = "% cds-point "
+#: Width and height of Figure 2's plot, in cm, and the margin between the plot and its frame, so
+#: that a curve at 0 or 1 is not drawn on the frame.
+POWER_W, POWER_H = 8.0, 2.4
+POWER_PAD_X, POWER_PAD_Y = 0.2, 0.15
 
 
 def _load_json(path: Path) -> Any:
@@ -314,10 +321,39 @@ def _fmt(value: float | None) -> str:
     return MISSING if value is None else repr(value)
 
 
+#: Marker shape per quantity and size per base (half-width in cm). The test and the pipeline on
+#: ``C`` coincide, and every curve ends at 1.0, so a line style alone hides curves behind others:
+#: a marker of another shape, or a smaller one drawn over a larger, keeps both in sight.
+MARKER_SHAPES: dict[str, str] = {
+    "test": "circle",
+    "pipeline": "square",
+    "surrogate": "triangle",
+}
+MARKER_SIZES: dict[str, float] = {"C": 0.09, "G": 0.05}
+
+
+def _marker(shape: str, colour: str, x: float, y: float, size: float) -> str:
+    """One marker centred on (x, y): a filled circle, an open square or an open triangle."""
+    pen = f"{colour}, line width=0.4pt"
+    if shape == "circle":
+        return rf"\filldraw[{pen}] ({x:.3f},{y:.3f}) circle ({0.7 * size:.3f});"
+    if shape == "square":
+        return (
+            rf"\draw[{pen}] ({x - size:.3f},{y - size:.3f}) rectangle "
+            rf"({x + size:.3f},{y + size:.3f});"
+        )
+    half = 1.2 * size
+    return (
+        rf"\draw[{pen}] ({x:.3f},{y + size:.3f}) -- ({x - half:.3f},{y - size:.3f}) -- "
+        rf"({x + half:.3f},{y - size:.3f}) -- cycle;"
+    )
+
+
 def fig_power(root: Path) -> str:
     values = power_values(root)
     curves, surface = values["curves"], values["surface"]
-    w, h, step = 8.0, 2.4, 8.0 / (len(DELTAS) - 1)
+    w, h, step = POWER_W, POWER_H, POWER_W / (len(DELTAS) - 1)
+    px, py = POWER_PAD_X, POWER_PAD_Y
     styles = {
         "C.test": "black, line width=0.8pt",
         "C.pipeline": "black, dashed, line width=0.6pt",
@@ -335,27 +371,58 @@ def fig_power(root: Path) -> str:
         "G.surrogate": r"\texttt{G}, surrogate",
     }
     out = [r"\begin{tikzpicture}[font=\scriptsize, x=1cm, y=1cm]"]
-    out.append(rf"\draw (0,0) rectangle ({w},{h});")
+    out.append(rf"\draw ({-px},{-py}) rectangle ({w + px},{h + py});")
     for tick in (0.0, 0.5, 0.8, 1.0):
-        out.append(rf"\draw[black!15] (0,{tick * h:.3f}) -- ({w},{tick * h:.3f});")
-        out.append(rf"\node[anchor=east] at (0,{tick * h:.3f}) {{{tick}}};")
+        out.append(
+            rf"\draw[black!15] ({-px},{tick * h:.3f}) -- ({w + px},{tick * h:.3f});"
+        )
+        out.append(rf"\node[anchor=east] at ({-px},{tick * h:.3f}) {{{tick}}};")
     for i, delta in enumerate(DELTAS):
-        out.append(rf"\node[anchor=north] at ({i * step:.3f},0) {{{delta}}};")
+        out.append(rf"\node[anchor=north] at ({i * step:.3f},{-py}) {{{delta}}};")
     out.append(
-        rf"\node at ({w / 2},-0.55) {{shift \texttt{{delta\_tv}} along D1 (not to scale)}};"
+        rf"\node at ({w / 2},-0.65) {{shift \texttt{{delta\_tv}} along D1 (not to scale)}};"
     )
-    out.append(rf"\node[rotate=90] at (-0.75,{h / 2}) {{rejection rate}};")
+    out.append(rf"\node[rotate=90] at ({-px - 0.75},{h / 2}) {{rejection rate}};")
     for key, series in curves.items():
         points = [(i * step, v * h) for i, v in enumerate(series) if v is not None]
         path = " -- ".join(f"({x:.3f},{y:.3f})" for x, y in points)
         out.append(rf"\draw[{styles[key]}] {path};")
+    # The markers after every line, larger before smaller, so that none is hidden behind a line or
+    # behind a marker drawn after it.
+    for key in sorted(curves, key=lambda k: -MARKER_SIZES[k.split(".")[0]]):
+        base, quantity = key.split(".")
+        for i, v in enumerate(curves[key]):
+            if v is None:
+                continue
+            out.append(
+                _marker(
+                    MARKER_SHAPES[quantity],
+                    styles[key].split(",")[0],
+                    i * step,
+                    v * h,
+                    MARKER_SIZES[base],
+                )
+                + f" {POINT_MARK}{key}.{DELTAS[i]}"
+            )
     # The values, set under the plot so that they are on the page.
     for r, key in enumerate(curves):
         y = -1.0 - r * 0.4
         out.append(
             rf"\node[anchor=base east, font=\tiny] at (-0.55,{y:.2f}) {{{names[key]}}};"
         )
-        out.append(rf"\draw[{styles[key]}] (-3.0,{y:.2f}) -- (-2.7,{y:.2f});")
+        base, quantity = key.split(".")
+        out.append(
+            rf"\draw[{styles[key]}] (-3.1,{y + 0.05:.2f}) -- (-2.5,{y + 0.05:.2f});"
+        )
+        out.append(
+            _marker(
+                MARKER_SHAPES[quantity],
+                styles[key].split(",")[0],
+                -2.8,
+                y + 0.05,
+                MARKER_SIZES[base],
+            )
+        )
         for i, v in enumerate(curves[key]):
             text = _fmt(v)
             out.append(
@@ -541,6 +608,88 @@ def check_bars(tex: str, markers: dict[str, str], bar: float = 3.2) -> list[str]
     return problems
 
 
+_COORD = re.compile(r"\(([-\d.]+),([-\d.]+)\)")
+_RADIUS = re.compile(r"circle \(([\d.]+)\)")
+
+
+def _read_point(body: str) -> tuple[str, float, float, float] | None:
+    """A drawn marker as (shape, centre x, centre y, width), read from its TikZ path."""
+    coords = [(float(a), float(b)) for a, b in _COORD.findall(body)]
+    radius = _RADIUS.search(body)
+    if radius is not None and len(coords) == 1:
+        (x, y), r = coords[0], float(radius.group(1))
+        return "circle", x, y, 2 * r
+    shape = "square" if "rectangle" in body else "triangle" if "cycle" in body else None
+    if shape is None or len(coords) < 2:
+        return None
+    xs, ys = [c[0] for c in coords], [c[1] for c in coords]
+    return (
+        shape,
+        (min(xs) + max(xs)) / 2,
+        (min(ys) + max(ys)) / 2,
+        max(xs) - min(xs),
+    )
+
+
+def check_points(tex: str, curves: dict[str, list[float | None]]) -> list[str]:
+    """Every plotted value of Figure 2 must carry a marker, and coinciding markers must differ.
+
+    Two curves with (nearly) the same values are drawn on top of each other, and a line style alone
+    then shows one curve where there are two: the test and the pipeline on ``C`` agree to within
+    0.002 at every shift. So each value carries a marker at its place, read back from the drawn path
+    and compared with the data, and two markers that overlap must differ in shape or in size.
+    """
+    problems: list[str] = []
+    step = POWER_W / (len(DELTAS) - 1)
+    points: dict[str, tuple[str, float, float, float]] = {}
+    for line in tex.splitlines():
+        if POINT_MARK not in line:
+            continue
+        body, key = line.split(POINT_MARK, 1)
+        key = key.strip()
+        point = _read_point(body)
+        if point is None:
+            problems.append(f"point {key}: its marker cannot be read back")
+        elif key in points:
+            problems.append(f"point {key} is drawn twice")
+        else:
+            points[key] = point
+    expected: set[str] = set()
+    for curve, series in curves.items():
+        for i, value in enumerate(series):
+            key = f"{curve}.{DELTAS[i]}"
+            if value is None:
+                continue
+            expected.add(key)
+            point = points.get(key)
+            if point is None:
+                problems.append(f"point {key} has no marker")
+                continue
+            _, x, y, _ = point
+            if abs(x - i * step) > 2e-3 or abs(y - value * POWER_H) > 2e-3:
+                problems.append(
+                    f"point {key} is drawn at ({x:.3f},{y:.3f}); its value puts it at "
+                    f"({i * step:.3f},{value * POWER_H:.3f})"
+                )
+    problems += [
+        f"point {k} is drawn where the data has no value"
+        for k in sorted(set(points) - expected)
+    ]
+    for delta in DELTAS:
+        here = sorted((k, p) for k, p in points.items() if k.endswith(f".{delta}"))
+        here = [(k, p) for k, p in here if k[: -len(delta) - 1] in curves]
+        for a, (key_a, pa) in enumerate(here):
+            for key_b, pb in here[a + 1 :]:
+                overlap = abs(pa[2] - pb[2]) < max(pa[3], pb[3]) / 2
+                same_shape = pa[0] == pb[0]
+                similar_size = max(pa[3], pb[3]) < 1.25 * min(pa[3], pb[3])
+                if overlap and same_shape and similar_size:
+                    problems.append(
+                        f"points {key_a} and {key_b} coincide and cannot be told apart"
+                    )
+    return problems
+
+
 def check_anchor(root: Path, markers: dict[str, str]) -> list[str]:
     """Figure 3's None counts, summed per arm and condition, must equal the held-out result's.
 
@@ -580,6 +729,9 @@ def check_figures(root: Path, out_dir: Path) -> list[str]:
         if name == "distribution":
             problems += [f"fig-{name}: {p}" for p in check_bars(tex, found)]
             problems += [f"fig-{name}: {p}" for p in check_anchor(root, found)]
+        if name == "power":
+            curves = power_values(root)["curves"]
+            problems += [f"fig-{name}: {p}" for p in check_points(tex, curves)]
         want = expected[name]
         for key in sorted(set(want) | set(found)):
             if found.get(key) != want.get(key):
@@ -626,6 +778,38 @@ def self_test(root: Path, out_dir: Path) -> list[str]:
             problems.append(
                 "self-test: a number removed from a generated figure was not caught"
             )
+        # A plotted value left without its marker.
+        power.write_text(
+            re.sub(r"\n.*cds-point C\.pipeline\.0\.01\n", "\n", original, count=1),
+            encoding="utf-8",
+        )
+        if not any(
+            "C.pipeline.0.01 has no marker" in p for p in check_figures(root, work)
+        ):
+            problems.append(
+                "self-test: a plotted value without a marker was not caught"
+            )
+        # The defect this check was written for: the pipeline on C drawn exactly as the test on C,
+        # where the two coincide, so that the page shows one curve where there are two.
+        test_body = re.search(r"\n(.*) % cds-point C\.test\.0\.05\n", original)
+        if test_body is None:
+            problems.append(
+                "self-test: the marker to copy was not found in fig-power.tex"
+            )
+        else:
+            power.write_text(
+                re.sub(
+                    r"\n.* (% cds-point C\.pipeline\.0\.05)\n",
+                    lambda m: f"\n{test_body.group(1)} {m.group(1)}\n",
+                    original,
+                    count=1,
+                ),
+                encoding="utf-8",
+            )
+            if not any("cannot be told apart" in p for p in check_figures(root, work)):
+                problems.append(
+                    "self-test: two coinciding curves drawn alike were not caught"
+                )
         power.write_text(original, encoding="utf-8")
         dist = work / "fig-distribution.tex"
         dist_original = dist.read_text(encoding="utf-8")
@@ -683,8 +867,9 @@ def main(argv: list[str] | None = None) -> int:
         counts = {k: len(v) for k, v in expected_markers(args.repo_root).items()}
         print(
             f"[figures] OK: every value marker in the three figures matches the data ({counts}); "
-            "an edited and a removed node, a bar at the wrong length and a None total that disagrees with "
-            "the held-out result are all caught"
+            "an edited and a removed node, a bar at the wrong length, a None total that disagrees with "
+            "the held-out result, a plotted value without its marker and two coinciding curves drawn "
+            "alike are all caught"
         )
         return 0
     args.out_dir.mkdir(parents=True, exist_ok=True)
