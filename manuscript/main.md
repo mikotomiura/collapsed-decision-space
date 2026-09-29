@@ -423,10 +423,11 @@ upward and part below it (Figure 2; §B.3 gives every rate).
 **Figure 2.** [Post hoc] Top: how often the sealed permutation test alone rejects (test) and how
 often the sealed pipeline reaches R2 (pipeline), along the surrogate's direction D1 on the completed
 run's channel-off base `C` and on the degenerate base `G`, beside the R3 surrogate at the same shift;
-the plotted values are printed beneath. Bottom: for every declared base and direction, the smallest
-declared shift at which each rate reaches 0.8 (n.r.: not reached in the declared grid; n/a: not in
-the grid). Simulated under assumed channel-off distributions, not an estimate of any effect of the
-channel (§4.3).
+the plotted values are printed beneath. A marker's shape shows the quantity and its size the base, so
+that curves which coincide, as the test and the pipeline on `C` nearly do, can both be seen. Bottom:
+for every declared base and direction, the smallest declared shift at which each rate reaches 0.8
+(n.r.: not reached in the declared grid; n/a: not in the grid). Simulated under assumed channel-off
+distributions, not an estimate of any effect of the channel (§4.3).
 <!-- /TMLR:FIGURE -->
 
 On the degenerate base `G`, D4 and D6 are feasible only at 0.01, and the test and the pipeline come apart: along D1, at
