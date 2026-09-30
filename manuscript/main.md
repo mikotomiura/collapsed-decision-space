@@ -443,8 +443,7 @@ completed run's raw responses with the apparatus parser reproduces every recorde
 `None` records are this string-`"null"` failure, with no JSON `null` and no missing key among them.
 The estimand's word for these draws, "unparseable", is exact for this run. Output that follows the
 format of the prompt, or fails a required output format, is a known dependence of language-model
-evaluation [45, 47], and this is an instance of it. §B.4 says what the annotation does not record
-about these draws, and how a reader re-parses them.
+evaluation [45, 47], and this is an instance of it.
 
 ### 6.2 A held-out test of the post hoc observation
 
@@ -575,8 +574,7 @@ template lists the zones, and its JSON schema, and varies none of them.
 ### 8.1 Model family and think regime move together
 
 The two arms differ in model family and, unavoidably, in think regime. Within the available memory
-budget there is no non-Qwen model at this scale with a native thinking regime, and the obvious
-distilled candidate belongs to the same family as the reference. The design therefore attributes
+budget no model of another family at this scale has a native thinking regime. The design therefore attributes
 nothing to either factor alone, and no result under §E licenses an attribution to one of them. This
 confound was declared in advance and is carried as a limitation.
 
@@ -587,13 +585,11 @@ draws were requested before the 300 channel-off draws. The order is fixed by the
 the loop at lines 276–284 of `src/erre_sandbox/integration/embodied/bank.py`, with the condition
 order `("on", "off")` at line 118, at commit `4e45adb33d7472d2adf6da29a800bde9b8f58f9e` of the
 upstream repository, the commit the prospective driver was run at. Its working tree was not clean
-(§I.5); the file is unchanged there since before the completed run. The shipped annotation files hold
-the draws in that order. Any difference between the conditions is therefore also a difference between
+(§I.5); the file is unchanged there since before the completed run. Any difference between the conditions is therefore also a difference between
 earlier and later draws of the same context: the sealed estimate, the descriptive quantities and the
 held-out difference in recorded `None` alike. Elapsed time, server state or drift could produce it as
 well as the channel could. The design does not separate them, and nothing in this paper assigns a
-condition difference to the channel. Separating them would take a randomised or counterbalanced
-condition order, under assumptions about drift and serial dependence, in a new run under a new seal.
+condition difference to the channel.
 
 ### 8.3 A shared collapse would not be a replication
 

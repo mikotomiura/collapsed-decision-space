@@ -201,5 +201,11 @@ numbers, the base, the direction and the layer are unchanged, and so is the abst
   "§N.1 discusses this work further." (related work); "Obtaining R1 across the two arms would not
   have licensed any statement about which of the two factors is responsible." (model family and
   think regime); "§I.7 says what would distinguish the two." (a shared collapse). The appendix
-  sections they pointed to are unchanged. Figure 2's source moved to the end of the power gate's
+  sections they pointed to are unchanged. Also: "§B.4 says what the annotation does not record
+  about these draws, and how a reader re-parses them." (what the dropped draws are); "The shipped
+  annotation files hold the draws in that order." and "Separating them would take a randomised or
+  counterbalanced condition order, under assumptions about drift and serial dependence, in a new
+  run under a new seal." (execution order; the setting and the third diagnostic state both); and the
+  clause "and the obvious distilled candidate belongs to the same family as the reference" (model
+  family and think regime). Figure 2's source moved to the end of the power gate's
   first subsection, which changes where the float is set and nothing in the text.
