@@ -29,7 +29,13 @@ The patterns come from ``make_anonymous_bundle`` so that the bundle and the PDF 
 list. Both scripts are kept out of the bundle they build: they are the two files that must contain
 the strings they remove.
 
-Usage:  python analysis/scripts/check_pdf_identity.py build/paper.pdf --text build/extracted.txt
+**The generated source is read as well** (``--source``). The page loses a word the layout broke or
+hyphenated across lines, so a withheld word can be on the page yet absent from its text; the
+source the PDF was built from still has it whole. ``--mutation-test`` then puts each withheld word
+back into copies of both, one at a time, and requires each to be reported under its own label.
+
+Usage:  python analysis/scripts/check_pdf_identity.py build/paper.pdf --text build/extracted.txt \\
+            --source build/paper-source.md --mutation-test
 """
 
 from __future__ import annotations
@@ -66,7 +72,44 @@ PDF_WITHHELD: tuple[tuple[str, str], ...] = (
     ("a tag of the repository", r"autopsy-b3-declared|stage1-submitted"),
     # The venue this work was submitted to before (user ruling of 2026-09-26, DA-C-16).
     ("the earlier venue", r"PCI\s+Registered\s+Reports"),
+    # The 2026-09-30 revision (``.steering`` DA-DR-16 and DA-TR-1). F01 = b: a prefix of the
+    # upstream project that its name pattern above does not catch (an environment variable), and a
+    # project-specific script name. Written with whitespace allowed where the layout can break a
+    # phrase across lines.
+    ("the upstream project's prefix", r"ERRE_"),
+    ("a project-specific script name", r"paper02_"),
+    ("public continuous integration", r"public\s+continuous\s+integration"),
+    # This repository's name on its own, not only inside its URL (DA-C-18).
+    ("the repository's name", r"collapsed-decision-space"),
+    # F02 = c: no supplement is submitted, so the PDF must not promise or describe one. Not the PDF
+    # name ``/Supplement``: every ToUnicode CMap pdflatex writes carries ``/Supplement 0`` in its
+    # ``/CIDSystemInfo`` (the previous submission's inflated bytes hold 26, and no other occurrence;
+    # its page held the word three times, which this pattern still finds).
+    ("a supplement", r"(?<!/)supplement"),
+    # A placeholder URL the bundle installs: on the page it would be a link that leads nowhere.
+    ("a placeholder location", r"anonymous\.invalid"),
+    # The de-identification tool, which names what the anonymous build was made from.
+    ("the de-identification tool", r"make_anonymous_bundle"),
 )
+
+#: One sample per withheld word for ``--mutation-test``: put back into a copy of the real page text
+#: and of the real generated source, each must be reported under its own label and no other. The
+#: phrase that may break across lines is put back broken, which is the case a line-by-line check
+#: would miss.
+MUTATION_SAMPLES: dict[str, str] = {
+    "the upstream project name": "ERRE-Sandbox",
+    "the title of the author's own prior preprint": "Two-plane determinism",
+    "the subtitle of the author's own prior preprint": "byte-exact cross-platform",
+    "a tag of the repository": "stage1-submitted",
+    "the earlier venue": "PCI Registered Reports",
+    "the upstream project's prefix": "ERRE_ZONE_BIAS_P",
+    "a project-specific script name": "scripts/paper02_run_arms.py",
+    "public continuous integration": "re-run by public\ncontinuous integration",
+    "the repository's name": "collapsed-decision-space",
+    "a supplement": "the review supplement",
+    "a placeholder location": "https://anonymous.invalid/repo",
+    "the de-identification tool": "analysis/scripts/make_anonymous_bundle.py",
+}
 
 #: A git commit identifier on the page (DA-C-15), abbreviated or full, either case. Read against
 #: the page only: an inflated content stream is binary, and short runs of hexadecimal characters
@@ -250,6 +293,80 @@ def xmp_packets(blob: bytes) -> list[str]:
     ]
 
 
+PAGE = "the page, as pdftotext reads it"
+SOURCE = "the generated source (paper-source.md)"
+
+
+def scan(haystacks: list[tuple[str, str]]) -> list[str]:
+    """Every leak pattern and withheld word found in ``haystacks``, as ``where: label: match``.
+
+    ``main`` and ``--mutation-test`` both call this one function, so the mutation test exercises
+    the check that runs on the PDF rather than a copy of it.
+    """
+    problems: list[str] = []
+    for where, text in haystacks:
+        masked = _mask(text)
+        for label, pattern in (*LEAK_PATTERNS, *PDF_WITHHELD):
+            for match in re.finditer(pattern, masked, re.IGNORECASE):
+                # A cited DOI split by the layout: accepted only where the split is visible -- a
+                # kerning gap or a string end inside the match, or the line ending right after it.
+                # A fragment that simply stops mid-line is not a line break and still fails.
+                found = match.group(0)
+                broken = (
+                    _TJ_GAP.search(found) is not None
+                    or found.endswith(")")
+                    or masked[match.end() : match.end() + 1] in ("\n", "\r", "")
+                )
+                if label == "a DOI" and broken and is_cited_doi_fragment(found):
+                    continue
+                problems.append(f"{where}: {label}: {match.group(0)!r}")
+    return problems
+
+
+def mutation_test(page_text: str, source_text: str) -> tuple[int, list[str]]:
+    """Put each withheld word back into copies of the real page and source, one at a time.
+
+    Returns the number of mutants run and what went wrong. The unmutated copies are the control
+    and must report nothing. Each mutant must add exactly one problem, carrying its own label: a
+    mutant reported under another label, or under several, has not shown that the check sees the
+    word it is meant to see (a mutant not caught, and a mutant caught for another reason, are
+    reported apart).
+    """
+    failures: list[str] = []
+    labels = [label for label, _ in PDF_WITHHELD]
+    if sorted(labels) != sorted(MUTATION_SAMPLES):
+        failures.append(
+            "MUTATION_SAMPLES does not hold exactly one sample per withheld word: "
+            f"missing {sorted(set(labels) - set(MUTATION_SAMPLES))}, "
+            f"extra {sorted(set(MUTATION_SAMPLES) - set(labels))}"
+        )
+    run = 0
+    for where, text, prepare in (
+        (PAGE, page_text, mask_page),
+        (SOURCE, source_text, lambda t: t),
+    ):
+        control = scan([(where, prepare(text))])
+        if control:
+            failures.append(f"control ({where}) reported {control[:3]}")
+            continue
+        for label in labels:
+            sample = MUTATION_SAMPLES.get(label)
+            if sample is None:
+                continue
+            run += 1
+            # Placed mid-document, between two paragraphs, rather than appended at the end.
+            middle = text.find("\n\n", len(text) // 2)
+            at = middle if middle != -1 else len(text)
+            mutant = text[:at] + "\n\n" + sample + "\n\n" + text[at:]
+            found = scan([(where, prepare(mutant))])
+            name = f"{label} ({where})"
+            if not found:
+                failures.append(f"{name}: not caught (no problem returned)")
+            elif len(found) != 1 or f"{where}: {label}: " not in found[0]:
+                failures.append(f"{name}: caught for another reason: got {found}")
+    return run, failures
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("pdf", type=Path)
@@ -260,7 +377,21 @@ def main(argv: list[str] | None = None) -> int:
         "because a subsetted font encodes its own glyphs, and the counts below would understate "
         "what a reader can see.",
     )
+    parser.add_argument(
+        "--source",
+        type=Path,
+        help="The paper-source.md the PDF was built from. The page text loses words that the layout "
+        "hyphenated or broke across lines, so the withheld words are also looked for in the source.",
+    )
+    parser.add_argument(
+        "--mutation-test",
+        action="store_true",
+        help="Also put each withheld word back into copies of the --text and --source files, one "
+        "at a time, and require each to be reported under its own label. Requires both.",
+    )
     args = parser.parse_args(argv)
+    if args.mutation_test and (args.text is None or args.source is None):
+        parser.error("--mutation-test requires --text and --source")
 
     if not args.pdf.is_file():
         print(f"[pdf-identity] FAIL: no such file: {args.pdf}", file=sys.stderr)
@@ -289,28 +420,20 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[pdf-identity] FAIL: no extracted text at {args.text}", file=sys.stderr)
             return 1
         page_text = args.text.read_text(encoding="utf-8", errors="replace")
-        haystacks.append(("the page, as pdftotext reads it", mask_page(page_text)))
+        haystacks.append((PAGE, mask_page(page_text)))
 
-    problems: list[str] = []
-    for where, text in haystacks:
-        masked = _mask(text)
-        for label, pattern in (*LEAK_PATTERNS, *PDF_WITHHELD):
-            for match in re.finditer(pattern, masked, re.IGNORECASE):
-                # A cited DOI split by the layout: accepted only where the split is visible -- a
-                # kerning gap or a string end inside the match, or the line ending right after it.
-                # A fragment that simply stops mid-line is not a line break and still fails.
-                found = match.group(0)
-                broken = (
-                    _TJ_GAP.search(found) is not None
-                    or found.endswith(")")
-                    or masked[match.end() : match.end() + 1] in ("\n", "\r", "")
-                )
-                if label == "a DOI" and broken and is_cited_doi_fragment(found):
-                    continue
-                problems.append(f"{where}: {label}: {match.group(0)!r}")
+    source_text: str | None = None
+    if args.source is not None:
+        if not args.source.is_file():
+            print(f"[pdf-identity] FAIL: no generated source at {args.source}", file=sys.stderr)
+            return 1
+        source_text = args.source.read_text(encoding="utf-8", errors="replace")
+        haystacks.append((SOURCE, source_text))
+
+    problems = scan(haystacks)
     if page_text is not None:
         for match in COMMIT_ON_PAGE.finditer(mask_page(page_text)):
-            problems.append(f"the page, as pdftotext reads it: a commit identifier: {match.group(0)!r}")
+            problems.append(f"{PAGE}: a commit identifier: {match.group(0)!r}")
 
     print(f"[pdf-identity] {args.pdf.name}: {len(raw):,} bytes, {len(blob):,} after inflating")
     print(f"[pdf-identity]   info dictionary fields: {len(info_fields(blob))}")
@@ -320,6 +443,14 @@ def main(argv: list[str] | None = None) -> int:
         "[pdf-identity]   page text: "
         + (f"{len(page_text):,} characters" if page_text is not None else "NOT READ (--text absent)")
     )
+    print(
+        "[pdf-identity]   generated source: "
+        + (
+            f"{len(source_text):,} characters"
+            if source_text is not None
+            else "NOT READ (--source absent)"
+        )
+    )
 
     if problems:
         print(f"[pdf-identity] FAIL: {len(problems)} identifying item(s)", file=sys.stderr)
@@ -327,8 +458,31 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 1
 
+    places = "in the bytes" + (", on the page" if page_text is not None else "") + (
+        " and in the generated source" if source_text is not None else ""
+    )
     for label, _ in PDF_WITHHELD:
-        print(f"[pdf-identity]   WITHHELD: {label} -- 0 occurrences, in the bytes and on the page")
+        print(f"[pdf-identity]   WITHHELD: {label} -- 0 occurrences, {places}")
+
+    if args.mutation_test:
+        assert page_text is not None and source_text is not None
+        ran, failures = mutation_test(page_text, source_text)
+        if ran == 0:
+            print("[pdf-identity] FAIL: the mutation test ran 0 mutants", file=sys.stderr)
+            return 1
+        if failures:
+            print(
+                f"[pdf-identity] FAIL: mutation test, {len(failures)} of {ran} mutants",
+                file=sys.stderr,
+            )
+            for failure in failures:
+                print(f"  - {failure}", file=sys.stderr)
+            return 1
+        print(
+            f"[pdf-identity] OK mutation test: {ran} mutants ({len(PDF_WITHHELD)} withheld words, "
+            "each put back into the page text and into the generated source) each reported under "
+            "its own label and no other; the unmutated copies report nothing"
+        )
 
     where = "the metadata, the XMP, the link annotations, and the inflated streams"
     if page_text is None:
@@ -338,8 +492,9 @@ def main(argv: list[str] | None = None) -> int:
             "the absence of a name in these bytes says nothing about what the page shows.",
         )
     else:
+        also = ", nor in the generated source" if source_text is not None else ""
         print(f"[pdf-identity] OK: no leak pattern in {where}, nor in the page as pdftotext "
-              "reads it")
+              f"reads it{also}")
     return 0
 
 

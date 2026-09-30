@@ -41,10 +41,13 @@ What it changes, and why each change is necessary:
    style does ("4.3 Title"). main.md keeps its numbers, because the repository cites them, and the
    build stops if any of them is not the number LaTeX will assign (:func:`number_headings`).
 
-With ``--anonymous``, two identifying strings the de-identified bundle has to keep are also
-withheld from the page (``.steering`` DA-C-4 and DA-C-5): the name of the upstream project, which
-the supplement cannot drop because the provenance checks are byte comparisons against it, and the
-title of the author's own prior preprint, which a search would resolve to the author.
+With ``--anonymous``, identifying strings the de-identified bundle has to keep are also withheld
+from the page (``.steering`` DA-C-4 and DA-C-5): the name of the upstream project, which the
+bundle cannot drop because the provenance checks are byte comparisons against it, commit
+identifiers and tags. The bundle is an internal intermediate and is not submitted (DA-DR-16), so
+the sentences that point at a location, a supplement or a project-specific file name are rewritten
+(:data:`ANONYMOUS_REWRITES`), and §J defines "this repository" once as the compendium made public
+after review.
 
 Everything else is passed through byte for byte. The script fails rather than emitting a source it
 could not transform as intended.
@@ -125,14 +128,88 @@ TAG_NAMES: tuple[str, ...] = ("autopsy-b3-declared", "stage1-submitted")
 TAG_PLACEHOLDER = "[tag withheld for review]"
 
 #: Sentences of the manuscript that the anonymous build rewrites, each matched exactly and required
-#: to occur once. The one left names the author's own prior preprint by its subtitle, which a search
+#: to occur once. The first names the author's own prior preprint by its subtitle, which a search
 #: resolves as surely as its title (TASK-POST review). The sentence on the venue this work was
 #: submitted to before left the manuscript in the 2026-09-30 revision (it is in the README), and
 #: ``check_pdf_identity.py`` still fails the anonymous build if that venue reaches the page.
+#:
+#: The rest follow from submitting no supplement (``.steering`` DA-DR-16, F02 = c; DA-TR-1): the
+#: anonymous PDF defines "this repository" and "shipped" once, in §J, as the compendium that is
+#: made public after review, and rewrites only the sentences that would otherwise point a reviewer
+#: at a location, a supplement, or a file name that identifies the upstream project (F01 = b). The
+#: build runs on the de-identified bundle, where URLs are already placeholders; this file goes
+#: through the same substitutions, so each old sentence is written here as ``main.md`` has it and
+#: still matches. ``check_pdf_identity.py`` fails the anonymous build if a withheld word survives,
+#: on the page and in the generated source alike.
 ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     (
         "The determinism and byte-exact cross-platform replay properties of the upstream apparatus\n",
         "The determinism properties of the upstream apparatus\n",
+    ),
+    # §C.3: the environment variable carries the upstream project's prefix.
+    (
+        "environment pins `ERRE_ZONE_BIAS_P = 0.2`, but no bias",
+        "environment pins the zone-bias probability at 0.2, but no bias",
+    ),
+    # §G.2: the upstream repository's URL.
+    (
+        "The records are at\n<https://github.com/mikotomiura/ERRE-Sandbox>. "
+        "`analysis/freeze-provenance.json` carries the\n",
+        "The records are in the upstream source repository, which will be identified after review.\n"
+        "`analysis/freeze-provenance.json` carries the\n",
+    ),
+    # §I.5: the driver's file name carries a project-specific prefix.
+    (
+        "which equals that of\n`scripts/paper02_run_arms.py` at upstream commit",
+        "which equals that of\nthe driver script at upstream commit",
+    ),
+    # §J: the definition of "this repository" and "shipped" replaces the repository's URL.
+    (
+        "**Everything this manuscript refers to is reachable from one place.** The repository is\n"
+        "<https://github.com/mikotomiura/collapsed-decision-space>. Work continues on its default "
+        "branch, so\n",
+        "**Everything this manuscript refers to is in one research compendium, which will be made "
+        'public after review. In this manuscript, "this repository" and "shipped" refer to that '
+        "compendium.** Work on it continues, so\n",
+    ),
+    # §J: the upstream repository's URL, and the statement that no supplementary archive exists.
+    (
+        "The upstream source repository the apparatus and the provenance records come from is\n"
+        "<https://github.com/mikotomiura/ERRE-Sandbox>, and §G.2 gives the commit identifiers "
+        "within it.\nApart from the archival deposit of the sealed files described in §J, there is "
+        "no separate\nsupplementary archive: the data, the analysis scripts, the apparatus and the "
+        "reproduction command\nare all in the repository named here.\n",
+        "The apparatus and the provenance records come from an upstream source repository that will "
+        "be\nidentified after review; §G.2 describes the commits within it. Apart from the archival "
+        "deposit of\nthe sealed files described in §J, the data, the analysis scripts, the apparatus "
+        "and the\nreproduction command are all in the compendium named above.\n",
+    ),
+    # §J: no supplement is submitted.
+    (
+        "**The submission PDF and the review supplement are derived, not maintained.** The PDF is "
+        "built from\n",
+        "**The submission PDF is derived, not maintained.** It is built from\n",
+    ),
+    (
+        "The manual `submission-pdf` workflow\nperforms all of it. The anonymous supplement is this "
+        "repository de-identified by\n`analysis/scripts/make_anonymous_bundle.py`, which reports "
+        "what identifying strings it cannot\nremove and why.\n",
+        "A manual workflow\nperforms all of it.\n",
+    ),
+    # §J: the driver's file name again.
+    (
+        "That driver is in the\nupstream repository as `scripts/paper02_run_arms.py` at commit\n",
+        "That driver is a script in the\nupstream repository, at commit\n",
+    ),
+    # §K: the continuous integration is public only once the compendium is.
+    (
+        "re-run by public continuous integration on two operating systems",
+        "re-run by continuous integration on two operating systems",
+    ),
+    # §K, the table: the upstream repository's URL.
+    (
+        "| Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit",
+        "| Upstream source repository (identified after review), at commit",
     ),
 )
 
