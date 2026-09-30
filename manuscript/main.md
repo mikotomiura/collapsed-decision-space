@@ -15,7 +15,7 @@ it (§J).
 | Correspondence | via the submission system of the venue this manuscript is submitted to |
 | Code and data | <https://github.com/mikotomiura/collapsed-decision-space>. Development continues on the default branch; what pins the protocol against later change is the seal of §H and §J, not a branch name |
 | Licence | Code: Apache-2.0 OR MIT. Manuscript and figures: CC BY 4.0 |
-| Protocol status | The protocol was sealed before any prospective draw was collected. Each arm then produced one complete run, on 2026-09-14 and 2026-09-15; the control arm's first capture attempt was stopped from outside before it produced a verdict, and that arm was restarted from the beginning (§I.5). The two verdicts reach branch R4, reported in the results section. A held-out test of a post hoc observation was run afterwards, outside the seal (§2.4). §H states what the seal covers and what breaks it |
+| Protocol status | The protocol was sealed before any prospective draw was collected. Each arm then produced one complete run, on 2026-09-14 and 2026-09-15 (Japan Standard Time); the control arm's first capture attempt was stopped from outside before it produced a verdict, and that arm was restarted from the beginning (§I.5). The two verdicts reach branch R4, reported in the results section. A held-out test of a post hoc observation was run afterwards, outside the seal (§2.4). §H states what the seal covers and what breaks it |
 
 ---
 <!-- /TMLR:DROP -->
@@ -218,10 +218,10 @@ gate says what quantity it reads. R5 applies to the control arm and the others t
 and evaluation stops at the first rule whose action is `stop` (§E).
 <!-- /TMLR:FIGURE -->
 
-**[Registered]** Both arms were run on 2026-09-14 and 2026-09-15 at the sealed sampling plan, 4,800
-model calls per arm and 9,600 in total. Each arm produced one complete run. The control arm's first
-capture attempt was stopped from outside before it had produced a verdict, and was restarted from
-the beginning (§I.5). Each bundle was checked against the seal before its verdict was landed. The
+**[Registered]** Both arms were run on 2026-09-14 and 2026-09-15 (Japan Standard Time) at the sealed
+sampling plan, 4,800 model calls per arm and 9,600 in total. Each arm produced one complete run.
+The control arm's first capture attempt was stopped from outside before it had produced a verdict,
+and was restarted from the beginning (§I.5). Each bundle was checked against the seal before its verdict was landed. The
 branch below was derived by hand from the two landed verdicts and `seal/decision-rules.json`,
 quantity by quantity, in `manuscript/REPORTED-BRANCH.md`.
 

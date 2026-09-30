@@ -163,3 +163,10 @@ The anonymous PDF is built for a submission with no supplement. It defines "this
 rewrites the sentences that name a location, a supplement, or a file name specific to the upstream
 project. `analysis/scripts/check_pdf_identity.py` fails the anonymous build if any of those words
 reaches the page or the source the page is set from.
+
+### The dates of the prospective runs
+
+The dates now name their time zone: "2026-09-14 and 2026-09-15 (Japan Standard Time)". The attempt
+logs shipped in `data/attempts/` record their times in UTC, in which both runs fall on 2026-09-14;
+the frozen held-out specification and the other records of this repository give the dates in Japan
+Standard Time.
