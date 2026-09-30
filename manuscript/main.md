@@ -309,7 +309,7 @@ Table: The surrogate's power against the completed run's channel-off base, from 
 
 **[Post hoc]** The surrogate clears 0.8 at one hundredth of the margin that the study declared material. Its value
 alone says almost nothing about whether the test that decides could detect a shift of the declared
-size; §4.2 evaluates that test by simulation. §I.6 says what a pass of R3 can be read as.
+size; §4.2 evaluates that test by simulation.
 
 ### 4.2 Simulated operating characteristics of the sealed pipeline
 
@@ -319,16 +319,14 @@ distribution is known and the channel-on distribution is moved from it by a stat
 simulation study of a method [49], it measures a property of the design under assumed distributions.
 It estimates nothing the channel did, and no rate
 below turns the completed run's non-rejection into evidence that an effect is absent. Every shift is
-put in by the simulation, at sizes declared in advance: the grid, the seeds, the replicate counts and
-the reading rules were pushed before the first full run.
+put in by the simulation, and its grid, seeds and reading rules were fixed before its first full run.
 
 **[Post hoc]** In brief, there are five channel-off bases per context: the completed run's (`C`), the control arm's
 (`K`), `C` with its two empty zones filled (`Cs`), and the near-uniform (`U`) and degenerate (`G`)
 bases of §B.1. There are six directions of shift. D1 is the surrogate's own, from the largest cell to
 the smallest, which on `C` is an empty zone; D5 moves mass into the empty zones. Every context is
-moved by the same total variation, from 0 to 0.15. Two rates are reported. `P(R2)` is the share of replicates in
-which the pipeline reaches R2, the branch that does not report a null because the test rejects or
-the estimate reaches the margin; a replicate stopped earlier at R4 or R3 does not count. `P(test_reject)` is how often the permutation test rejects when
+moved by the same total variation, from 0 to 0.15. Two rates are reported. `P(R2)` is the share of replicates that
+reach R2, by a rejection or an estimate at or above the margin; a stop at R4 or R3 does not count. `P(test_reject)` is how often the permutation test rejects when
 applied to all eight contexts with no gate in front of it.
 
 **[Post hoc]** At the registered shift on the completed run's base, the pipeline reaches R2 in 1,000 of 1,000
