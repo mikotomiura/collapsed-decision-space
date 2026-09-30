@@ -163,9 +163,9 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
         "**Everything this manuscript refers to is reachable from one place.** The repository is\n"
         "<https://github.com/mikotomiura/collapsed-decision-space>. Work continues on its default "
         "branch, so\n",
-        "**Everything this manuscript refers to is in one research compendium, which will be made "
-        'public after review. In this manuscript, "this repository" and "shipped" refer to that '
-        "compendium.** Work on it continues, so\n",
+        "**Everything this manuscript refers to is in, or referenced from, one research compendium, "
+        'which will be made public after review. In this manuscript, "this repository" and '
+        '"shipped" refer to that compendium.** Work on it continues, so\n',
     ),
     # §J: the upstream repository's URL, and the statement that no supplementary archive exists.
     (
@@ -179,17 +179,50 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
         "deposit of\nthe sealed files described in §J, the data, the analysis scripts, the apparatus "
         "and the\nreproduction command are all in the compendium named above.\n",
     ),
-    # §J: no supplement is submitted.
+    # §J: the de-identification tool the anonymous build is made with.
     (
-        "**The submission PDF and the review supplement are derived, not maintained.** The PDF is "
-        "built from\n",
-        "**The submission PDF is derived, not maintained.** It is built from\n",
+        "The manual `submission-pdf` workflow\nperforms all of it. The anonymous build takes its "
+        "manuscript from a copy of this repository\nde-identified by "
+        "`analysis/scripts/make_anonymous_bundle.py`, which reports what identifying strings\nit "
+        "cannot remove and why; that copy is an intermediate of the build and is not submitted.\n",
+        "A manual workflow\nperforms all of it.\n",
+    ),
+    # §H and §J: the archival deposit's identifiers and its registration time, which a search of
+    # the archive would resolve to a record carrying the author's name (TASK-POST review).
+    (
+        "One\nnow exists, at `10.5281/zenodo.22735436`; §J describes",
+        "One\nnow exists, in a public archive that will be identified after review; §J describes",
     ),
     (
-        "The manual `submission-pdf` workflow\nperforms all of it. The anonymous supplement is this "
-        "repository de-identified by\n`analysis/scripts/make_anonymous_bundle.py`, which reports "
-        "what identifying strings it cannot\nremove and why.\n",
-        "A manual workflow\nperforms all of it.\n",
+        "deposited at `10.5281/zenodo.22735436` (concept) and `10.5281/zenodo.22735437` (this "
+        "version) —",
+        "deposited in a public archive that will be identified after review —",
+    ),
+    (
+        "those twenty-seven times is **`2026-09-13T23:44:39.000Z`**, and it is the DOI registration "
+        "time;",
+        "those twenty-seven times, withheld for review, is the DOI registration time;",
+    ),
+    # §G.2 and §J: what a reader can check needs the public compendium and the upstream repository.
+    (
+        "upstream repository and are confirmed by following the links above.",
+        "upstream repository and can be confirmed against it once it is identified after review.",
+    ),
+    (
+        "A reviewer who wants\nthe outside half performs it; a reviewer who does not still gets steps "
+        "1 to 13,",
+        "Once the compendium is public, a reader who\nwants the outside half can perform it; one who "
+        "does not still gets steps 1 to 13,",
+    ),
+    # The first-page footnote and §K: the commit counts are public once the compendium is.
+    (
+        "with commit counts a reader can recompute.",
+        "with commit counts a reader can recompute once the compendium is public.",
+    ),
+    (
+        "The extent of that assistance is visible in the public record rather than asserted here,",
+        "The extent of that assistance will be visible in the public record after review rather than "
+        "asserted here,",
     ),
     # §J: the driver's file name again.
     (

@@ -166,10 +166,9 @@ reaches the page or the source the page is set from.
 
 ### The dates of the prospective runs
 
-The dates now name their time zone: "2026-09-14 and 2026-09-15 (Japan Standard Time)". The attempt
-logs shipped in `data/attempts/` record their times in UTC, in which both runs fall on 2026-09-14;
-the frozen held-out specification and the other records of this repository give the dates in Japan
-Standard Time.
+The dates now name their time zone and follow the shipped attempt logs, which record UTC: both arms
+ran on 2026-09-14 (UTC). The frozen held-out specification and some other records of this
+repository give dates in Japan Standard Time, in which the captures finished on 2026-09-15.
 
 ### One sentence of the abstract
 
@@ -181,3 +180,17 @@ shifts the first run's channel-off distribution as the surrogate's alternative d
 rejection rate stands at the surrogate's 1.0 from half the registered effect size upward, …". The
 numbers, the base, the direction and the layer are unchanged, and so is the abstract of
 `CITATION.cff`, which must be the same text.
+
+### After the final review
+
+- Every paragraph that reports an analysis outside the sealed rules now opens with its layer tag, as
+  the analysis map says; eleven continuation paragraphs had none. The sentence on the surrogate's
+  return of 1.0000 for two reference bases is back in the post hoc paragraph of the power gate.
+- `P(R2)` is defined where it is introduced as the share of replicates that reach R2, with the two
+  ways R2 is reached and the stops at R4 or R3 that do not count.
+- The introduction says the checks redraw every figure and compare most quoted quantities with the
+  data, which is what the reproduction section describes.
+- The description of the anonymous build no longer speaks of a review supplement: the de-identified
+  copy is an intermediate of the build and is not submitted. In the anonymous PDF, the deposit's
+  identifiers and registration time are withheld, and the statements of what a reader can check
+  say that they need the public compendium.

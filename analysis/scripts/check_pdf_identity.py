@@ -81,34 +81,48 @@ PDF_WITHHELD: tuple[tuple[str, str], ...] = (
     ("public continuous integration", r"public\s+continuous\s+integration"),
     # This repository's name on its own, not only inside its URL (DA-C-18).
     ("the repository's name", r"collapsed-decision-space"),
-    # F02 = c: no supplement is submitted, so the PDF must not promise or describe one. Not the PDF
-    # name ``/Supplement``: every ToUnicode CMap pdflatex writes carries ``/Supplement 0`` in its
-    # ``/CIDSystemInfo`` (the previous submission's inflated bytes hold 26, and no other occurrence;
-    # its page held the word three times, which this pattern still finds).
-    ("a supplement", r"(?<!/)supplement"),
-    # A placeholder URL the bundle installs: on the page it would be a link that leads nowhere.
+    # F02 = c: no supplement is submitted, so the PDF must not promise or describe one. The word is
+    # matched everywhere; only the PDF syntax ``/Supplement <n>`` is taken out of the raw bytes first
+    # (:data:`_CMAP_SUPPLEMENT`), because every ToUnicode CMap pdflatex writes carries one.
+    ("a supplement", r"supplement"),
+    # The placeholders the bundle installs. On the page a URL would lead nowhere, and a deposit
+    # identifier would point a reviewer at an archive (TASK-POST review). Matched before the mask
+    # that lets the bundle's own scan accept them.
     ("a placeholder location", r"anonymous\.invalid"),
+    ("a placeholder identifier", r"10\.0000/anonymous"),
+    # The deposit's registration time, which a search of the archive would resolve (user ruling of
+    # 2026-09-30, DA-TR-17).
+    ("the deposit's registration time", r"2026-09-13T23:44:39"),
     # The de-identification tool, which names what the anonymous build was made from.
     ("the de-identification tool", r"make_anonymous_bundle"),
 )
+
+#: The one PDF construct the word "supplement" occurs in without being prose: the ``/Supplement``
+#: entry of a CMap's ``/CIDSystemInfo`` (the previous submission's inflated bytes held 26 and no
+#: other occurrence). Removed from the raw-bytes haystacks only; the page and the source are
+#: searched as they are.
+_CMAP_SUPPLEMENT = re.compile(r"/Supplement\s+\d+")
 
 #: One sample per withheld word for ``--mutation-test``: put back into a copy of the real page text
 #: and of the real generated source, each must be reported under its own label and no other. The
 #: phrase that may break across lines is put back broken, which is the case a line-by-line check
 #: would miss.
-MUTATION_SAMPLES: dict[str, str] = {
-    "the upstream project name": "ERRE-Sandbox",
-    "the title of the author's own prior preprint": "Two-plane determinism",
-    "the subtitle of the author's own prior preprint": "byte-exact cross-platform",
-    "a tag of the repository": "stage1-submitted",
-    "the earlier venue": "PCI Registered Reports",
-    "the upstream project's prefix": "ERRE_ZONE_BIAS_P",
-    "a project-specific script name": "scripts/paper02_run_arms.py",
-    "public continuous integration": "re-run by public\ncontinuous integration",
-    "the repository's name": "collapsed-decision-space",
-    "a supplement": "the review supplement",
-    "a placeholder location": "https://anonymous.invalid/repo",
-    "the de-identification tool": "analysis/scripts/make_anonymous_bundle.py",
+MUTATION_SAMPLES: dict[str, tuple[str, ...]] = {
+    "the upstream project name": ("ERRE-Sandbox",),
+    "the title of the author's own prior preprint": ("Two-plane determinism",),
+    "the subtitle of the author's own prior preprint": ("byte-exact cross-platform",),
+    "a tag of the repository": ("stage1-submitted",),
+    "the earlier venue": ("PCI Registered Reports",),
+    "the upstream project's prefix": ("ERRE_ZONE_BIAS_P",),
+    "a project-specific script name": ("scripts/paper02_run_arms.py",),
+    "public continuous integration": ("re-run by public\ncontinuous integration",),
+    "the repository's name": ("collapsed-decision-space",),
+    # The second sample is the case an exclusion of "/Supplement" would let through (TASK-POST).
+    "a supplement": ("the review supplement", "files under manuscript/supplement/ are"),
+    "a placeholder location": ("https://anonymous.invalid/repo",),
+    "a placeholder identifier": ("10.0000/anonymous.concept",),
+    "the deposit's registration time": ("2026-09-13T23:44:39.000Z",),
+    "the de-identification tool": ("analysis/scripts/make_anonymous_bundle.py",),
 }
 
 #: A git commit identifier on the page (DA-C-15), abbreviated or full, either case. Read against
@@ -368,8 +382,13 @@ def scan(haystacks: list[tuple[str, str]]) -> list[str]:
     """
     problems: list[str] = []
     for where, text in haystacks:
+        if where.startswith("raw bytes"):
+            text = _CMAP_SUPPLEMENT.sub("", text)
+        for label, pattern in PDF_WITHHELD:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                problems.append(f"{where}: {label}: {match.group(0)!r}")
         masked = _mask(text)
-        for label, pattern in (*LEAK_PATTERNS, *PDF_WITHHELD):
+        for label, pattern in LEAK_PATTERNS:
             for match in re.finditer(pattern, masked, re.IGNORECASE):
                 # A cited DOI split by the layout: accepted only where the split is visible -- a
                 # kerning gap or a string end inside the match, or the line ending right after it.
@@ -401,7 +420,7 @@ def mutation_test(page_text: str, source_text: str) -> tuple[int, list[str]]:
     labels = [label for label, _ in PDF_WITHHELD]
     if sorted(labels) != sorted(MUTATION_SAMPLES):
         failures.append(
-            "MUTATION_SAMPLES does not hold exactly one sample per withheld word: "
+            "MUTATION_SAMPLES does not hold samples for exactly the withheld words: "
             f"missing {sorted(set(labels) - set(MUTATION_SAMPLES))}, "
             f"extra {sorted(set(MUTATION_SAMPLES) - set(labels))}"
         )
@@ -415,20 +434,18 @@ def mutation_test(page_text: str, source_text: str) -> tuple[int, list[str]]:
             failures.append(f"control ({where}) reported {control[:3]}")
             continue
         for label in labels:
-            sample = MUTATION_SAMPLES.get(label)
-            if sample is None:
-                continue
-            run += 1
-            # Placed mid-document, between two paragraphs, rather than appended at the end.
-            middle = text.find("\n\n", len(text) // 2)
-            at = middle if middle != -1 else len(text)
-            mutant = text[:at] + "\n\n" + sample + "\n\n" + text[at:]
-            found = scan([(where, prepare(mutant))])
-            name = f"{label} ({where})"
-            if not found:
-                failures.append(f"{name}: not caught (no problem returned)")
-            elif len(found) != 1 or f"{where}: {label}: " not in found[0]:
-                failures.append(f"{name}: caught for another reason: got {found}")
+            for sample in MUTATION_SAMPLES.get(label, ()):
+                run += 1
+                # Placed mid-document, between two paragraphs, rather than appended at the end.
+                middle = text.find("\n\n", len(text) // 2)
+                at = middle if middle != -1 else len(text)
+                mutant = text[:at] + "\n\n" + sample + "\n\n" + text[at:]
+                found = scan([(where, prepare(mutant))])
+                name = f"{label} ({where}, {sample!r})"
+                if not found:
+                    failures.append(f"{name}: not caught (no problem returned)")
+                elif len(found) != 1 or f"{where}: {label}: " not in found[0]:
+                    failures.append(f"{name}: caught for another reason: got {found}")
     return run, failures
 
 
@@ -565,8 +582,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(
             f"[pdf-identity] OK mutation test: {ran} mutants ({len(PDF_WITHHELD)} withheld words, "
-            "each put back into the page text and into the generated source) each reported under "
-            "its own label and no other; the unmutated copies report nothing"
+            "each sample put back into the page text and into the generated source) each reported "
+            "under its own label and no other; the unmutated copies report nothing"
         )
 
     where = "the metadata, the XMP, the link annotations, and the inflated streams"

@@ -2194,6 +2194,39 @@ def check_records_identity_fire(repo_root: Path) -> list[str]:
 
         return edit
 
+    def reorder(rel: str, how: str) -> Callable[[Path], None]:
+        """Move whole blocks of the first two pairs, leaving every draw's content as it is.
+
+        ``swap``: the first pair's channel-off block comes before its channel-on block.
+        ``repeat``: the second pair's draws carry the first pair's context, so a context occurs twice.
+        The on → off order and the one-pair-per-context rule are two separate conditions of
+        :func:`records_identity`, and each case holds one of them (TASK-POST review).
+        """
+
+        def mutate(root: Path) -> None:
+            path = root / rel
+            lines = path.read_text(encoding="utf-8").split("\n")
+            rows = [index for index, line in enumerate(lines) if line.strip()]
+            first = json.loads(lines[rows[0]])
+            size = next(
+                n
+                for n, index in enumerate(rows)
+                if json.loads(lines[index])["condition"] != first["condition"]
+            )
+            if how == "swap":
+                on, off = rows[:size], rows[size : 2 * size]
+                moved = [lines[index] for index in off] + [lines[index] for index in on]
+                for index, line in zip(on + off, moved, strict=True):
+                    lines[index] = line
+            else:
+                for index in rows[2 * size : 4 * size]:
+                    row = json.loads(lines[index])
+                    row["frozen_ctx_id"] = first["frozen_ctx_id"]
+                    lines[index] = json.dumps(row, ensure_ascii=False)
+            path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+
+        return mutate
+
     completed, control, primary = (rel for _, rel in RECORDS_SOURCES)
     cases: tuple[tuple[str, Callable[[Path], None] | None, str | None], ...] = (
         ("I0 unaltered copies", None, None),
@@ -2203,6 +2236,8 @@ def check_records_identity_fire(repo_root: Path) -> list[str]:
         ("I3b one run's channel-off sampling changes throughout", rewrite(primary, set_sampling("off", "temperature", 0.71), every=True), "the channel-off sampling differs between runs"),
         ("I4 a run's records are absent", lambda root: (root / control).unlink(), "the records identity has no source at data/prospective/control/run_records.jsonl"),
         ("I6 a draw is missing from a block", lambda root: _drop_first_line(root / completed), "completed run: the blocks are not of one size"),
+        ("I7 a pair's channel-off block runs first", reorder(completed, "swap"), "completed run: the draws are not in pairs of a channel-on block followed by a channel-off block"),
+        ("I8 a context occurs in two pairs", reorder(control, "repeat"), "control arm: the draws are not in pairs of a channel-on block followed by a channel-off block"),
     )  # fmt: skip
 
     problems: list[str] = []

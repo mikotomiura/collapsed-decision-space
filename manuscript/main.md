@@ -15,7 +15,7 @@ it (§J).
 | Correspondence | via the submission system of the venue this manuscript is submitted to |
 | Code and data | <https://github.com/mikotomiura/collapsed-decision-space>. Development continues on the default branch; what pins the protocol against later change is the seal of §H and §J, not a branch name |
 | Licence | Code: Apache-2.0 OR MIT. Manuscript and figures: CC BY 4.0 |
-| Protocol status | The protocol was sealed before any prospective draw was collected. Each arm then produced one complete run, on 2026-09-14 and 2026-09-15 (Japan Standard Time); the control arm's first capture attempt was stopped from outside before it produced a verdict, and that arm was restarted from the beginning (§I.5). The two verdicts reach branch R4, reported in the results section. A held-out test of a post hoc observation was run afterwards, outside the seal (§2.4). §H states what the seal covers and what breaks it |
+| Protocol status | The protocol was sealed before any prospective draw was collected. Each arm then produced one complete run, on 2026-09-14 (UTC); the control arm's first capture attempt was stopped from outside before it produced a verdict, and that arm was restarted from the beginning (§I.5). The two verdicts reach branch R4, reported in the results section. A held-out test of a post hoc observation was run afterwards, outside the seal (§2.4). §H states what the seal covers and what breaks it |
 
 ---
 <!-- /TMLR:DROP -->
@@ -93,7 +93,8 @@ They are not claims about the effect of the channel, and they do not use the val
 Most of the evidence is descriptive, post hoc or held-out, and §2.4 labels every analysis by when
 it was fixed. The thresholds are not revised, and the sealed branch stands as the rules give it. The
 contributions are three. The first is a documented case in which each gate of a sealed protocol ran
-as written and read a proxy, shipped with rules, records and checks that recompute every figure. The
+as written and read a proxy, shipped with rules, records and checks that redraw every figure and
+compare most quoted quantities with the data. The
 second is an account of what the estimand drops: in the completed run, the string "null" that the
 prompt template itself offers. The third is the set of diagnostics of §7.1, each stated with what it
 can and cannot show. The statistics they rest on are standard, and §7.2 relates them to prior work.
@@ -218,8 +219,7 @@ gate says what quantity it reads. R5 applies to the control arm and the others t
 and evaluation stops at the first rule whose action is `stop` (§E).
 <!-- /TMLR:FIGURE -->
 
-**[Registered]** Both arms were run on 2026-09-14 and 2026-09-15 (Japan Standard Time) at the sealed
-sampling plan, 4,800 model calls per arm and 9,600 in total. Each arm produced one complete run.
+**[Registered]** Both arms were run on 2026-09-14 (UTC) at the sealed sampling plan, 4,800 model calls per arm and 9,600 in total. Each arm produced one complete run.
 The control arm's first capture attempt was stopped from outside before it had produced a verdict,
 and was restarted from the beginning (§I.5). Each bundle was checked against the seal before its verdict was landed. The
 branch below was derived by hand from the two landed verdicts and `seal/decision-rules.json`,
@@ -282,11 +282,11 @@ in total variation. The decision itself turns on the stratified permutation test
 tests use different statistics, and the sealed design did not evaluate the power of the permutation
 test. `power` is therefore the nominal sensitivity of a surrogate. A pass of R3 is not read here as
 evidence about the power of the decision, and a power figure computed after the data cannot
-interpret a non-significant result in any case [44]. At the registered shift the surrogate returns
-`1.0000` for a near-uniform base as well as for a degenerate one (§B.1), so a pass does not tell them
-apart.
+interpret a non-significant result in any case [44].
 
-**[Post hoc]** Against the completed run's channel-off base the surrogate behaves differently. That
+**[Post hoc]** At the registered shift the surrogate returns `1.0000` for a near-uniform base as well
+as for a degenerate one (§B.1), so a pass does not tell them apart. Against the completed run's
+channel-off base the surrogate behaves differently. That
 base has two empty cells (§5), and the alternative
 moves mass into one of them. The statistic divides by the expected count, which the implementation
 floors at a small constant only to avoid dividing by zero. A single draw in a cell of base
@@ -307,7 +307,7 @@ run:
 
 Table: The surrogate's power against the completed run's channel-off base, from the margin down to one five-hundredth of it.
 
-The surrogate clears 0.8 at one hundredth of the margin that the study declared material. Its value
+**[Post hoc]** The surrogate clears 0.8 at one hundredth of the margin that the study declared material. Its value
 alone says almost nothing about whether the test that decides could detect a shift of the declared
 size; §4.2 evaluates that test by simulation. §I.6 says what a pass of R3 can be read as.
 
@@ -322,15 +322,16 @@ below turns the completed run's non-rejection into evidence that an effect is ab
 put in by the simulation, at sizes declared in advance: the grid, the seeds, the replicate counts and
 the reading rules were pushed before the first full run.
 
-In brief, there are five channel-off bases per context: the completed run's (`C`), the control arm's
+**[Post hoc]** In brief, there are five channel-off bases per context: the completed run's (`C`), the control arm's
 (`K`), `C` with its two empty zones filled (`Cs`), and the near-uniform (`U`) and degenerate (`G`)
 bases of §B.1. There are six directions of shift. D1 is the surrogate's own, from the largest cell to
 the smallest, which on `C` is an empty zone; D5 moves mass into the empty zones. Every context is
-moved by the same total variation, from 0 to 0.15. Two rates are reported. `P(R2)` is how often the
-pipeline does not report a null. `P(test_reject)` is how often the permutation test rejects when
+moved by the same total variation, from 0 to 0.15. Two rates are reported. `P(R2)` is the share of replicates in
+which the pipeline reaches R2, the branch that does not report a null because the test rejects or
+the estimate reaches the margin; a replicate stopped earlier at R4 or R3 does not count. `P(test_reject)` is how often the permutation test rejects when
 applied to all eight contexts with no gate in front of it.
 
-At the registered shift on the completed run's base, the pipeline reaches R2 in 1,000 of 1,000
+**[Post hoc]** At the registered shift on the completed run's base, the pipeline reaches R2 in 1,000 of 1,000
 replicates in each of the four feasible directions (D1, D2, D3, D5), and the test alone rejects in
 1,000 of 1,000; D4 and D6 are infeasible there, because one context holds less than 0.10 in `garden`.
 These are not four independent confirmations: the replicates share their channel-off draws, and D1
@@ -350,7 +351,7 @@ for every declared base and direction, the smallest declared shift at which each
 distributions, not an estimate of any effect of the channel.
 <!-- /TMLR:FIGURE -->
 
-The test and the pipeline come apart on the degenerate base: along D1, at `delta_tv` = 0.02 the test
+**[Post hoc]** The test and the pipeline come apart on the degenerate base: along D1, at `delta_tv` = 0.02 the test
 alone rejects in 411 of 500 replicates (`0.822`) while the pipeline stops at R4 in 500 of 500, and
 P(R2) first reaches 0.8 there at `delta_tv` = 0.10 (497 of 500). The simulation does not cover other
 bases, other directions, shifts that differ in size between contexts, or numbers of draws other than
@@ -381,7 +382,7 @@ Pooled over that condition (2,276 draws that parsed), the read-out distribution 
 
 Table: The completed run's channel-off read-out, pooled over the contexts.
 
-`chashitsu` is not produced once in the whole run, under either condition, and `agora` appears three
+**[Post hoc]** `chashitsu` is not produced once in the whole run, under either condition, and `agora` appears three
 times, all in one context. Seven of the eight contexts have a combined support of three zones. Both
 zeros are empirical: they are what these draws did, not a property the task imposes.
 
@@ -409,7 +410,8 @@ right of each bar is that bar's count of `None` draws. Each context ran its chan
 prospective descriptive layer (§2.4).
 <!-- /TMLR:FIGURE -->
 
-Entropy measures how evenly a context's draws spread, and support how many zones they reach. In these
+**[Post hoc and prospective, descriptive]** Entropy measures how evenly a context's draws spread,
+and support how many zones they reach. In these
 runs the two come apart in both directions. Clearing a per-context entropy floor therefore does not
 certify the support that the power calculation depends on. A floor of 0.5 bit requires at least two
 zones in a context and says nothing more about the support. At the frozen thresholds R4 does not flag
@@ -435,7 +437,7 @@ of the 2,400 channel-on draws, with more in the channel-on condition in 8 of the
 observation was made after the run. It is the hypothesis §6.2 tests, and it is not counted as
 evidence here.
 
-All 330 are the same thing: a response that followed the prompt template literally. The template
+**[Post hoc]** All 330 are the same thing: a response that followed the prompt template literally. The template
 shows the field as `"destination_zone": "study|peripatos|chashitsu|agora|garden|null"`, with `null`
 inside the quotation marks (`analysis/apparatus/erre_sandbox/cognition/prompting.py`, lines 48 and
 71). In `destination_zone` the parser accepts only the five zones or a JSON `null`, so the string
@@ -461,7 +463,7 @@ stratified test, with the eight contexts as strata and each context's `None` tot
 level 1/40. It was applied to the control arm first, and counted for the primary arm only if the
 control arm's test rejected.
 
-Both rejected. That is row A of the frozen interpretation table, whose wording is: in both
+**[Held-out]** Both rejected. That is row A of the frozen interpretation table, whose wording is: in both
 prospective runs, recorded `None` was more frequent in the channel-on blocks than in the channel-off
 blocks.
 
@@ -472,7 +474,8 @@ blocks.
 
 Table: Draws recorded as `None` in each arm, by condition, with the held-out test. Specification frozen at commit `61dbd96`, before the condition-wise counts were tabulated (declared).
 
-What was recorded as `None` differs between the arms, and the frozen specification requires the
+**[Held-out]** What was recorded as `None` differs between the arms, and the frozen specification
+requires the
 difference to be reported with the result. Each `None` draw's raw response was classified with the
 parser's own steps:
 
@@ -487,7 +490,8 @@ parser's own steps:
 
 Table: What `destination_zone` held in each draw recorded as `None`, by arm and condition.
 
-In the control arm almost every `None` is an explicit `"null"`, as in the completed run, where all 330
+**[Held-out]** In the control arm almost every `None` is an explicit `"null"`, as in the completed
+run, where all 330
 dropped draws are the string `"null"`. In the primary arm almost every one is a missing or malformed
 JSON object, and 41 of the primary arm's 46-draw excess in the channel-on blocks is of that kind. The
 word "unparseable" is exact for all but two of the draws dropped in the prospective arms; the other
@@ -499,7 +503,8 @@ primary arm, what increased is recorded `None` in general. **What replicated is 
 outcome, the recorded `None`, and not the same behavioural meaning or the same parser-failure
 mechanism across the two families.**
 
-The difference cannot be separated from execution order. Every context ran its channel-on block
+**[Held-out]** The difference cannot be separated from execution order. Every context ran its
+channel-on block
 before its channel-off block, so a difference between the conditions is also a difference between
 earlier and later draws (§8.2). The *p*-values above are exact only if the draws within a context are
 exchangeable over their positions in the run, which a fixed block order does not guarantee. What the
@@ -529,8 +534,9 @@ about an effect in the data. Power computed after the data cannot interpret a no
 [44], and NLP evaluations often lack the power their conclusions assume [35]. Which significance test
 suits a comparison depends on its evaluation measure and setup [48], so the power that matters is the
 power of the test actually chosen. A simulation study, in which the data-generating mechanism sets the
-truth, is the standard way to measure such operating characteristics [49]; one in which every shift
-is put in by design avoids the first problem and measures the second.
+truth, is the standard way to measure such operating characteristics [49]. One in which every shift
+is put in by design does not read a power figure after the data, and it measures the power the
+decision actually has.
 
 **Report support beside entropy, for each condition.** The input is the parsed draws of each
 condition. The diagnostic looks at how many categories the draws occupy in each condition, and in the
@@ -737,8 +743,8 @@ therefore characterise the estimator's sensitivity; they are not controls that p
 we do not present them as such. The control that does produce a null is the zone-function positive
 control above.
 
-**A second completed preliminary study (ES-1, a structured-probe determinism measurement) was
-reported to establish the upstream determinism property of the same apparatus.** Its machine-readable
+**A second completed preliminary study (ES-1, a structured-probe determinism measurement) measured
+the upstream determinism property of the same apparatus.** Its machine-readable
 verdict record was not retained as a shipped artefact and is therefore not included in this
 repository. Because this manuscript quotes only numbers that the extraction script can produce from
 shipped data, no ES-1 quantity is quoted here. This is recorded as a provenance limitation
@@ -1493,7 +1499,7 @@ Apart from the archival deposit of the sealed files described in §J, there is n
 supplementary archive: the data, the analysis scripts, the apparatus and the reproduction command
 are all in the repository named here.
 
-**The submission PDF and the review supplement are derived, not maintained.** The PDF is built from
+**The submission PDF is derived, not maintained.** The PDF is built from
 this manuscript by `analysis/scripts/make_pdf_source.py` with pandoc 3.5 and the official TMLR style
 (vendored in `manuscript/tmlr/` and pinned there by SHA-256); there is no second manuscript. Its
 three figures are drawn by `analysis/scripts/make_figures.py` from the shipped data, and
@@ -1502,9 +1508,9 @@ is then read back: `check_pdf_text.py` requires the headings, the quantities, th
 of silent loss, the page on which the references begin and each figure's numbers row by row,
 `check_claim_boundary.py` runs on its text, and for the anonymous build `check_pdf_identity.py`
 requires that nothing in the file identifies the author. The manual `submission-pdf` workflow
-performs all of it. The anonymous supplement is this repository de-identified by
-`analysis/scripts/make_anonymous_bundle.py`, which reports what identifying strings it cannot
-remove and why.
+performs all of it. The anonymous build takes its manuscript from a copy of this repository
+de-identified by `analysis/scripts/make_anonymous_bundle.py`, which reports what identifying strings
+it cannot remove and why; that copy is an intermediate of the build and is not submitted.
 
 This repository contains the frozen inputs of the completed studies (`data/raw/`, each pinned by
 SHA-256 and size in `data/data.md`), the analysis scripts (`analysis/scripts/`), and the measurement
