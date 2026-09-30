@@ -66,6 +66,10 @@ jobs:
         shell: bash
         run: uv run --project env --no-sync python analysis/scripts/check_pdf_text.py --self-test
 
+      - name: PDF identity scan, cited DOIs broken by the layout
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py --self-test
+
       - name: Upload the PC-records output
         uses: actions/upload-artifact@v4
         with:

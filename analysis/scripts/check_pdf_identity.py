@@ -207,6 +207,69 @@ def is_cited_doi_fragment(found: str) -> bool:
     return any(doi.startswith(cleaned) for doi in CITED_DOIS)
 
 
+#: The gap between one string of a content stream and the next: the first closes, positioning and
+#: font operators follow (no string of their own), and the next opens. ``\\url`` may break a DOI
+#: across lines right after its registrant prefix, and the stream then reads
+#: ``[(doi:10.1002/)]TJ -395.273 -11.956 Td [(9781119482260)]TJ`` -- the 2026-09-30 build did.
+_STRING_GAP = re.compile(r"\)[^()]{0,160}?\(")
+_DOI_PATTERN = dict(LEAK_PATTERNS)["a DOI"]
+
+
+def rejoins_cited_doi(text: str, start: int) -> bool:
+    """Whether the DOI that starts at ``start``, joined across up to three string gaps, is cited.
+
+    A fragment that stops at the registrant prefix cannot be told apart by
+    :func:`is_cited_doi_fragment`, since every declared citation of that registrant begins with
+    it. Joined with the strings that follow it, one gap at a time, it is accepted only if some
+    join reproduces a declared citation **exactly**. A fragment of the author's own deposit joins
+    to a DOI no citation declares, and still fails.
+    """
+    window = text[start : start + 400]
+    for _ in range(3):
+        gap = _STRING_GAP.search(window)
+        if gap is None:
+            return False
+        window = window[: gap.start()] + window[gap.end() :]
+        match = re.match(_DOI_PATTERN, window)
+        if match and match.group(0).rstrip(").,;:") in CITED_DOIS:
+            return True
+    return False
+
+
+def doi_split_self_test() -> tuple[int, list[str]]:
+    """Run :func:`scan` on synthetic content streams whose answer is known.
+
+    Each case is ``(name, stream, expected label or None)``. A case expecting a label passes only if
+    exactly one problem is reported, under that label; ``None`` is a control that must report
+    nothing.
+    """
+    cited = "10.1002/9781119482260"
+    registrant, rest = cited.split("/", 1)
+    cases: tuple[tuple[str, str, str | None], ...] = (
+        ("D1 a cited DOI broken across lines after its registrant",
+         f"[(doi:{registrant}/)]TJ -395.273 -11.956 Td [({rest})]TJ/F38 9.9626 Tf [(.)]TJ", None),
+        ("D2 a cited DOI kerned inside one TJ array",
+         f"[(doi:{registrant}/97811)-50(19482260)]TJ", None),
+        ("D3 a deposit at a registrant no citation shares, broken the same way",
+         "[(doi:10.17605/)]TJ -395.273 -11.956 Td [(OSF.IO/ABCDE)]TJ", "a DOI"),
+        ("D4 an undeclared DOI of a cited registrant broken the same way",
+         f"[(doi:{registrant}/)]TJ -395.273 -11.956 Td [(9999999999999)]TJ", "a DOI"),
+        ("D5 a cited registrant alone, with nothing after it",
+         f"[(doi:{registrant}/)]TJ ET", "a DOI"),
+    )  # fmt: skip
+    failures: list[str] = []
+    for name, stream, expected in cases:
+        found = scan([("synthetic stream", stream)])
+        if expected is None:
+            if found:
+                failures.append(f"{name}: the control reported {found}")
+        elif not found:
+            failures.append(f"{name}: not caught (no problem returned)")
+        elif len(found) != 1 or f": {expected}: " not in found[0]:
+            failures.append(f"{name}: caught for another reason: got {found}")
+    return len(cases), failures
+
+
 def _decode_pdf_string(raw: bytes) -> str:
     """Decode one PDF string object into text.
 
@@ -317,7 +380,9 @@ def scan(haystacks: list[tuple[str, str]]) -> list[str]:
                     or found.endswith(")")
                     or masked[match.end() : match.end() + 1] in ("\n", "\r", "")
                 )
-                if label == "a DOI" and broken and is_cited_doi_fragment(found):
+                if label == "a DOI" and broken and (
+                    is_cited_doi_fragment(found) or rejoins_cited_doi(masked, match.start())
+                ):
                     continue
                 problems.append(f"{where}: {label}: {match.group(0)!r}")
     return problems
@@ -369,7 +434,13 @@ def mutation_test(page_text: str, source_text: str) -> tuple[int, list[str]]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("pdf", type=Path)
+    parser.add_argument("pdf", type=Path, nargs="?")
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="Run the scanner on synthetic content streams in which a DOI is broken across lines or "
+        "kerned, whose answer is known, and nothing else.",
+    )
     parser.add_argument(
         "--text",
         type=Path,
@@ -390,6 +461,20 @@ def main(argv: list[str] | None = None) -> int:
         "at a time, and require each to be reported under its own label. Requires both.",
     )
     args = parser.parse_args(argv)
+    if args.self_test:
+        ran, failures = doi_split_self_test()
+        if ran == 0 or failures:
+            print(f"[pdf-identity] FAIL: self-test, {len(failures)} of {ran} cases", file=sys.stderr)
+            for failure in failures:
+                print(f"  - {failure}", file=sys.stderr)
+            return 1
+        print(
+            f"[pdf-identity] OK self-test: {ran} synthetic streams, a cited DOI broken across lines "
+            "or kerned is accepted, and a broken DOI that is not a declared citation is reported"
+        )
+        return 0
+    if args.pdf is None:
+        parser.error("the PDF is required unless --self-test is given")
     if args.mutation_test and (args.text is None or args.source is None):
         parser.error("--mutation-test requires --text and --source")
 
