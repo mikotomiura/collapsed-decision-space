@@ -1184,6 +1184,11 @@ RENDER_SOURCES: tuple[str, ...] = (
     "data/posthoc/pipeline-replicates.tsv",
     "data/posthoc/manifest.json",
     "analysis/autopsy/DEVIATIONS.md",
+    # The per-draw records, from which the setting every draw was made in is computed
+    # (:func:`records_identity`); section 2.2 states it.
+    "data/completed/bank_records.jsonl",
+    "data/prospective/control/run_records.jsonl",
+    "data/prospective/primary/run_records.jsonl",
 )
 
 #: Labels of the post hoc simulation's bases (B3), as the manuscript's tables write them.
@@ -1332,7 +1337,8 @@ def _posthoc_rate(r: dict[str, Any]) -> str:
 
 
 def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
-    """Rows and phrases of section 4.3 (B3) and of the sentences elsewhere that quote it.
+    """Rows and phrases of section 4.2 and appendix B.3 (the simulation), and of the sentences
+    elsewhere that quote it.
 
     Rendered from ``data/posthoc/``. The summary is itself generated from the per-replicate record
     by ``analysis/autopsy/render.py``, and the manifest pins the digests of both; a summary edited
@@ -1477,18 +1483,18 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         problems.append("agreement phrase: the test never equals the surrogate along D1")
     else:
         fragments.append(
-            ("agreement phrase, §4.3", f"they agree from `delta_tv` = {agree_from} upward and part below it")
+            ("agreement phrase, §4.2", f"they agree from `delta_tv` = {agree_from} upward and part below it")
         )
         fragments.append(
             (
-                "agreement phrase, §1",
+                "agreement phrase, in the table of §3",
                 f"equals the surrogate's {surrogate[('C', agree_from)]!r} from `delta_tv` = "
                 f"{agree_from} upward along the surrogate's direction",
             )
         )
         if Fraction(agree_from) * 2 != Fraction("0.10"):
             problems.append(
-                f"agreement phrase, Abstract and §6.2: the text says half the margin, but the "
+                f"agreement phrase, Abstract and §I.6: the text says half the margin, but the "
                 f"agreement starts at {agree_from}"
             )
         fragments.append(
@@ -1558,7 +1564,7 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         )
     )
 
-    # Two statements §4.3 makes in words about the degenerate base.
+    # Two statements §4.2 and §B.3 make in words about the degenerate base.
     g_surrogate = {d: v for (b, d), v in surrogate.items() if b == "G"}
     if not (g_surrogate["0.01"] < 1.0 and all(v == 1.0 for d, v in g_surrogate.items() if d != "0.01")):
         problems.append(
@@ -1716,7 +1722,7 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
                 f"| {label} `{base}` | `{float(cells[2]):.2f}` | `{cells[3]}` |",
             )
         )
-        # §1, §3.2, §4.1 and §6.2 say in words that at the registered delta_tv the surrogate
+        # §3, §4.1, §B.1 and §E.1 say in words that at the registered delta_tv the surrogate
         # returns 1.0 for both bases. The rows above hold the table; this holds the sentence.
         if float(cells[2]) == 0.1 and cells[3] != "1.0000":
             problems.append(
@@ -1745,8 +1751,8 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         ),
         ("completed-run None total", f"All {total} are the same thing"),
         ("completed-run None total, all string null", f"all {total} `None` records are this string"),
-        ("completed-run None total, in §1", f"all {total} dropped draws are the string"),
-        ("completed-run None by condition, in §1", f"{none_on} against {none_off} in the completed run"),
+        ("completed-run None total, in §6.2", f"all {total} dropped draws are the string"),
+        ("completed-run None by condition, in the table of §3", f"{none_on} against {none_off} in the completed run"),
     ]
     freeze = load_json(root / "analysis" / "heldout-stay" / "freeze.json")
     pinned = freeze["positive_control"]["records_classes"]
@@ -1772,12 +1778,12 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
     low, high = _word(primary["cell_min"]), _word(primary["cell_max"])
     fragments += [
         (
-            "primary cells, in §1",
+            "primary cells, in the table of §3",
             f"each of its {primary['cells']} (context, condition) cells produced between {low} "
             f"and {high} zones",
         ),
         (
-            "primary cells, in the results section",
+            "primary cells, beside the sealed reading in §3",
             f"every one of the primary arm's {primary['cells']} (context, condition) cells "
             f"produces {low} or more zones, between {low} and {high}",
         ),
@@ -1847,7 +1853,7 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             f"({c_none['on']} against {c_none['off']}; {p_none['on']} against {p_none['off']})",
         ),
         (
-            "held-out counts, in §1",
+            "held-out counts, in the table of §3",
             f"{c_none['on']} against {c_none['off']} in the control arm and {p_none['on']} against "
             f"{p_none['off']} in the primary arm",
         ),
@@ -1869,21 +1875,21 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             "in the primary arm",
         ),
         (
-            "held-out freeze commit, in §1.3",
+            "held-out freeze commit, in the table title of §6.2",
             f"Specification frozen at commit `{result['freeze_commit'][:7]}`, before the "
             "condition-wise counts",
         ),
         (
-            "held-out freeze commit, in the results section",
+            "held-out freeze commit, in §6.2",
             f"interpretation table were frozen at commit `{result['freeze_commit'][:7]}`",
         ),
         ("held-out row", f"row {result['row']['id']} of the frozen interpretation table"),
-        ("held-out row, in §1", f"(row {result['row']['id']} of the held-out test's frozen interpretation table"),
-        ("held-out row, in §1.3", f"Row {result['row']['id']} of its frozen table"),
+        ("held-out row, in the table of §3", f"(row {result['row']['id']} of the held-out test's frozen interpretation table"),
+        ("held-out row, in §2.4", f"Row {result['row']['id']} of its frozen table"),
         ("held-out level", f"at level {result['alpha']}"),
-        ("held-out level, in §1.3", f"control first, α = {result['alpha']}"),
+        ("held-out level, in §2.4", f"control first, α = {result['alpha']}"),
         (
-            "empty destinations among the prospective None, in §1",
+            "empty destinations among the prospective None, in §6.2",
             f"for all but {_word(empty)} of the draws dropped in the prospective arms",
         ),
         (
@@ -1928,6 +1934,12 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             f"the primary arm, but result.json records {modifiers!r}"
         )
     posthoc, posthoc_problems = posthoc_fragments(root)
+    # The setting every draw was made in (section 2.2), computed from the per-draw records, so
+    # that the sampling values and the one prompt the text states cannot drift from them.
+    identity, identity_problems = records_identity(root)
+    problems += identity_problems
+    if not identity_problems:
+        fragments += identity_fragments(identity)
     return fragments + posthoc, problems + posthoc_problems
 
 
@@ -2060,28 +2072,26 @@ def records_identity(root: Path) -> tuple[dict[str, Any], list[str]]:
 
 
 def identity_fragments(summary: dict[str, Any]) -> list[tuple[str, str]]:
-    """The phrases the manuscript will carry for :func:`records_identity`, rendered from it.
+    """The phrases section 2.2 of the manuscript carries for :func:`records_identity`.
 
-    **Provisional wording, not yet compared with main.md.** The sentences that state the setting
-    belong to the restructured section 2 of the revision, and that step registers these fragments
-    in :func:`rendered_fragments` in the same commit as the prose: a registered fragment the
-    manuscript does not yet carry would fail the run. Until then :func:`check_records_identity_fire`
-    is what holds them to the records.
+    :func:`rendered_fragments` registers them, so each must occur in main.md exactly once.
+    :func:`check_records_identity_fire` holds the rendering to the records, and
+    :func:`check_rendered_fragments_fire` holds the manuscript to the rendering.
     """
     on, off = summary["sampling"]["on"], summary["sampling"]["off"]
     penalty = (
-        f"with repeat_penalty {on['repeat_penalty']} in both"
+        f"with a repetition penalty of {on['repeat_penalty']} in both"
         if on["repeat_penalty"] == off["repeat_penalty"]
-        else f"with repeat_penalty {on['repeat_penalty']} and {off['repeat_penalty']}"
+        else f"with repetition penalties of {on['repeat_penalty']} and {off['repeat_penalty']}"
     )
     pairs = _word(summary["prompt_pairs"])
     size = summary["block_size"]
     return [
         (
             "sampling, both conditions",
-            f"channel-on draws are sampled at temperature {on['temperature']:.2f} and top_p "
+            f"channel-on draws are sampled at temperature {on['temperature']:.2f} and top-p "
             f"{on['top_p']:.2f}, channel-off draws at temperature {off['temperature']:.2f} and "
-            f"top_p {off['top_p']:.2f}, {penalty}",
+            f"top-p {off['top_p']:.2f}, {penalty}",
         ),
         (
             "one prompt pair",
@@ -2249,7 +2259,7 @@ def check_records_identity(repo_root: Path) -> list[str]:
             f"{summary['draws']:,} draws; channel-on {on}, channel-off {off}; "
             f"{summary['prompt_pairs']} (system, user) prompt pair across every run and "
             f"condition; each run {summary['block_pairs']} pairs of a channel-on and a "
-            f"channel-off block of {summary['block_size']} draws (not yet compared with main.md)"
+            f"channel-off block of {summary['block_size']} draws, carried by section 2.2 as rendered phrases"
         )
     return problems
 
@@ -2324,6 +2334,42 @@ def _set(path: tuple[Any, ...], value: Any) -> Callable[[Any], None]:
         node[path[-1]] = value
 
     return edit
+
+
+def _cut_phrase(path: Path, opening: str) -> None:
+    """Delete the sentence of main.md that contains ``opening`` (up to its full stop)."""
+    text = path.read_text(encoding="utf-8")
+    flat_start = text.find(opening)
+    if flat_start < 0:
+        raise _NoOpMutation(f"{path.name} does not carry {opening!r}")
+    end = text.find(".", flat_start)
+    path.write_text(text[:flat_start] + text[end + 1 :], encoding="utf-8")
+
+
+def _swap_words(path: Path, first: str, second: str) -> None:
+    """Exchange the condition names of two phrases of main.md, each written once."""
+    text = path.read_text(encoding="utf-8")
+    if text.count(first) != 1 or text.count(second) != 1:
+        raise _NoOpMutation(f"{path.name} does not carry {first!r} and {second!r} once each")
+    marker = "\x00"
+    swapped_first = first.replace("channel-on", marker).replace("channel-off", "channel-on").replace(marker, "channel-off")
+    swapped_second = second.replace("channel-off", marker).replace("channel-on", "channel-off").replace(marker, "channel-on")
+    path.write_text(text.replace(first, swapped_first).replace(second, swapped_second), encoding="utf-8")
+
+
+def _set_first_sampling(path: Path, condition: str, key: str, value: float) -> None:
+    """Change one sampling setting of the first draw of ``condition`` in a records file."""
+    lines = path.read_text(encoding="utf-8").split("\n")
+    for index, line in enumerate(lines):
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        if row["condition"] == condition and row["sampling"][key] != value:
+            row["sampling"][key] = value
+            lines[index] = json.dumps(row, ensure_ascii=False)
+            path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+            return
+    raise _NoOpMutation(f"no {condition} draw of {path.name} to change")
 
 
 def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
@@ -2420,7 +2466,7 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
         ("M31 the seed-varied Type-I count moves", with_digests(summary_json, _set(("reading_rules", "type_i_with_per_replicate_scorer_seed", "r2", "k"), 94)), "Type-I row, scorer seed varied"),
         ("M32 D4 becomes feasible at 0.02 on the degenerate base", with_digests(summary_json, cell_edit("G|D4|0.02", "status", value="run")), "degenerate-base feasibility"),
         ("M33 the surrogate falls below 1.0 at 0.02 on the degenerate base", with_digests(side_json, side_row("surrogate_alongside", lambda r: (r["base"], r["delta_tv"]) == ("G", "0.02"), "surrogate_power", 0.99)), "degenerate-base surrogate"),
-        ("M34 the test stops matching the surrogate at 0.05", with_digests(summary_json, cell_edit("C|D1|0.05", "summary", "test_reject", "rate", value=0.999)), "agreement phrase, §4.3"),
+        ("M34 the test stops matching the surrogate at 0.05", with_digests(summary_json, cell_edit("C|D1|0.05", "summary", "test_reject", "rate", value=0.999)), "agreement phrase, §4.2"),
         ("M35 a replicate stops at R4 under the null on the degenerate base less often", with_digests(summary_json, cell_edit("G|null|0", "summary", "branch_counts", "R4", value=3999)), "degenerate-base null branch counts"),
         ("M36 D5 departs from D1 at the registered delta_tv", with_digests(summary_json, cell_edit("C|D5|0.10", "summary", "mean_tv_bar", value=0.5)), "D1/D5 phrase"),
         ("M37 a direction stops being an alias", with_digests(summary_json, cell_edit("Cs|D2|0.10", "alias_of", value="Cs|D3|0.10")), "alias phrase"),
@@ -2545,6 +2591,30 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
                 b'"llm_calls": 4800', b'"llm_calls": 4799',
             ),
             "a capture of 4799 calls",
+        ),
+        (
+            "M44 the sampling phrase is taken out of main.md",
+            lambda root: _cut_phrase(root / "manuscript/main.md", "channel-on draws are sampled at"),
+            "sampling, both conditions: main.md does not carry",
+        ),
+        (
+            "M45 the blocks phrase is quoted a second time",
+            lambda root: (root / "manuscript/main.md").write_text(
+                (root / "manuscript/main.md").read_text(encoding="utf-8")
+                + "\neight pairs of blocks, each pair 300 channel-on draws followed by 300 channel-off draws\n",
+                encoding="utf-8",
+            ),
+            "blocks: main.md carries",
+        ),
+        (
+            "M46 main.md swaps the two conditions' sampling",
+            lambda root: _swap_words(root / "manuscript/main.md", "channel-on draws are sampled", "channel-off draws at"),
+            "sampling, both conditions: main.md does not carry",
+        ),
+        (
+            "M47 one draw's sampling changes in the records",
+            lambda root: _set_first_sampling(root / "data/prospective/control/run_records.jsonl", "on", "top_p", 0.95),
+            "control arm: the channel-on draws carry 2 distinct sampling settings",
         ),
         (
             "M12 a rendered row is quoted a second time",

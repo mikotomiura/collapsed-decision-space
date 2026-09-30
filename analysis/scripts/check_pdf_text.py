@@ -443,7 +443,7 @@ WIDEST_TABLE_COLUMNS: tuple[str, ...] = (
     "Reported after the run",
 )
 
-#: The column headers of the analysis map of section 1.3, the widest table the revision added. Its
+#: The column headers of the analysis map of section 2.4, the widest table the revision added. Its
 #: right-hand columns say when each layer was fixed and what it licenses, which is the part a page
 #: that dropped them would lose without looking incomplete.
 ANALYSIS_MAP_COLUMNS: tuple[str, ...] = (
@@ -609,7 +609,7 @@ def main(argv: list[str] | None = None) -> int:
     for column in ANALYSIS_MAP_COLUMNS:
         if normalise(column) not in flat:
             problems.append(
-                f"a column header of the section 1.3 analysis map is absent: {column!r} "
+                f"a column header of the section 2.4 analysis map is absent: {column!r} "
                 "(the table may have been set too wide and lost its right-hand columns)"
             )
 
@@ -648,7 +648,7 @@ def main(argv: list[str] | None = None) -> int:
         "the AI-use footnote is on the first page, every figure's numbers stand row by row on its "
         f"page, {len(REQUIRED_PHRASES) + len(title_phrases)} required phrases, "
         f"all {len(WIDEST_TABLE_COLUMNS)} column headers of the section F table and "
-        f"{len(ANALYSIS_MAP_COLUMNS)} of the section 1.3 analysis map, "
+        f"{len(ANALYSIS_MAP_COLUMNS)} of the section 2.4 analysis map, "
         f"{len(REQUIRED_GLYPHS)} glyphs at risk of silent loss, and "
         f"{len(REQUIRED)} quantities read from the frozen inputs are present in the PDF "
         f"({len(flat)} characters of text)"
