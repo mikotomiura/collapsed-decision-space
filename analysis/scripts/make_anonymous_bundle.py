@@ -71,9 +71,11 @@ SUBSTITUTIONS: tuple[tuple[str, str], ...] = (
     ("https://zenodo.org/api/records/22735437", "https://anonymous.invalid/deposit"),
     ("10.5281/zenodo.22735437", "10.0000/anonymous.version"),
     ("10.5281/zenodo.22735436", "10.0000/anonymous.concept"),
-    # A different deposit of the author's own, cited as related work rather than being this
-    # study's record. It does **not** belong in CITED_DOIS below: that list is declared to hold
-    # other people's papers, and putting one's own deposit in it would be a false declaration
+    # A different deposit of the author's own, once cited as related work rather than being this
+    # study's record (the 2026-09-30 revision cites it no more; the rule stays so that a mention
+    # left anywhere is still replaced). It does **not** belong in CITED_DOIS below: that list is
+    # declared to hold other people's papers, and putting one's own deposit in it would be a false
+    # declaration
     # that also happens to work -- the scan would go quiet while a reviewer following the link
     # landed on a page carrying the author's name. Substituted here instead, with the deposits,
     # because that is what it is.
@@ -155,6 +157,9 @@ CITED_DOIS: tuple[str, ...] = (
     "10.1214/18-AOAS1155SF",
     "10.1198/000313001300339897",
     "10.18653/v1/2024.emnlp-industry.91",
+    "10.18653/v1/P18-1128",
+    "10.1002/sim.8086",
+    "10.1002/9781119482260",
 )
 
 #: Identities of **other people** carried by third-party files shipped byte for byte: the official

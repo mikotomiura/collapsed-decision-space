@@ -315,8 +315,9 @@ size; §4.2 evaluates that test by simulation. §I.6 says what a pass of R3 can 
 
 **[Post hoc]** The simulation measures what the gate was meant to stand for. It asks how often the
 sealed pipeline, and the permutation test inside it, reject when every context's channel-off
-distribution is known and the channel-on distribution is moved from it by a stated amount. It is a
-property of the design under assumed distributions. It estimates nothing the channel did, and no rate
+distribution is known and the channel-on distribution is moved from it by a stated amount. Like any
+simulation study of a method [49], it measures a property of the design under assumed distributions.
+It estimates nothing the channel did, and no rate
 below turns the completed run's non-rejection into evidence that an effect is absent. Every shift is
 put in by the simulation, at sizes declared in advance: the grid, the seeds, the replicate counts and
 the reading rules were pushed before the first full run.
@@ -525,8 +526,11 @@ test, and the whole pipeline, reject under shifts put in by the simulation, by d
 shows whether a pass of a power gate computed on another statistic agrees with the test that decides,
 and at which shifts it does not (§4.2). It says nothing about bases or directions not simulated, or
 about an effect in the data. Power computed after the data cannot interpret a non-significant result
-[44], and NLP evaluations often lack the power their conclusions assume [35]; a simulation in which
-every shift is put in by design avoids the first problem and measures the second.
+[44], and NLP evaluations often lack the power their conclusions assume [35]. Which significance test
+suits a comparison depends on its evaluation measure and setup [48], so the power that matters is the
+power of the test actually chosen. A simulation study, in which the data-generating mechanism sets the
+truth, is the standard way to measure such operating characteristics [49]; one in which every shift
+is put in by design avoids the first problem and measures the second.
 
 **Report support beside entropy, for each condition.** The input is the parsed draws of each
 condition. The diagnostic looks at how many categories the draws occupy in each condition, and in the
@@ -534,15 +538,16 @@ base the power calculation uses, beside the per-context entropy the floor reads.
 floor that is cleared still leaves categories empty, as in the completed run and the control arm, or
 fails while every cell reaches several categories, as in the primary arm (§5). It does not show
 whether an empty category belongs to the model or to the apparatus; that takes a varied read-out
-(§8.3). Chi-square-type statistics are highly sensitive to small and empty cells [43], which is why
-the support matters to the power calculation.
+(§8.3). Chi-square-type statistics are highly sensitive to small cells [43], which is why the
+support matters to the power calculation.
 
 **Compare the rate of dropped outputs between conditions, and read their content.** The input is
 every draw the estimand drops, with its raw response. The diagnostic looks at the dropped count in
 each condition, and at the content of each dropped output as the parser's own steps classify it. It
 shows whether dropping and renormalising removes a difference between the conditions, and what the
-dropped outputs are (§6). It does not show a cause. When the conditions run in a fixed order, a
-difference between them is also a difference in position in the run. Randomising or counterbalancing
+dropped outputs are (§6). Dropping them is a complete-case analysis, which can be biased when the
+dropped units differ from those kept [50]. The diagnostic does not show a cause. When the conditions
+run in a fixed order, a difference between them is also a difference in position in the run. Randomising or counterbalancing
 the order separates the two only under assumptions about drift and about dependence between
 successive draws. Language-model output depends on the format of the prompt and on required output
 formats [45, 47], which is what makes the content worth reading.
@@ -553,9 +558,9 @@ Fixing an equivalence bound before analysis is standard practice [36], and decla
 margin in advance has been applied to language-model evaluation [28]; this protocol follows that
 practice. Tests of equivalence between two multinomial distributions exist [41], and estimating a
 total-variation distance well from samples is a problem in its own right [29, 42]; the protocol runs
-neither kind of procedure and makes no efficiency claim for its plug-in estimate. Preregistration for
-experiments with AI agents [37] and the validation of generative social simulations [38, 39] frame
-the question whether a wired mechanism propagates. Separating instrument artefacts from real effects
+neither kind of procedure and makes no efficiency claim for its plug-in estimate. Preregistration has
+been argued for experiments with AI agents [37]. Validating generative social simulations is an open
+problem [38, 39], and it motivates asking whether a wired mechanism propagates. Separating instrument artefacts from real effects
 in a pre-registered setting is adjacent work on a different object [27]. Language-model output moves
 with the formatting of the prompt [45], with the positions and identifiers of listed options [46],
 and with required output formats [47]. The apparatus fixes its template, the order in which the
@@ -626,9 +631,7 @@ Natural Language Processing (EMNLP), pp. 9263–9274, 2020. doi:10.18653/v1/2020
 Meta-Analyses.* Social Psychological and Personality Science, 8(4), 355–362, 2017.
 doi:10.1177/1948550617697177
 
-[37] Vaccaro, M. *Preregistration for Experiments with AI Agents.* arXiv:2606.11217, 2026. (The
-arXiv identifier and the submission date reported by the arXiv API do not agree; both are recorded
-as retrieved, without correction.)
+[37] Vaccaro, M. *Preregistration for Experiments with AI Agents.* arXiv:2606.11217, 2026.
 
 [38] Larooij, M. and Törnberg, P. *Validation is the central challenge for generative social
 simulation: a critical review of LLMs in agent-based modeling.* Artificial Intelligence Review,
@@ -638,10 +641,6 @@ simulation: a critical review of LLMs in agent-based modeling.* Artificial Intel
 B., Vudragović, D., Bogojević, A. and Mitrović Dankulov, M. *Towards operational validation of
 LLM-agent social simulations: a replicated study of a Reddit-like technology forum.* EPJ Data
 Science, 15(1), article 72, 2026. doi:10.1140/epjds/s13688-026-00674-x
-
-[40] Miura, M. *Two-plane determinism: byte-exact cross-platform replay of LLM-in-the-loop agent
-simulations.* Preprint, 2026. doi:10.5281/zenodo.22719772 (The concept identifier is cited, since
-it resolves to the current version; the record carries no version string of its own.)
 
 [41] Bastian, P., Dette, H. and Koletzko, L. *Testing equivalence of multinomial distributions — A
 constrained bootstrap approach.* Statistics & Probability Letters, 206, article 109999, 2024.
@@ -669,6 +668,17 @@ Multiple Choice Selectors.* arXiv:2309.03882, 2023.
 Freely? A Study On The Impact Of Format Restrictions On Large Language Model Performance.*
 Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing: Industry
 Track, pp. 1218–1236, 2024. doi:10.18653/v1/2024.emnlp-industry.91
+
+[48] Dror, R., Baumer, G., Shlomov, S. and Reichart, R. *The Hitchhiker's Guide to Testing
+Statistical Significance in Natural Language Processing.* Proceedings of the 56th Annual Meeting of
+the Association for Computational Linguistics (Volume 1: Long Papers), pp. 1383–1392, 2018.
+doi:10.18653/v1/P18-1128
+
+[49] Morris, T. P., White, I. R. and Crowther, M. J. *Using simulation studies to evaluate
+statistical methods.* Statistics in Medicine, 38(11), 2074–2102, 2019. doi:10.1002/sim.8086
+
+[50] Little, R. and Rubin, D. *Statistical Analysis with Missing Data, Third Edition.* Wiley, 2019.
+doi:10.1002/9781119482260
 
 Reference numbers are permanent identifiers assigned in the author's central bibliography and are
 not renumbered between manuscripts.
@@ -732,9 +742,7 @@ reported to establish the upstream determinism property of the same apparatus.**
 verdict record was not retained as a shipped artefact and is therefore not included in this
 repository. Because this manuscript quotes only numbers that the extraction script can produce from
 shipped data, no ES-1 quantity is quoted here. This is recorded as a provenance limitation
-(§I.4). The determinism and byte-exact cross-platform replay properties of the upstream apparatus
-are separately reported, with a publicly reproducible verification path, in [40]. That report is
-not the ES-1 record and does not restore it, and no quantity from it is quoted here either.
+(§I.4).
 
 ---
 
@@ -1357,8 +1365,10 @@ might have shown.
 ### I.2 Sample access rather than logit access
 
 The backend used here does not expose token-level logits, so the five-way decision distribution is
-estimated from sampled generations. With logit access the same quantity would be obtainable far
-more cheaply [29]. This is a constraint of the deployment, and it sets the cost of the design.
+estimated from sampled generations. For the total-variation distance between two autoregressive
+models, logit access lowers the number of queries an estimate needs, compared with sampling [29];
+how much it would lower the cost of this decision-level distance is not examined here. This is a
+constraint of the deployment, and it sets the cost of the design.
 
 ### I.3 Bounded envelope
 
@@ -1371,10 +1381,7 @@ matters in general.
 
 The ES-1 verdict record is not shipped (§A). The per-draw record of the completed run is shipped byte for byte in
 `data/completed/`, checked by step 3 against its size and digest in `data/data.md` and against the digest the run's own manifest
-pinned, and re-parsed as §6.1 describes. A
-separate report of the upstream apparatus's determinism properties is citable [40], but it is a
-different body of evidence and does not stand in for the missing ES-1 record: the gap below is
-stated, not closed.
+pinned, and re-parsed as §6.1 describes.
 
 One further gap concerns the ES-3 forensic record of §A. Its bytes are verifiably identical to the
 blob registered upstream, but the upstream commit that carries it is a **relocation** commit: the
@@ -1854,7 +1861,8 @@ comparison any difference between conditions in how often that category occurs.
 
 **Total-variation estimation and equivalence.** Price, Tian, Xun and Zhu [29] give sample-complexity
 results for estimating total-variation distance in autoregressive models. Their estimand is
-sequence-level and assumes richer access than sampled generations; ours is a decision-level five-way
+sequence-level, and their access models (samples of the next token after any prefix, or its logits)
+are richer than independent whole generations; ours is a decision-level five-way
 categorical distance, and the gap between the two is the main efficiency cost of this design (§I.2).
 Jiao, Han and Weissman [42] give minimax rates for estimating the L1 distance, twice the
 total-variation distance, between two discrete distributions from samples, and show that in a
@@ -1876,13 +1884,14 @@ template, zone order and output schema of this apparatus contribute to the read-
 in this work.
 
 **Preregistration, validation and adjacent audits.** Vaccaro [37] discusses preregistration for
-experiments with AI agents. Larooij and Törnberg [38] argue that validation, rather than capability,
-is the central open problem for generative social simulation, and Tomašević and colleagues [39]
+experiments with AI agents. Larooij and Törnberg [38] argue that validation is the central challenge
+for generative social simulation, and Tomašević and colleagues [39]
 report a replicated operational validation of an LLM-agent social simulation. Both motivate measuring
 whether a wired mechanism propagates rather than assuming that it does. Park and colleagues [2]
 provide the generative-agent architecture this apparatus descends from. Singh [28] audits compressed
-language models with a statistical toolkit built around declared-margin comparisons, which is the
-practice the margin of this protocol follows. Otterson [27] separates instrument artefacts from real
+language models with a statistical toolkit built around equivalence testing at a declared margin:
+the practice of fixing a bound in advance [36], applied to language-model evaluation, which this
+protocol follows. Otterson [27] separates instrument artefacts from real
 effects in a pre-registered causal setting; the separation logic is adjacent to ours, applied to a
 different object.
 

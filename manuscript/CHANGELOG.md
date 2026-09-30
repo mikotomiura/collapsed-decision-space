@@ -132,3 +132,34 @@ word "floor" (*Data, code and reproducibility*).
 `analysis/scripts/make_pdf_source.py` no longer rewrites the sentence on the tag of an earlier
 submission, because the sentence left the manuscript. `analysis/scripts/check_pdf_identity.py` still
 fails the anonymous build if the tag or that venue reaches the page.
+
+## 2026-09-30 — references, and what the anonymous PDF withholds
+
+### References
+
+- **Removed**: the author's own prior preprint on the upstream apparatus's determinism. The two
+  sentences that pointed to it, at the end of the appendix on the apparatus and in *Provenance gaps*,
+  left with it. The gap they sat beside, the record of the determinism study that is not shipped, is
+  still stated in both places.
+- **Removed**: the note at the preregistration entry that its arXiv identifier and its submission
+  date do not agree. The entry gives the year, on which both agree; `manuscript/refs.md` records the
+  disagreement.
+- **Added**, each where one of the three diagnostics names the work it rests on: a guide to choosing
+  significance tests in NLP, and a tutorial on simulation studies (the first diagnostic, and the
+  simulation of the power gate); a standard text on missing data (the third diagnostic).
+- **Changed to say what the source says**, after every entry was checked against its abstract and,
+  for the preprints of 2026, their full text: the access models of the total-variation estimation
+  paper; the sentence in *Sample access rather than logit access*, which said that logit access would
+  make this quantity far cheaper; the review of generative social simulation, which does not
+  contrast validation with capability; "small and empty cells", now "small cells"; and the sentence
+  in which the preregistration paper was said to frame this paper's question. The margin rests on the
+  equivalence-testing primer; the audit of compressed models is its application in language-model
+  evaluation.
+
+### The anonymous build
+
+The anonymous PDF is built for a submission with no supplement. It defines "this repository" and
+"shipped" once, in *Data, code and reproducibility*, as the compendium made public after review, and
+rewrites the sentences that name a location, a supplement, or a file name specific to the upstream
+project. `analysis/scripts/check_pdf_identity.py` fails the anonymous build if any of those words
+reaches the page or the source the page is set from.

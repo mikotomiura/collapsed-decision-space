@@ -6,25 +6,27 @@ from the generative-agent architecture	2	citep
 runs no equivalence test	36, 41	citep
 result in any case	44	citep
 statistics are known for	43	citep
+study of a method	49	citep
 dependence of language-model evaluation	45, 47	citep
 interpret a non-significant result	44	citep
 power their conclusions assume	35	citep
-small and empty cells	43	citep
+evaluation measure and setup	48	citep
+measure such operating characteristics	49	citep
+sensitive to small cells	43	citep
+differ from those kept	50	citep
 on required output formats	45, 47	citep
 analysis is standard practice	36	citep
 applied to language-model evaluation	28	citep
 two multinomial distributions exist	41	citep
 in its own right	29, 42	citep
 experiments with AI agents	37	citep
-of generative social simulations	38, 39	citep
+is an open problem	38, 39	citep
 on a different object	27	citep
 formatting of the prompt	45	citep
 identifiers of listed options	46	citep
 with required output formats	47	citep
-reproducible verification path, in	40	citep
 small expected counts dominate	43	citep
-obtainable far more cheaply	29	citep
-determinism properties is citable	40	citep
+needs, compared with sampling	29	citep
 run's estimate (§2.3, and	44	citep
 is a documented misuse	44	citep
 [44]. Card and colleagues	35	citeyearpar
@@ -41,6 +43,7 @@ agents. Larooij and Törnberg	38	citeyearpar
 and Tomašević and colleagues	39	citeyearpar
 does. Park and colleagues	2	citeyearpar
 apparatus descends from. Singh	28	citeyearpar
+a bound in advance	36	citep
 this protocol follows. Otterson	27	citeyearpar
 analysis is established practice	36	citep
 applied to language-model evaluation	28	citep

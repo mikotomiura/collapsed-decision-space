@@ -128,12 +128,11 @@ TAG_NAMES: tuple[str, ...] = ("autopsy-b3-declared", "stage1-submitted")
 TAG_PLACEHOLDER = "[tag withheld for review]"
 
 #: Sentences of the manuscript that the anonymous build rewrites, each matched exactly and required
-#: to occur once. The first names the author's own prior preprint by its subtitle, which a search
-#: resolves as surely as its title (TASK-POST review). The sentence on the venue this work was
-#: submitted to before left the manuscript in the 2026-09-30 revision (it is in the README), and
-#: ``check_pdf_identity.py`` still fails the anonymous build if that venue reaches the page.
+#: to occur once. The sentences that named the author's own prior preprint and the venue this work
+#: was submitted to before left the manuscript in the 2026-09-30 revision, and
+#: ``check_pdf_identity.py`` still fails the anonymous build if either reaches the page.
 #:
-#: The rest follow from submitting no supplement (``.steering`` DA-DR-16, F02 = c; DA-TR-1): the
+#: These follow from submitting no supplement (``.steering`` DA-DR-16, F02 = c; DA-TR-1): the
 #: anonymous PDF defines "this repository" and "shipped" once, in §J, as the compendium that is
 #: made public after review, and rewrites only the sentences that would otherwise point a reviewer
 #: at a location, a supplement, or a file name that identifies the upstream project (F01 = b). The
@@ -142,10 +141,6 @@ TAG_PLACEHOLDER = "[tag withheld for review]"
 #: still matches. ``check_pdf_identity.py`` fails the anonymous build if a withheld word survives,
 #: on the page and in the generated source alike.
 ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
-    (
-        "The determinism and byte-exact cross-platform replay properties of the upstream apparatus\n",
-        "The determinism properties of the upstream apparatus\n",
-    ),
     # §C.3: the environment variable carries the upstream project's prefix.
     (
         "environment pins `ERRE_ZONE_BIAS_P = 0.2`, but no bias",
@@ -215,8 +210,10 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
 
 #: The author's own prior work in the reference list. Named by identifier, not by author, because
 #: the de-identified manuscript this script runs on in the anonymous build has already had the
-#: name replaced.
-SELF_CITATIONS: frozenset[int] = frozenset({40})
+#: name replaced. Empty since the 2026-09-30 revision, which cites none (``.steering`` DA-DR-16);
+#: the withholding stays in place for an entry added later, and ``check_pdf_identity.py`` keeps
+#: failing the anonymous build on the title of the one that was cited before.
+SELF_CITATIONS: frozenset[int] = frozenset()
 WITHHELD_TITLE = "Title withheld for anonymous review"
 
 CITATIONS_FIXTURE = Path("manuscript") / "tmlr" / "citations.tsv"
