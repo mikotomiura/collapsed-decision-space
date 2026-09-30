@@ -1,32 +1,50 @@
 # context (last four words before the marker)	identifiers	mode
+next action from it	2	citep
+validity of such simulations	38, 39	citep
+a null is worth	35, 36, 44	citep
+from the generative-agent architecture	2	citep
+runs no equivalence test	36, 41	citep
+result in any case	44	citep
+statistics are known for	43	citep
+study of a method	49	citep
+dependence of language-model evaluation	45, 47	citep
+interpret a non-significant result	44	citep
+power their conclusions assume	35	citep
+evaluation measure and setup	48	citep
+measure such operating characteristics	49	citep
+sensitive to small cells	43	citep
+differ from those kept	50	citep
+on required output formats	45, 47	citep
+analysis is standard practice	36	citep
+applied to language-model evaluation	28	citep
+two multinomial distributions exist	41	citep
+in its own right	29, 42	citep
+experiments with AI agents	37	citep
+is an open problem	38, 39	citep
+on a different object	27	citep
+formatting of the prompt	45	citep
+identifiers of listed options	46	citep
+with required output formats	47	citep
+small expected counts dominate	43	citep
+needs, compared with sampling	29	citep
+run's estimate (§2.3, and	44	citep
 is a documented misuse	44	citep
-with small expected counts	43	citep
-estimate is not rate-optimal	42	citep
-a maximum norm exist	41	citep
-formatting of its prompt	45	citep
-can lower its performance	47	citep
-language-model evaluation is established	28	citep
-evaluation.** Card and colleagues	35	citeyearpar
-(§6.2). Hoenig and Heisey	44	citeyearpar
-(§6.2). **Equivalence testing.** Lakens	36	citeyearpar
-Bastian, Dette and Koletzko	41	citeyearpar
-multinomials.** Balakrishnan and Wasserman	43	citeyearpar
-surface.** Sclar and colleagues	45	citeyearpar
-models. Zheng and colleagues	46	citeyearpar
-options. Tam and colleagues	47	citeyearpar
-before analysis is established	28, 36	citep
-a frequentist equivalence test	36	citep
-use Hoenig and Heisey	44	citeyearpar
-reproducible verification path, in	40	citep
-obtainable far more cheaply	29	citep
-determinism properties is citable	40	citep
-run's estimate (§3.4, and	44	citep
-the title of Otterson	27	citeyearpar
-in language-model evaluation.** Singh	28	citeyearpar
+[44]. Card and colleagues	35	citeyearpar
+that Hoenig and Heisey	44	citeyearpar
+to the sample size	43	citep
 Tian, Xun and Zhu	29	citeyearpar
 Jiao, Han and Weissman	42	citeyearpar
-for agent experiments.** Vaccaro	37	citeyearpar
-simulations.** Larooij and Törnberg	38	citeyearpar
-simulation; Tomašević and colleagues	39	citeyearpar
+Bastian, Dette and Koletzko	41	citeyearpar
+evaluation.** Sclar and colleagues	45	citeyearpar
+models. Zheng and colleagues	46	citeyearpar
+options. Tam and colleagues	47	citeyearpar
+and adjacent audits.** Vaccaro	37	citeyearpar
+agents. Larooij and Törnberg	38	citeyearpar
+and Tomašević and colleagues	39	citeyearpar
 does. Park and colleagues	2	citeyearpar
-versus real effect.** Otterson	27	citeyearpar
+apparatus descends from. Singh	28	citeyearpar
+a bound in advance	36	citep
+this protocol follows. Otterson	27	citeyearpar
+analysis is established practice	36	citep
+applied to language-model evaluation	28	citep
+a frequentist equivalence test	36	citep

@@ -1,11 +1,11 @@
 # Three gates, three proxies
 
-*An instrument autopsy of a sealed LLM-agent evaluation*
+*Auditing the null-report checks of a pre-registered LLM-agent evaluation*
 
 [![repro](https://github.com/mikotomiura/collapsed-decision-space/actions/workflows/repro.yml/badge.svg)](https://github.com/mikotomiura/collapsed-decision-space/actions/workflows/repro.yml)
 
 This repository is the research compendium for **a sealed, pre-registered evaluation and an
-autopsy of the gates that decided what its outcome is worth** (`manuscript/main.md`). It holds the
+audit of the gates that decided what its outcome is worth** (`manuscript/main.md`). It holds the
 protocol, the frozen evidence the protocol builds on, the measurement apparatus, the per-draw data of
 the completed run and of the two prospective arms, the arms' attempt logs, a held-out test of one
 post hoc observation, and a single command that re-derives all three verdicts -- the completed
@@ -25,7 +25,7 @@ entropy floor, so the estimand is not measured there. That is not read as a null
 claim narrows to single-model scope. The control arm's first capture attempt was stopped from
 outside before it produced a verdict and was restarted from the beginning; the attempt logs and
 the stopped attempt's partial record are shipped in `data/attempts/` (§I.5 of the manuscript).
-The results section of `manuscript/main.md` reports the branch and
+§3 of `manuscript/main.md` reports the branch and
 `manuscript/REPORTED-BRANCH.md` records the derivation; step 13 re-derives the branch from the
 sealed rules on every run.
 
@@ -64,9 +64,8 @@ other than the one the reading of its result depends on:**
   missing or malformed JSON in the other, and confounded with the fixed on-then-off block order.
 
 The prospective arms and the held-out test did not resolve this; they exposed it. The claim does not
-depend on the value of the 0.10 margin, says nothing about the channel's effect, and is confined to
-two models and eight frozen contexts. An earlier version of the manuscript drew a different
-conclusion from the completed run; §N.4 of the manuscript says why that reading is withdrawn.
+depend on the value of the 0.10 margin, says nothing about the channel's effect, and is confined to two models and one frozen prompt run in eight pairs of blocks. An earlier version of the manuscript drew a different
+conclusion from the completed run; `manuscript/CHANGELOG.md` says why that reading is withdrawn.
 
 **Wherever this work speaks of an effect, its subject is the channel.** It is not walking, and it
 is not creativity.
@@ -85,7 +84,7 @@ The full guard list, with the search patterns used to enforce it, is in
   itself what lowers the computed power. The sealed design did not evaluate the power of the
   permutation test; a post hoc simulation, declared before it was run, finds its rejection rate
   equal to the surrogate's 1.0 from `delta_tv` = 0.05 upward along the surrogate's direction on the
-  completed run's channel-off base, and below it at smaller shifts (manuscript §4.3, `data/posthoc/`)
+  completed run's channel-off base, and below it at smaller shifts (manuscript §4.2, `data/posthoc/`)
 - the channel's downstream effect was not detected under a margin fixed before the data existed, in
   the two runs that produced an estimate
 - effect-absent, low-power and apparatus-invalid are kept apart as three distinct outcomes
@@ -97,8 +96,8 @@ The full guard list, with the search patterns used to enforce it, is in
   runs — stated only with its qualifiers: the explicit-null qualifier holds for the control arm and
   not for the primary arm, what was recorded as `None` differs between the arms, the difference is
   confounded with execution order, and the test is not a formal pre-registration
-- the envelope is bounded: one apparatus, one sampling regime, two model families, eight frozen
-  contexts
+- the envelope is bounded: one apparatus, one sampling regime, two model families, and one frozen
+  prompt run in eight pairs of blocks (the sealed text's eight frozen contexts)
 
 **Out of reach of this design** (three of twenty-eight guards, quoted for orientation)
 
@@ -272,7 +271,7 @@ the check did not have; the list it now enforces is `README_QUANTITIES` in
 | degenerate | 0.10 | 1.0000 |
 
 These are powers of the pooled chi-square surrogate the power gate computes, not of the permutation
-test the decision turns on, which the sealed design did not evaluate; §4.3 of the manuscript
+test the decision turns on, which the sealed design did not evaluate; §4.2 of the manuscript
 simulates it post hoc. For that surrogate, power is governed
 by the size of the shift being looked for, not by how concentrated the base distribution is — the
 third row carries that point, and the first and fourth show that at the registered `delta_tv` it
@@ -291,6 +290,10 @@ change.
 The deposit carries an earlier working title of the manuscript in its title field. Its metadata is
 not edited, because the deposit's last-modified time is one of the server times the recorded witness
 anchors on, and an edit would move that anchor.
+
+The tag `stage1-submitted` marks the state of this repository submitted to PCI Registered Reports in
+September 2026. It is kept as a record of that submission and is not the state of the manuscript,
+which has since been restructured; `manuscript/CHANGELOG.md` records what changed.
 
 One preliminary study is reported in the protocol but its machine-readable record was not retained,
 so no quantity from it is quoted anywhere. That gap is disclosed rather than worked around.

@@ -5,3 +5,6 @@ to: latex
 standalone: true
 template: template.tex
 shift-heading-level-by: -1
+# Figure captions go to \caption (caption.lua, copied beside the source by make_pdf_source.py).
+filters:
+  - caption.lua

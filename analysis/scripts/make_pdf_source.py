@@ -21,7 +21,10 @@ What it changes, and why each change is necessary:
    the end of the first paragraph of the introduction. It is moved, not copied: the page carries it
    once, as ``main.md`` does.
 4. **Figure markers become figure environments** around the ``\\input`` of a figure that
-   ``make_figures.py`` generates from the shipped data. The caption stays in ``main.md`` as prose.
+   ``make_figures.py`` generates from the shipped data. The caption stays in ``main.md`` as prose,
+   opening with its label ("**Figure 2.**"); the build takes the label off and sets the rest through
+   ``\\caption``, so that LaTeX numbers the figure and sets "Figure 2:" as the official style does
+   (``manuscript/tmlr/TEMPLATE-DIFF.md``).
 5. **Citations become natbib author-year.** ``[n]`` is a permanent identifier from the central
    bibliography; the bibliography of the PDF is generated from the References section of
    ``main.md`` (:func:`parse_references`), so there is no ``.bib`` file to drift from it. Where the
@@ -34,11 +37,17 @@ What it changes, and why each change is necessary:
    "References" is set.
 7. **Over-long typewriter tokens are given permission to break**, and horizontal rules between
    sections are dropped (the TMLR style separates sections itself).
+8. **Section numbers are taken off the headings and left to LaTeX**, which sets them as the official
+   style does ("4.3 Title"). main.md keeps its numbers, because the repository cites them, and the
+   build stops if any of them is not the number LaTeX will assign (:func:`number_headings`).
 
-With ``--anonymous``, two identifying strings the de-identified bundle has to keep are also
-withheld from the page (``.steering`` DA-C-4 and DA-C-5): the name of the upstream project, which
-the supplement cannot drop because the provenance checks are byte comparisons against it, and the
-title of the author's own prior preprint, which a search would resolve to the author.
+With ``--anonymous``, identifying strings the de-identified bundle has to keep are also withheld
+from the page (``.steering`` DA-C-4 and DA-C-5): the name of the upstream project, which the
+bundle cannot drop because the provenance checks are byte comparisons against it, commit
+identifiers and tags. The bundle is an internal intermediate and is not submitted (DA-DR-16), so
+the sentences that point at a location, a supplement or a project-specific file name are rewritten
+(:data:`ANONYMOUS_REWRITES`), and §J defines "this repository" once as the compendium made public
+after review.
 
 Everything else is passed through byte for byte. The script fails rather than emitting a source it
 could not transform as intended.
@@ -119,30 +128,136 @@ TAG_NAMES: tuple[str, ...] = ("autopsy-b3-declared", "stage1-submitted")
 TAG_PLACEHOLDER = "[tag withheld for review]"
 
 #: Sentences of the manuscript that the anonymous build rewrites, each matched exactly and required
-#: to occur once. The first names the author's own prior preprint by its subtitle, which a search
-#: resolves as surely as its title (TASK-POST review); the second names the venue this work was
-#: submitted to before (user ruling of 2026-09-26, DA-C-16). The named build carries both as written.
+#: to occur once. The sentences that named the author's own prior preprint and the venue this work
+#: was submitted to before left the manuscript in the 2026-09-30 revision, and
+#: ``check_pdf_identity.py`` still fails the anonymous build if either reaches the page.
+#:
+#: These follow from submitting no supplement (``.steering`` DA-DR-16, F02 = c; DA-TR-1): the
+#: anonymous PDF defines "this repository" and "shipped" once, in §J, as the compendium that is
+#: made public after review, and rewrites only the sentences that would otherwise point a reviewer
+#: at a location, a supplement, or a file name that identifies the upstream project (F01 = b). The
+#: build runs on the de-identified bundle, where URLs are already placeholders; this file goes
+#: through the same substitutions, so each old sentence is written here as ``main.md`` has it and
+#: still matches. ``check_pdf_identity.py`` fails the anonymous build if a withheld word survives,
+#: on the page and in the generated source alike.
 ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
+    # §C.3: the environment variable carries the upstream project's prefix.
     (
-        "The determinism and byte-exact cross-platform replay properties of the upstream apparatus\n",
-        "The determinism properties of the upstream apparatus\n",
+        "environment pins `ERRE_ZONE_BIAS_P = 0.2`, but no bias",
+        "environment pins the zone-bias probability at 0.2, but no bias",
+    ),
+    # §G.2: the upstream repository's URL.
+    (
+        "The records are at\n<https://github.com/mikotomiura/ERRE-Sandbox>. "
+        "`analysis/freeze-provenance.json` carries the\n",
+        "The records are in the upstream source repository, which will be identified after review.\n"
+        "`analysis/freeze-provenance.json` carries the\n",
+    ),
+    # §I.5: the driver's file name carries a project-specific prefix.
+    (
+        "which equals that of\n`scripts/paper02_run_arms.py` at upstream commit",
+        "which equals that of\nthe driver script at upstream commit",
+    ),
+    # §J: the definition of "this repository" and "shipped" replaces the repository's URL.
+    (
+        "**Everything this manuscript refers to is reachable from one place.** The repository is\n"
+        "<https://github.com/mikotomiura/collapsed-decision-space>. Work continues on its default "
+        "branch, so\n",
+        "**Everything this manuscript refers to is in, or referenced from, one research compendium, "
+        'which will be made public after review. In this manuscript, "this repository" and '
+        '"shipped" refer to that compendium.** Work on it continues, so\n',
+    ),
+    # §J: the upstream repository's URL, and the statement that no supplementary archive exists.
+    (
+        "The upstream source repository the apparatus and the provenance records come from is\n"
+        "<https://github.com/mikotomiura/ERRE-Sandbox>, and §G.2 gives the commit identifiers "
+        "within it.\nApart from the archival deposit of the sealed files described in §J, there is "
+        "no separate\nsupplementary archive: the data, the analysis scripts, the apparatus and the "
+        "reproduction command\nare all in the repository named here.\n",
+        "The apparatus and the provenance records come from an upstream source repository that will "
+        "be\nidentified after review; §G.2 describes the commits within it. Apart from the archival "
+        "deposit of\nthe sealed files described in §J, the data, the analysis scripts, the apparatus "
+        "and the\nreproduction command are all in the compendium named above.\n",
+    ),
+    # §J: the de-identification tool the anonymous build is made with.
+    (
+        "The manual `submission-pdf` workflow\nperforms all of it. The anonymous build takes its "
+        "manuscript from a copy of this repository\nde-identified by "
+        "`analysis/scripts/make_anonymous_bundle.py`, which reports what identifying strings\nit "
+        "cannot remove and why; that copy is an intermediate of the build and is not submitted.\n",
+        "A manual workflow\nperforms all of it.\n",
+    ),
+    # §H and §J: the archival deposit's identifiers and its registration time, which a search of
+    # the archive would resolve to a record carrying the author's name (TASK-POST review).
+    (
+        "One\nnow exists, at `10.5281/zenodo.22735436`; §J describes",
+        "One\nnow exists, in a public archive that will be identified after review; §J describes",
     ),
     (
-        "The tag `stage1-submitted` in this repository marks the state submitted to PCI Registered "
-        "Reports\nin September 2026.",
-        "A tag in this repository marks the state of an earlier submission of this work.",
+        "deposited at `10.5281/zenodo.22735436` (concept) and `10.5281/zenodo.22735437` (this "
+        "version) —",
+        "deposited in a public archive that will be identified after review —",
+    ),
+    (
+        "those twenty-seven times is **`2026-09-13T23:44:39.000Z`**, and it is the DOI registration "
+        "time;",
+        "those twenty-seven times, withheld for review, is the DOI registration time;",
+    ),
+    # §G.2 and §J: what a reader can check needs the public compendium and the upstream repository.
+    (
+        "upstream repository and are confirmed by following the links above.",
+        "upstream repository and can be confirmed against it once it is identified after review.",
+    ),
+    (
+        "A reviewer who wants\nthe outside half performs it; a reviewer who does not still gets steps "
+        "1 to 13,",
+        "Once the compendium is public, a reader who\nwants the outside half can perform it; one who "
+        "does not still gets steps 1 to 13,",
+    ),
+    # The first-page footnote and §K: the commit counts are public once the compendium is.
+    (
+        "with commit counts a reader can recompute.",
+        "with commit counts a reader can recompute once the compendium is public.",
+    ),
+    (
+        "The extent of that assistance is visible in the public record rather than asserted here,",
+        "The extent of that assistance will be visible in the public record after review rather than "
+        "asserted here,",
+    ),
+    # §J: the driver's file name again.
+    (
+        "That driver is in the\nupstream repository as `scripts/paper02_run_arms.py` at commit\n",
+        "That driver is a script in the\nupstream repository, at commit\n",
+    ),
+    # §K: the continuous integration is public only once the compendium is.
+    (
+        "re-run by public continuous integration on two operating systems",
+        "re-run by continuous integration on two operating systems",
+    ),
+    # §K, the table: the upstream repository's URL.
+    (
+        "| Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit",
+        "| Upstream source repository (identified after review), at commit",
     ),
 )
 
 #: The author's own prior work in the reference list. Named by identifier, not by author, because
 #: the de-identified manuscript this script runs on in the anonymous build has already had the
-#: name replaced.
-SELF_CITATIONS: frozenset[int] = frozenset({40})
+#: name replaced. Empty since the 2026-09-30 revision, which cites none (``.steering`` DA-DR-16);
+#: the withholding stays in place for an entry added later, and ``check_pdf_identity.py`` keeps
+#: failing the anonymous build on the title of the one that was cited before.
+SELF_CITATIONS: frozenset[int] = frozenset()
 WITHHELD_TITLE = "Title withheld for anonymous review"
 
 CITATIONS_FIXTURE = Path("manuscript") / "tmlr" / "citations.tsv"
 TMLR_DIR = Path("manuscript") / "tmlr"
-TMLR_FILES: tuple[str, ...] = ("tmlr.sty", "tmlr.bst", "fancyhdr.sty", "template.tex")
+TMLR_FILES: tuple[str, ...] = (
+    "tmlr.sty",
+    "tmlr.bst",
+    "fancyhdr.sty",
+    "template.tex",
+    "caption.lua",
+)
 
 
 def _die(message: str) -> None:
@@ -494,10 +609,26 @@ def move_footnote(body: str) -> str:
     return body[:end] + f"^[{note}]" + body[end:]
 
 
+#: The label a figure's caption opens with in main.md, where it is prose ("**Figure 2.**").
+CAPTION_LABEL = re.compile(r"^\*\*Figure (\d+)\.\*\*\s+")
+
+
 def replace_figures(body: str) -> tuple[str, list[str]]:
+    """Turn each figure block into a figure environment whose caption LaTeX sets and numbers.
+
+    In main.md the caption is a paragraph that opens with its label, "**Figure 2.**", so that the
+    repository rendering shows it. The official style sets "Figure 2:" through ``\\caption``, and
+    this build does the same (``manuscript/tmlr/TEMPLATE-DIFF.md``): the label is taken off, and the
+    rest of the paragraph goes into a ``tmlr-caption`` div that ``caption.lua`` hands to
+    ``\\caption`` after pandoc has converted its markdown. LaTeX then numbers the figures itself, so
+    main.md's numbers must be the ones it will assign -- 1, 2, 3 in order of appearance -- and the
+    build stops if they are not. ``check_pdf_text.py --aux`` compares them with the numbers LaTeX
+    actually recorded.
+    """
     out: list[str] = []
     names: list[str] = []
     inside: str | None = None
+    caption: list[str] = []
     for line in body.splitlines():
         match = FIGURE_BEGIN.match(line.strip())
         if match:
@@ -505,12 +636,35 @@ def replace_figures(body: str) -> tuple[str, list[str]]:
                 _die(f"figure {match.group(1)} opens inside figure {inside}")
             inside = match.group(1)
             names.append(inside)
-            out.extend((f"\\TMLRFigureBegin{{fig-{inside}}}", ""))
+            caption = []
         elif line.strip() == FIGURE_END:
             if not inside:
                 _die("a figure closes that was never opened")
-            out.extend(("", "\\TMLRFigureEnd"))
+            text = "\n".join(caption).strip()
+            label = CAPTION_LABEL.match(text)
+            if not label:
+                _die(f"figure {inside}: the caption does not open with '**Figure N.**'")
+            if int(label.group(1)) != len(names):
+                _die(
+                    f"figure {inside} is labelled Figure {label.group(1)} in main.md, but it is "
+                    f"figure {len(names)} in order of appearance, which is the number LaTeX gives it"
+                )
+            if "\n\n" in text:
+                _die(f"figure {inside}: the caption must be one paragraph")
+            out.extend(
+                (
+                    f"\\TMLRFigureBegin{{fig-{inside}}}",
+                    "",
+                    f'::: {{.tmlr-caption label="fig-{inside}"}}',
+                    text[label.end() :],
+                    ":::",
+                    "",
+                    "\\TMLRFigureEnd",
+                )
+            )
             inside = None
+        elif inside:
+            caption.append(line)
         else:
             out.append(line)
     if inside:
@@ -518,6 +672,76 @@ def replace_figures(body: str) -> tuple[str, list[str]]:
     if len(names) != len(set(names)):
         _die(f"a figure is placed twice: {names}")
     return "\n".join(out), names
+
+
+@dataclass(frozen=True)
+class Heading:
+    level: int  # 1 section, 2 subsection, 3 subsubsection
+    number: str  # as main.md writes it and LaTeX will set it: "4", "4.1", "B", "B.3"
+    title: str
+
+
+_HEADING = re.compile(r"^(#{2,}) (.+?)\s*$")
+_HEADING_NUMBER = re.compile(r"^((?:\d+|[A-Z])(?:\.\d+)*)\.?\s+(\S.*)$")
+
+
+def number_headings(body: str) -> tuple[str, list[Heading]]:
+    """Take the numbers off main.md's headings and leave the numbering to LaTeX.
+
+    The section numbers are identifiers the rest of the repository cites ("§4.3"), so they stay in
+    main.md. The official style numbers sections itself and sets them as "4.3 Title", not
+    "4.3. Title"; the build now does the same (``manuscript/tmlr/TEMPLATE-DIFF.md``). That is only
+    safe if main.md's numbers are the ones LaTeX will assign, so each is predicted -- sections
+    1, 2, ... before the appendices and A, B, ... after ``\\appendix``, subsections from 1 within
+    their section -- and the build stops on the first that differs. The prediction is checked
+    against what LaTeX actually recorded by ``check_pdf_text.py --aux``.
+    """
+    lines = body.split("\n")
+    headings: list[Heading] = []
+    counters = [0, 0, 0]
+    appendix = False
+    fenced = False
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if line.strip() == "\\TMLRAppendix":
+            appendix = True
+            counters = [0, 0, 0]
+            continue
+        match = _HEADING.match(line)
+        if not match:
+            continue
+        level = len(match.group(1)) - 1
+        if level > 3:
+            _die(f"a heading deeper than the third level has no LaTeX number: {line!r}")
+        numbered = _HEADING_NUMBER.match(match.group(2))
+        if not numbered:
+            _die(f"a heading carries no section number: {line!r}")
+        counters[level - 1] += 1
+        counters[level:] = [0] * (3 - level)
+        head = chr(ord("A") + counters[0] - 1) if appendix else str(counters[0])
+        expected = ".".join([head, *(str(c) for c in counters[1:level])])
+        number, title = numbered.group(1), numbered.group(2)
+        if number != expected:
+            _die(
+                f"the heading {line!r} is numbered {number} in main.md, but LaTeX will number it "
+                f"{expected}; renumber main.md (and what cites it) rather than the build"
+            )
+        headings.append(Heading(level, number, title))
+        lines[index] = f"{match.group(1)} {title}"
+    if fenced:
+        _die("a fenced code block is never closed")
+    return "\n".join(lines), headings
+
+
+def manuscript_headings(text: str) -> list[Heading]:
+    """The headings of the body the PDF sets, with the numbers LaTeX is expected to give them."""
+    _, body = split_title(text)
+    body = replace_references(take_abstract(drop_block(body)))
+    return number_headings(body)[1]
 
 
 def replace_references(body: str) -> str:
@@ -663,6 +887,7 @@ def build(
     body = move_footnote(body)
     body, figures = replace_figures(body)
     body = replace_references(body)
+    body, headings = number_headings(body)
     body = drop_rules(body)
     body, table_count = weight_table_columns(body)
     body, rows = convert_citations(body, references)
@@ -706,7 +931,8 @@ def build(
     source = "\n".join(front) + "\n\n" + body.lstrip("\n") + "\n"
     print(
         f"[pdf-source] {len(references)} references, {len(rows)} citations, "
-        f"{len(figures)} figure(s), {table_count} table(s) weighted, "
+        f"{len(figures)} figure(s), {len(headings)} headings left to LaTeX to number, "
+        f"{table_count} table(s) weighted, "
         f"{split_count} over-long token(s) made breakable"
     )
     return source, render_bib(references, anonymous=anonymous), figures

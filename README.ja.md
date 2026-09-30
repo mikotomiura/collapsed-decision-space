@@ -1,11 +1,11 @@
 # 3 つのゲート、3 つの代理量
 
-*An instrument autopsy of a sealed LLM-agent evaluation*
+*Auditing the null-report checks of a pre-registered LLM-agent evaluation*
 
 > **これは [`README.md`](README.md) の日本語版です。正典は英語版であり、食い違いがあれば
 > 英語版が正しい**（本文・投稿・査読がすべて英語のため）。
 
-本リポジトリは、**封印済みの事前登録評価と、その結果の価値を決めたゲートの検死 (instrument autopsy)**
+本リポジトリは、**封印済みの事前登録評価と、その結果の価値を決めたゲートの監査**
 (`manuscript/main.md`) の研究コンペンディウムです。protocol 本文、その土台となる凍結済みの証拠、
 測定 apparatus、完了済み run と前向き 2 アームの per-draw データ、アームの試行記録、事後の観察 1 つに
 対する held-out 検査、そして 3 つの verdict (完了済み run と前向き 2 アーム) を同梱 per-draw annotation
@@ -57,8 +57,8 @@ study が、チャネルが因果的であること、静的な位置チャネ�
   主に JSON の欠落・破損であり、固定された on → off のブロック順と交絡しています
 
 前向きアームと held-out 検査は、これを解決せず、表に出しました。この主張は 0.10 という margin の値に
-依存せず、チャネルの効果については何も言わず、2 モデル・8 つの凍結 context に限られます。以前の版の本文は
-完了済み run から別の結論を引いていました。その読みを撤回する理由は本文 §N.4 にあります。
+依存せず、チャネルの効果については何も言わず、2 モデルと、8 組の block で実行した 1 つの凍結 prompt に限られます。以前の版の本文は
+完了済み run から別の結論を引いていました。その読みを撤回する理由は `manuscript/CHANGELOG.md` にあります。
 
 **本稿が効果について語るとき、その主語はチャネルです。** 歩行ではなく、創造性でもありません。
 
@@ -75,7 +75,7 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 - 検出力ゲートが計算する chi-square 代理検定では、基底分布の集中それ自体は計算上の検出力を下げないこと。
   permutation 検定の power は封印済の設計では評価されていない。実行前に宣言した事後 simulation では、
   完了済 run の channel-off 基底の上で、代理の向きに沿って `delta_tv` = 0.05 以上では代理と同じ 1.0、
-  それより小さい偏りでは代理を下回る (本文 §4.3、`data/posthoc/`)
+  それより小さい偏りでは代理を下回る (本文 §4.2、`data/posthoc/`)
 - 推定値を産出した 2 つの run で、チャネルの下流効果が、データが存在する前に固定した margin の下で
   検出されなかったこと
 - effect-absent / low-power / apparatus-invalid を**三者別々**に保つこと
@@ -86,7 +86,7 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 - held-out 検査で、前向き 2 run の両方において記録上の `None` が channel-on ブロックで多かったこと。
   ただし修飾子と一緒にだけ書く: 明示的 null の修飾子は control でのみ成立し primary では成立しない /
   記録上の `None` の中身は 2 アームで違う / 実行順と交絡している / 形式上の事前登録ではない
-- envelope が限定されていること（単一 apparatus・単一サンプリング regime・2 モデル族・凍結 8 context）
+- envelope が限定されていること（単一 apparatus・単一サンプリング regime・2 モデル族・8 組の block で実行した 1 つの凍結 prompt。封印済みの文の凍結 8 context）
 
 **この設計の射程外**（28 件のうち 3 件を例示）
 
@@ -230,7 +230,7 @@ ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 - 完了済み測定: `verdict = NO_CHANNEL_CONFORMANCE`、`tv_bar` は宣言 margin 0.10 を下回り、
   `rho_hat` と `power` はともに 1.0
 - power: これは検出力ゲートが計算する pooled chi-square 代理検定の power であり、判定が依拠する
-  permutation 検定の power ではありません (後者は封印済の設計では評価されておらず、本文 §4.3 が事後にsimulation しています)。この代理計算では
+  permutation 検定の power ではありません (後者は封印済の設計では評価されておらず、本文 §4.2 が事後にsimulation しています)。この代理計算では
   **検出力を左右するのは探している偏りの大きさであって、基底分布がどれだけ集中しているかでは
   ありません**。登録した `delta_tv` では両方の基底で 1.0000 を返すので、通過は両者を区別しません
 
@@ -243,6 +243,10 @@ commit `61dbd96` で凍結して 1 回だけ実行し、その結果が `analysi
 
 deposit の title 欄には本文の以前の作業タイトルが残っています。deposit の最終更新時刻は記録済み witness の
 錨となる server 時刻の 1 つなので、metadata は編集しません (編集すると錨が動きます)。
+
+tag `stage1-submitted` は、2026 年 9 月に PCI Registered Reports へ投稿した時点の本リポジトリの状態を示します。
+その投稿の記録として残しており、本文の現在の状態ではありません (本文はその後に再構成しました。
+変更の記録は `manuscript/CHANGELOG.md`)。
 
 予備研究のうち 1 件は protocol で報告していますが、機械可読な記録が残っていないため、
 そこからの数値はどこにも引いていません。この欠落は回避せず開示しています。

@@ -25,8 +25,9 @@ on:
     inputs:
       anonymous:
         description: >-
-          Build the anonymous submission PDF and the anonymous supplement instead of the named
-          preprint, and read the PDF back to check that nothing in it identifies the author.
+          Build the anonymous submission PDF instead of the named preprint, from the de-identified
+          bundle (an internal intermediate: no supplement is submitted), and read the PDF back to
+          check that nothing in it identifies the author.
         type: boolean
         default: false
 
@@ -80,7 +81,7 @@ jobs:
             texlive-fonts-recommended texlive-pictures lmodern poppler-utils
           # What tmlr.sty and the template load, asserted where it is installed rather than
           # discovered in the middle of a build.
-          for sty in lmodern eso-pic natbib seqsplit footnotehyper tikz amsmath amssymb longtable booktabs hyperref; do
+          for sty in lmodern eso-pic natbib seqsplit footnotehyper tikz amsmath amssymb longtable booktabs hyperref placeins; do
             kpsewhich "$sty.sty"
           done
           kpsewhich glyphtounicode.tex
@@ -124,20 +125,33 @@ jobs:
 
       - name: Check what the PDF actually contains
         # Required phrases, the page budget, the first-page footnote, every figure's numbers row by
-        # row on its own page, the column headers of the widest tables, the characters at risk of
-        # silent loss, and the quantities read from the frozen inputs by key.
+        # row on its own page, the section and figure numbers LaTeX recorded in the .aux against
+        # main.md's, the column headers of the widest tables, the characters at risk of silent loss,
+        # and the quantities read from the frozen inputs by key.
         run: |
           python3 analysis/scripts/check_pdf_text.py build/pdf/paper.txt \
-            --raw build/pdf/paper-raw.txt ${{ inputs.anonymous && '--anonymous' || '' }}
+            --raw build/pdf/paper-raw.txt --aux build/pdf/paper.aux \
+            ${{ inputs.anonymous && '--anonymous' || '' }}
+
+      - name: Push the real References past the page budget, and require the check to fail
+        # The self-test in the compendium workflow shows the page-budget check reads synthetic pages
+        # correctly; this shows it reads these pages. Blank pages are inserted before the page that
+        # carries the References until they fall one page past the budget, and the check must return
+        # exactly the diagnostic for that; the unmutated pages must pass.
+        run: python3 analysis/scripts/check_pdf_text.py build/pdf/paper.txt --page-mutation
 
       - name: Check that nothing in the anonymous PDF identifies the author
         # Reads the information dictionary, any XMP packet, every link annotation and every
-        # inflated stream, and the page. The upstream project's name and the title of the author's
-        # prior preprint fail here as well, though the supplement has to keep the former.
+        # inflated stream, the page, and the generated source the page was set from. The words the
+        # anonymous build withholds fail here as well: the upstream project's name, which the
+        # bundle has to keep, a supplement, which is not submitted, and the rest of PDF_WITHHELD.
+        # Then each withheld word is put back into copies of the page text and of the source, one
+        # at a time, and must be reported under its own label.
         if: inputs.anonymous
         run: |
           uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py \
-            build/pdf/paper.pdf --text build/pdf/paper.txt
+            build/pdf/paper.pdf --text build/pdf/paper.txt --source build/pdf/paper-source.md \
+            --mutation-test
 
       - name: Check the PDF against the claim boundary
         # The PDF is published in its own right, so it is a claim surface too. The patterns come
@@ -163,6 +177,7 @@ jobs:
             build/pdf/paper.txt
             build/pdf/paper-raw.txt
             build/pdf/paper.log
+            build/pdf/paper.aux
             build/anonymous.zip
             build/anonymous/anonymisation-report.json
           if-no-files-found: warn

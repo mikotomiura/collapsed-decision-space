@@ -6,7 +6,7 @@
       "line": 8,
       "literal": "§1.4 of the manuscript",
       "old": "1.4",
-      "new": "1.3"
+      "new": "2.4"
     },
     {
       "file": "analysis/autopsy/grid.json",
@@ -48,7 +48,7 @@
       "line": 147,
       "literal": "§12.1",
       "old": "12.1",
-      "new": "6.1"
+      "new": "8.1"
     },
     {
       "file": "analysis/heldout-stay/SPEC.ja.md",
@@ -62,14 +62,14 @@
       "line": 133,
       "literal": "§12.1",
       "old": "12.1",
-      "new": "6.1"
+      "new": "8.1"
     },
     {
       "file": "analysis/heldout-stay/result.json",
       "line": 668,
       "literal": "§12.1",
       "old": "12.1",
-      "new": "6.1"
+      "new": "8.1"
     },
     {
       "file": "data/posthoc/pipeline.md",
