@@ -25,16 +25,26 @@
 \IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
 \makesavenoteenv{longtable}
 \AtBeginEnvironment{longtable}{\footnotesize}
+% A table's title ("Table 1: ...", from a pandoc `Table:` caption) is set at the size and the width
+% the official style gives a caption, not at the table's \footnotesize and longtable's 4in default
+% (TEMPLATE-DIFF.md). A patch that no longer applies stops the build rather than passing silently.
+\setlength{\LTcapwidth}{\textwidth}
+\makeatletter
+\patchcmd\LT@makecaption{\sbox\@tempboxa}{\normalsize\sbox\@tempboxa}{}%
+  {\PackageError{template}{longtable's caption could not be set at \string\normalsize}{}}
+\makeatother
 \usepackage{seqsplit}
 \usepackage{tikz}
 \usetikzlibrary{patterns,positioning}
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
+\usepackage{placeins}
 \setlength{\emergencystretch}{3em}
 \providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
-% Section numbers are part of the headings in main.md (they are the identifiers the rest of the
-% repository cites), so LaTeX must not add its own.
-\setcounter{secnumdepth}{-\maxdimen}
+% Sections are numbered by LaTeX, as in the official sample ("4.3 Title"). main.md keeps the numbers
+% in its headings, because the repository cites them; make_pdf_source.py takes them off, stops if one
+% is not the number LaTeX will assign, and check_pdf_text.py --aux compares them with the numbers
+% LaTeX recorded (TEMPLATE-DIFF.md).
 \DeclareUnicodeCharacter{2192}{\ensuremath{\rightarrow}}
 \DeclareUnicodeCharacter{2265}{\ensuremath{\geq}}
 \DeclareUnicodeCharacter{2264}{\ensuremath{\leq}}
@@ -44,9 +54,13 @@
 \DeclareUnicodeCharacter{2212}{\ensuremath{-}}
 \DeclareUnicodeCharacter{03BB}{\ensuremath{\lambda}}
 \DeclareUnicodeCharacter{03B1}{\ensuremath{\alpha}}
-\newcommand{\TMLRFigureBegin}[1]{\begin{figure}[tbp]\centering\small\input{#1}\par\medskip\raggedright}
+% The figure body is set small, as the figures are drawn for it; the caption is set by \caption at
+% the size the official style gives it (caption.lua). \FloatBarrier keeps every figure of the main
+% text before the bibliography: a float LaTeX carried past it would be main content that the page
+% budget, read off the page on which "References" is set, does not see.
+\newcommand{\TMLRFigureBegin}[1]{\begin{figure}[tbp]\centering{\small\input{#1}\par}}
 \newcommand{\TMLRFigureEnd}{\end{figure}}
-\newcommand{\TMLRBibliography}{\bibliographystyle{tmlr}\bibliography{refs}}
+\newcommand{\TMLRBibliography}{\FloatBarrier\bibliographystyle{tmlr}\bibliography{refs}}
 \newcommand{\TMLRAppendix}{\clearpage\appendix}
 \title{$title$}
 \author{$if(tmlr-author)$$tmlr-author$$endif$}

@@ -37,7 +37,8 @@ document renders ``sample-complexity`` as ``samplecomplexity`` in the extracted 
 sixty-three hyphenated words are unaffected. That is an artefact of reading the PDF back, not of the
 PDF.
 
-Usage:  python analysis/scripts/check_pdf_text.py extracted.txt
+Usage:  python analysis/scripts/check_pdf_text.py extracted.txt --raw raw.txt --aux paper.aux
+        python analysis/scripts/check_pdf_text.py --self-test
 """
 
 from __future__ import annotations
@@ -53,6 +54,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _provenance import load_json  # noqa: E402
 from check_manuscript_numbers import REQUIRED, literal_of  # noqa: E402
 from make_figures import expected_rows  # noqa: E402
+from make_pdf_source import manuscript_headings  # noqa: E402
 
 #: Headings and title-block fields that must survive into the PDF. Each is load-bearing for the
 #: submission rather than decorative: the title and the author block come from a transformation
@@ -89,12 +91,18 @@ FIRST_PAGE_PHRASES: tuple[str, ...] = ("Use of AI assistance.",)
 #: stands between it and the appendices, so the page on which "References" is set bounds the main
 #: text. It must also come before the first appendix, or the bound would measure nothing.
 REFERENCES_LAST_PAGE = 13
-FIRST_APPENDIX_HEADING = "A. The apparatus and the channel"
+#: The first appendix's title. LaTeX numbers the appendices (TEMPLATE-DIFF.md), and pdftotext sets
+#: the letter on a line of its own before the title, so the title line is what is matched; a letter
+#: on the same line is allowed for an extractor that joins them.
+FIRST_APPENDIX_TITLE = "The apparatus and the channel (completed preliminary study)"
 #: The two headings the page budget is read from, as line patterns on the extracted page. A line
 #: carrying anything besides the heading -- a trailing space included -- does not match, so a
 #: heading that pdftotext set differently is reported missing rather than guessed at.
 REFERENCES_PATTERN = r"^References$"
-FIRST_APPENDIX_PATTERN = r"^" + re.escape(FIRST_APPENDIX_HEADING)
+FIRST_APPENDIX_PATTERN = r"^(?:A\s+)?" + re.escape(FIRST_APPENDIX_TITLE) + "$"
+#: How a figure caption begins on the page: LaTeX's "Figure 2:" (``\caption``, TEMPLATE-DIFF.md).
+#: main.md writes the same caption as "**Figure 2.**", which make_pdf_source.py takes off.
+CAPTION_ON_PAGE = "Figure {number}:"
 
 
 def page_of(pages: list[str], pattern: str) -> int | None:
@@ -205,12 +213,15 @@ def page_budget_self_test() -> tuple[int, list[str]]:
     ``REFERENCES_LAST_PAGE``, so the cases test the budget this file enforces.
     """
     last = REFERENCES_LAST_PAGE
-    captions = ["Figure 1.", "Figure 2."]
-    app = FIRST_APPENDIX_HEADING
-    figures = (("Figure 1. A caption", 3, 2), ("Figure 2. Another caption", 5, 4))
+    one, two = CAPTION_ON_PAGE.format(number=1), CAPTION_ON_PAGE.format(number=2)
+    captions = [one, two]
+    app = FIRST_APPENDIX_TITLE
+    figures = ((f"{one} A caption", 3, 2), (f"{two} Another caption", 5, 4))
     cases: tuple[tuple[str, list[str], str | None], ...] = (
         ("S1 References on the last page allowed, the first appendix after it",
-         _pages(("References", last, 3), (app, last + 2, 1), *figures), None),
+         _pages(("References", last, 3), ("A", last + 2, 1), (app, last + 2, 3), *figures), None),
+        ("S1b the appendix letter on the same line as its title",
+         _pages(("References", last, 3), (f"A {app}", last + 2, 1), *figures), None),
         ("S2 References one page too late",
          _pages(("References", last + 1, 3), (app, last + 3, 1), *figures),
          f"References begin on page {last + 1}"),
@@ -231,11 +242,14 @@ def page_budget_self_test() -> tuple[int, list[str]]:
          _pages(("References", last - 3, 3), ("References", last, 3), (app, last + 2, 1), *figures),
          "the References heading occurs 2 times"),
         ("S9 a figure caption after the References",
-         _pages(("References", last - 1, 3), (app, last + 2, 1), figures[0], ("Figure 2. Another caption", last, 1)),
-         "'Figure 2.' is set on page"),
+         _pages(("References", last - 1, 3), (app, last + 2, 1), figures[0], (f"{two} Another caption", last, 1)),
+         f"{two!r} is set on page"),
         ("S10 a figure caption missing",
          _pages(("References", last, 3), (app, last + 2, 1), figures[0]),
-         "the caption 'Figure 2.' is not in the PDF"),
+         f"the caption {two!r} is not in the PDF"),
+        ("S11 a caption in main.md's form, not LaTeX's",
+         _pages(("References", last, 3), (app, last + 2, 1), figures[0], ("Figure 2. Another caption", 5, 4)),
+         f"the caption {two!r} is not in the PDF"),
     )  # fmt: skip
     problems: list[str] = []
     for name, pages, expected in cases:
@@ -251,9 +265,132 @@ def page_budget_self_test() -> tuple[int, list[str]]:
 
 
 def figure_numbers(repo_root: Path) -> dict[str, str]:
-    """Figure name -> its caption label ("Figure 2."), read from the markers in main.md."""
+    """Figure name -> the label its caption carries on the page ("Figure 2:").
+
+    Read from the markers in main.md, where the same caption opens "**Figure 2.**".
+    """
     text = (repo_root / "manuscript" / "main.md").read_text(encoding="utf-8")
-    return dict(re.findall(r"<!-- TMLR:FIGURE ([a-z0-9-]+) -->\n\*\*(Figure \d+\.)\*\*", text))
+    return {
+        name: CAPTION_ON_PAGE.format(number=int(number))
+        for name, number in re.findall(
+            r"<!-- TMLR:FIGURE ([a-z0-9-]+) -->\n\*\*Figure (\d+)\.\*\*", text
+        )
+    }
+
+
+_LEVELS = {"section": 1, "subsection": 2, "subsubsection": 3}
+_TOC_ENTRY = re.compile(
+    r"^\\@writefile\{toc\}\{\\contentsline \{(section|subsection|subsubsection)\}"
+    r"\{\\numberline \{([^{}]*)\}(.*)\}\{(\d+)\}\{[^{}]*\}\\protected@file@percent \}$"
+)
+_LOF_ENTRY = re.compile(
+    r"^\\@writefile\{lof\}\{\\contentsline \{figure\}\{\\numberline \{([^{}]*)\}"
+)
+_LOT_ENTRY = re.compile(
+    r"^\\@writefile\{lot\}\{\\contentsline \{table\}\{\\numberline \{([^{}]*)\}"
+)
+#: A table title in main.md: pandoc's caption line, written with the "Table:" prefix so that the
+#: repository rendering reads it as a title. LaTeX numbers the titled tables in order.
+TABLE_CAPTION = re.compile(r"^Table: \S", re.M)
+
+
+def _title_key(title: str) -> str:
+    """A heading title reduced to lower-case letters and digits, LaTeX commands removed, so that
+    main.md's "Notes to §1" and the .aux's "Notes to \\S 1" compare equal."""
+    return re.sub(r"[^a-z0-9]", "", re.sub(r"\\[A-Za-z@]+", "", title).lower())
+
+
+def aux_heading_problems(
+    aux: str, headings: list[tuple[int, str, str]], figure_count: int, table_count: int = 0
+) -> list[str]:
+    """Compare the section and figure numbers LaTeX recorded in the ``.aux`` with main.md's.
+
+    ``headings`` is ``(level, number, title)`` for every heading of the body, as main.md numbers
+    it (``make_pdf_source.manuscript_headings``). The build predicts LaTeX's numbers and stops if
+    main.md disagrees; this reads what LaTeX actually assigned, so a prediction that was itself
+    wrong -- a counter the build did not model, a heading LaTeX did not number -- is caught here.
+    """
+    recorded = [
+        (_LEVELS[m.group(1)], m.group(2), m.group(3), m.group(4))
+        for m in map(_TOC_ENTRY.match, aux.split("\n"))
+        if m
+    ]
+    if not recorded:
+        return ["the .aux records no numbered heading, so the section numbers were not compared"]
+    problems: list[str] = []
+    divergence = ""
+    for (level, number, title), (aux_level, aux_number, aux_title, page) in zip(
+        headings, recorded, strict=False
+    ):
+        if (level, number) != (aux_level, aux_number):
+            divergence = (
+                f"main.md numbers {title!r} {number} at level {level}; LaTeX numbered the heading "
+                f"in that place {aux_number} at level {aux_level} (page {page})"
+            )
+            break
+        if _title_key(title) != _title_key(aux_title):
+            divergence = f"heading {number}: LaTeX set {aux_title!r} where main.md has {title!r}"
+            break
+    if len(recorded) != len(headings):
+        problems.append(
+            f"the .aux records {len(recorded)} numbered headings, main.md has {len(headings)}"
+            + (f"; the first to differ: {divergence}" if divergence else "")
+        )
+    elif divergence:
+        problems.append(divergence)
+    figures = [m.group(1) for m in map(_LOF_ENTRY.match, aux.split("\n")) if m]
+    if figures != [str(n) for n in range(1, figure_count + 1)]:
+        problems.append(
+            f"LaTeX numbered the figures {figures}; main.md places {figure_count}, numbered 1 to "
+            f"{figure_count}"
+        )
+    tables = [m.group(1) for m in map(_LOT_ENTRY.match, aux.split("\n")) if m]
+    if tables != [str(n) for n in range(1, table_count + 1)]:
+        problems.append(
+            f"LaTeX numbered the tables {tables}; main.md titles {table_count} with 'Table:', "
+            f"numbered 1 to {table_count}"
+        )
+    return problems
+
+
+def aux_self_test() -> tuple[int, list[str]]:
+    """Run :func:`aux_heading_problems` on synthetic ``.aux`` text whose answer is known."""
+
+    def toc(level: str, number: str, title: str, page: int, anchor: str) -> str:
+        return (
+            f"\\@writefile{{toc}}{{\\contentsline {{{level}}}{{\\numberline {{{number}}}{title}}}"
+            f"{{{page}}}{{{anchor}}}\\protected@file@percent }}"
+        )
+
+    headings = [(1, "1", "Introduction"), (2, "1.1", "Notes to §1"), (1, "A", "An appendix")]
+    lines = [
+        "\\relax ",
+        toc("section", "1", "Introduction", 1, "section.1"),
+        toc("subsection", "1.1", "Notes to \\S 1", 1, "subsection.1.1"),
+        "\\@writefile{lof}{\\contentsline {figure}{\\numberline {1}{\\ignorespaces A caption}}{2}{figure.1}\\protected@file@percent }",
+        toc("section", "A", "An appendix", 3, "appendix.A"),
+    ]  # fmt: skip
+    good = "\n".join(lines)
+    cases: tuple[tuple[str, str, str | None], ...] = (
+        ("A1 the recorded numbers and titles agree", good, None),
+        ("A2 LaTeX numbered a subsection differently", good.replace("{1.1}", "{1.2}"), "LaTeX numbered the heading in that place 1.2"),
+        ("A3 a heading LaTeX did not number", "\n".join(lines[:2] + lines[3:]), "the .aux records 2 numbered headings, main.md has 3"),
+        ("A4 a figure LaTeX did not number", "\n".join(lines[:3] + lines[4:]), "LaTeX numbered the figures []"),
+        ("A5 an .aux without numbered headings", "\\relax ", "the .aux records no numbered heading"),
+        ("A6 a title that differs", good.replace("An appendix", "Another appendix"), "heading A: LaTeX set"),
+        ("A7 a titled table main.md does not declare", good + "\n\\@writefile{lot}{\\contentsline {table}{\\numberline {1}{A title}}{2}{table.1}\\protected@file@percent }", "LaTeX numbered the tables ['1']; main.md titles 0"),
+    )  # fmt: skip
+    problems: list[str] = []
+    for name, aux, expected in cases:
+        found = aux_heading_problems(aux, headings, 1, 0)
+        if expected is None:
+            if found:
+                problems.append(f"{name}: the control returned {found}")
+        elif not found:
+            problems.append(f"{name}: not caught (no problem returned)")
+        elif len(found) != 1 or expected not in found[0]:
+            problems.append(f"{name}: caught for another reason: expected {expected!r}, got {found}")
+    return len(cases), problems
 
 
 def row_on_page(page: str, label: str, values: list[str]) -> bool:
@@ -277,7 +414,7 @@ def check_figures(repo_root: Path, pages: list[str]) -> list[str]:
     if sorted(numbers) != sorted(expected):
         return [f"figures placed in main.md {sorted(numbers)} are not those drawn {sorted(expected)}"]
     order = sorted(numbers.values(), key=lambda label: int(label.split()[1][:-1]))
-    if order != [f"Figure {i}." for i in range(1, len(order) + 1)]:
+    if order != [CAPTION_ON_PAGE.format(number=i) for i in range(1, len(order) + 1)]:
         problems.append(f"the figure captions are not numbered 1, 2, 3...: {order}")
     for name, rows in expected.items():
         page_number = page_of(pages, r"^\s*" + re.escape(numbers[name]) + " ")
@@ -373,16 +510,29 @@ def main(argv: list[str] | None = None) -> int:
         "--anonymous", action="store_true", help="the PDF is the anonymous submission build"
     )
     parser.add_argument(
+        "--aux",
+        type=Path,
+        help="the .aux of the build, which records the section and figure numbers LaTeX assigned",
+    )
+    parser.add_argument(
         "--self-test",
         action="store_true",
-        help="run the page-budget check on synthetic pages whose answer is known, and nothing else",
+        help="run the page-budget and .aux checks on synthetic input whose answer is known, and "
+        "nothing else",
     )
     args = parser.parse_args(argv)
 
     if args.self_test:
-        ran, failures = page_budget_self_test()
-        if ran == 0:
-            print("[pdf-text] FAIL: the self-test ran no case", file=sys.stderr)
+        ran_pages, failures = page_budget_self_test()
+        ran_aux, aux_failures = aux_self_test()
+        failures += aux_failures
+        ran = ran_pages + ran_aux
+        if ran_pages == 0 or ran_aux == 0:
+            print(
+                f"[pdf-text] FAIL: the self-test ran {ran_pages} page-budget and {ran_aux} .aux "
+                "cases; neither may be zero",
+                file=sys.stderr,
+            )
             return 1
         if failures:
             print(f"[pdf-text] FAIL: self-test, {len(failures)} of {ran} cases", file=sys.stderr)
@@ -390,13 +540,13 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  - {failure}", file=sys.stderr)
             return 1
         print(
-            f"[pdf-text] OK self-test: {ran} page-budget cases run, each returned exactly the "
-            f"expected diagnostic (or none, for the control), at REFERENCES_LAST_PAGE = "
-            f"{REFERENCES_LAST_PAGE}"
+            f"[pdf-text] OK self-test: {ran_pages} page-budget and {ran_aux} .aux cases run, each "
+            "returned exactly the expected diagnostic (or none, for the controls), at "
+            f"REFERENCES_LAST_PAGE = {REFERENCES_LAST_PAGE}"
         )
         return 0
-    if args.extracted is None or args.raw is None:
-        parser.error("the extracted text and --raw are required unless --self-test is given")
+    if args.extracted is None or args.raw is None or args.aux is None:
+        parser.error("the extracted text, --raw and --aux are required unless --self-test is given")
 
     if not args.extracted.is_file():
         print(f"[pdf-text] FAIL: no extracted text at {args.extracted}", file=sys.stderr)
@@ -436,6 +586,18 @@ def main(argv: list[str] | None = None) -> int:
     else:
         raw_pages = args.raw.read_text(encoding="utf-8", errors="replace").split("\f")
         problems += check_figures(args.repo_root, raw_pages)
+
+    if not args.aux.is_file():
+        problems.append(f"no .aux at {args.aux}, so the section numbers were not compared")
+    else:
+        manuscript = (args.repo_root / "manuscript" / "main.md").read_text(encoding="utf-8")
+        headings = manuscript_headings(manuscript)
+        problems += aux_heading_problems(
+            args.aux.read_text(encoding="utf-8", errors="replace"),
+            [(h.level, h.number, h.title) for h in headings],
+            len(captions),
+            len(TABLE_CAPTION.findall(manuscript)),
+        )
 
     for column in WIDEST_TABLE_COLUMNS:
         if normalise(column) not in flat:
@@ -482,6 +644,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"[pdf-text] OK: References begin on page {references} (at most {REFERENCES_LAST_PAGE}), "
+        f"every heading and figure carries the number main.md gives it in the .aux, "
         "the AI-use footnote is on the first page, every figure's numbers stand row by row on its "
         f"page, {len(REQUIRED_PHRASES) + len(title_phrases)} required phrases, "
         f"all {len(WIDEST_TABLE_COLUMNS)} column headers of the section F table and "

@@ -21,7 +21,10 @@ What it changes, and why each change is necessary:
    the end of the first paragraph of the introduction. It is moved, not copied: the page carries it
    once, as ``main.md`` does.
 4. **Figure markers become figure environments** around the ``\\input`` of a figure that
-   ``make_figures.py`` generates from the shipped data. The caption stays in ``main.md`` as prose.
+   ``make_figures.py`` generates from the shipped data. The caption stays in ``main.md`` as prose,
+   opening with its label ("**Figure 2.**"); the build takes the label off and sets the rest through
+   ``\\caption``, so that LaTeX numbers the figure and sets "Figure 2:" as the official style does
+   (``manuscript/tmlr/TEMPLATE-DIFF.md``).
 5. **Citations become natbib author-year.** ``[n]`` is a permanent identifier from the central
    bibliography; the bibliography of the PDF is generated from the References section of
    ``main.md`` (:func:`parse_references`), so there is no ``.bib`` file to drift from it. Where the
@@ -34,6 +37,9 @@ What it changes, and why each change is necessary:
    "References" is set.
 7. **Over-long typewriter tokens are given permission to break**, and horizontal rules between
    sections are dropped (the TMLR style separates sections itself).
+8. **Section numbers are taken off the headings and left to LaTeX**, which sets them as the official
+   style does ("4.3 Title"). main.md keeps its numbers, because the repository cites them, and the
+   build stops if any of them is not the number LaTeX will assign (:func:`number_headings`).
 
 With ``--anonymous``, two identifying strings the de-identified bundle has to keep are also
 withheld from the page (``.steering`` DA-C-4 and DA-C-5): the name of the upstream project, which
@@ -142,7 +148,13 @@ WITHHELD_TITLE = "Title withheld for anonymous review"
 
 CITATIONS_FIXTURE = Path("manuscript") / "tmlr" / "citations.tsv"
 TMLR_DIR = Path("manuscript") / "tmlr"
-TMLR_FILES: tuple[str, ...] = ("tmlr.sty", "tmlr.bst", "fancyhdr.sty", "template.tex")
+TMLR_FILES: tuple[str, ...] = (
+    "tmlr.sty",
+    "tmlr.bst",
+    "fancyhdr.sty",
+    "template.tex",
+    "caption.lua",
+)
 
 
 def _die(message: str) -> None:
@@ -494,10 +506,26 @@ def move_footnote(body: str) -> str:
     return body[:end] + f"^[{note}]" + body[end:]
 
 
+#: The label a figure's caption opens with in main.md, where it is prose ("**Figure 2.**").
+CAPTION_LABEL = re.compile(r"^\*\*Figure (\d+)\.\*\*\s+")
+
+
 def replace_figures(body: str) -> tuple[str, list[str]]:
+    """Turn each figure block into a figure environment whose caption LaTeX sets and numbers.
+
+    In main.md the caption is a paragraph that opens with its label, "**Figure 2.**", so that the
+    repository rendering shows it. The official style sets "Figure 2:" through ``\\caption``, and
+    this build does the same (``manuscript/tmlr/TEMPLATE-DIFF.md``): the label is taken off, and the
+    rest of the paragraph goes into a ``tmlr-caption`` div that ``caption.lua`` hands to
+    ``\\caption`` after pandoc has converted its markdown. LaTeX then numbers the figures itself, so
+    main.md's numbers must be the ones it will assign -- 1, 2, 3 in order of appearance -- and the
+    build stops if they are not. ``check_pdf_text.py --aux`` compares them with the numbers LaTeX
+    actually recorded.
+    """
     out: list[str] = []
     names: list[str] = []
     inside: str | None = None
+    caption: list[str] = []
     for line in body.splitlines():
         match = FIGURE_BEGIN.match(line.strip())
         if match:
@@ -505,12 +533,35 @@ def replace_figures(body: str) -> tuple[str, list[str]]:
                 _die(f"figure {match.group(1)} opens inside figure {inside}")
             inside = match.group(1)
             names.append(inside)
-            out.extend((f"\\TMLRFigureBegin{{fig-{inside}}}", ""))
+            caption = []
         elif line.strip() == FIGURE_END:
             if not inside:
                 _die("a figure closes that was never opened")
-            out.extend(("", "\\TMLRFigureEnd"))
+            text = "\n".join(caption).strip()
+            label = CAPTION_LABEL.match(text)
+            if not label:
+                _die(f"figure {inside}: the caption does not open with '**Figure N.**'")
+            if int(label.group(1)) != len(names):
+                _die(
+                    f"figure {inside} is labelled Figure {label.group(1)} in main.md, but it is "
+                    f"figure {len(names)} in order of appearance, which is the number LaTeX gives it"
+                )
+            if "\n\n" in text:
+                _die(f"figure {inside}: the caption must be one paragraph")
+            out.extend(
+                (
+                    f"\\TMLRFigureBegin{{fig-{inside}}}",
+                    "",
+                    f'::: {{.tmlr-caption label="fig-{inside}"}}',
+                    text[label.end() :],
+                    ":::",
+                    "",
+                    "\\TMLRFigureEnd",
+                )
+            )
             inside = None
+        elif inside:
+            caption.append(line)
         else:
             out.append(line)
     if inside:
@@ -518,6 +569,76 @@ def replace_figures(body: str) -> tuple[str, list[str]]:
     if len(names) != len(set(names)):
         _die(f"a figure is placed twice: {names}")
     return "\n".join(out), names
+
+
+@dataclass(frozen=True)
+class Heading:
+    level: int  # 1 section, 2 subsection, 3 subsubsection
+    number: str  # as main.md writes it and LaTeX will set it: "4", "4.1", "B", "B.3"
+    title: str
+
+
+_HEADING = re.compile(r"^(#{2,}) (.+?)\s*$")
+_HEADING_NUMBER = re.compile(r"^((?:\d+|[A-Z])(?:\.\d+)*)\.?\s+(\S.*)$")
+
+
+def number_headings(body: str) -> tuple[str, list[Heading]]:
+    """Take the numbers off main.md's headings and leave the numbering to LaTeX.
+
+    The section numbers are identifiers the rest of the repository cites ("§4.3"), so they stay in
+    main.md. The official style numbers sections itself and sets them as "4.3 Title", not
+    "4.3. Title"; the build now does the same (``manuscript/tmlr/TEMPLATE-DIFF.md``). That is only
+    safe if main.md's numbers are the ones LaTeX will assign, so each is predicted -- sections
+    1, 2, ... before the appendices and A, B, ... after ``\\appendix``, subsections from 1 within
+    their section -- and the build stops on the first that differs. The prediction is checked
+    against what LaTeX actually recorded by ``check_pdf_text.py --aux``.
+    """
+    lines = body.split("\n")
+    headings: list[Heading] = []
+    counters = [0, 0, 0]
+    appendix = False
+    fenced = False
+    for index, line in enumerate(lines):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if line.strip() == "\\TMLRAppendix":
+            appendix = True
+            counters = [0, 0, 0]
+            continue
+        match = _HEADING.match(line)
+        if not match:
+            continue
+        level = len(match.group(1)) - 1
+        if level > 3:
+            _die(f"a heading deeper than the third level has no LaTeX number: {line!r}")
+        numbered = _HEADING_NUMBER.match(match.group(2))
+        if not numbered:
+            _die(f"a heading carries no section number: {line!r}")
+        counters[level - 1] += 1
+        counters[level:] = [0] * (3 - level)
+        head = chr(ord("A") + counters[0] - 1) if appendix else str(counters[0])
+        expected = ".".join([head, *(str(c) for c in counters[1:level])])
+        number, title = numbered.group(1), numbered.group(2)
+        if number != expected:
+            _die(
+                f"the heading {line!r} is numbered {number} in main.md, but LaTeX will number it "
+                f"{expected}; renumber main.md (and what cites it) rather than the build"
+            )
+        headings.append(Heading(level, number, title))
+        lines[index] = f"{match.group(1)} {title}"
+    if fenced:
+        _die("a fenced code block is never closed")
+    return "\n".join(lines), headings
+
+
+def manuscript_headings(text: str) -> list[Heading]:
+    """The headings of the body the PDF sets, with the numbers LaTeX is expected to give them."""
+    _, body = split_title(text)
+    body = replace_references(take_abstract(drop_block(body)))
+    return number_headings(body)[1]
 
 
 def replace_references(body: str) -> str:
@@ -663,6 +784,7 @@ def build(
     body = move_footnote(body)
     body, figures = replace_figures(body)
     body = replace_references(body)
+    body, headings = number_headings(body)
     body = drop_rules(body)
     body, table_count = weight_table_columns(body)
     body, rows = convert_citations(body, references)
@@ -706,7 +828,8 @@ def build(
     source = "\n".join(front) + "\n\n" + body.lstrip("\n") + "\n"
     print(
         f"[pdf-source] {len(references)} references, {len(rows)} citations, "
-        f"{len(figures)} figure(s), {table_count} table(s) weighted, "
+        f"{len(figures)} figure(s), {len(headings)} headings left to LaTeX to number, "
+        f"{table_count} table(s) weighted, "
         f"{split_count} over-long token(s) made breakable"
     )
     return source, render_bib(references, anonymous=anonymous), figures

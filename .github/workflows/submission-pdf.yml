@@ -80,7 +80,7 @@ jobs:
             texlive-fonts-recommended texlive-pictures lmodern poppler-utils
           # What tmlr.sty and the template load, asserted where it is installed rather than
           # discovered in the middle of a build.
-          for sty in lmodern eso-pic natbib seqsplit footnotehyper tikz amsmath amssymb longtable booktabs hyperref; do
+          for sty in lmodern eso-pic natbib seqsplit footnotehyper tikz amsmath amssymb longtable booktabs hyperref placeins; do
             kpsewhich "$sty.sty"
           done
           kpsewhich glyphtounicode.tex
@@ -124,11 +124,13 @@ jobs:
 
       - name: Check what the PDF actually contains
         # Required phrases, the page budget, the first-page footnote, every figure's numbers row by
-        # row on its own page, the column headers of the widest tables, the characters at risk of
-        # silent loss, and the quantities read from the frozen inputs by key.
+        # row on its own page, the section and figure numbers LaTeX recorded in the .aux against
+        # main.md's, the column headers of the widest tables, the characters at risk of silent loss,
+        # and the quantities read from the frozen inputs by key.
         run: |
           python3 analysis/scripts/check_pdf_text.py build/pdf/paper.txt \
-            --raw build/pdf/paper-raw.txt ${{ inputs.anonymous && '--anonymous' || '' }}
+            --raw build/pdf/paper-raw.txt --aux build/pdf/paper.aux \
+            ${{ inputs.anonymous && '--anonymous' || '' }}
 
       - name: Check that nothing in the anonymous PDF identifies the author
         # Reads the information dictionary, any XMP packet, every link annotation and every
@@ -163,6 +165,7 @@ jobs:
             build/pdf/paper.txt
             build/pdf/paper-raw.txt
             build/pdf/paper.log
+            build/pdf/paper.aux
             build/anonymous.zip
             build/anonymous/anonymisation-report.json
           if-no-files-found: warn
