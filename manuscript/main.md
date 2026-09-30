@@ -350,7 +350,8 @@ replicates in each of the four feasible directions (D1, D2, D3, D5), and the tes
 These are not four independent confirmations: the replicates share their channel-off draws, and D1
 and D5 give identical statistics there from `delta_tv` = 0.05 upward. At the margin, a pass of the
 power gate and the test's simulated rejection rate agree on this base, and the test's rate reaches
-0.8 at the margin on every simulated base, in every direction feasible there. Along the surrogate's
+0.8 at the margin in every pair of base and direction that the declared grid runs at that size;
+the grid does not run every direction on every base. Along the surrogate's
 own direction on the same base they agree from `delta_tv` = 0.05 upward and part below it
 (Figure 2).
 
