@@ -1,11 +1,11 @@
 # 3 つのゲート、3 つの代理量
 
-*An instrument autopsy of a sealed LLM-agent evaluation*
+*Auditing the null-report checks of a pre-registered LLM-agent evaluation*
 
 > **これは [`README.md`](README.md) の日本語版です。正典は英語版であり、食い違いがあれば
 > 英語版が正しい**（本文・投稿・査読がすべて英語のため）。
 
-本リポジトリは、**封印済みの事前登録評価と、その結果の価値を決めたゲートの検死 (instrument autopsy)**
+本リポジトリは、**封印済みの事前登録評価と、その結果の価値を決めたゲートの監査**
 (`manuscript/main.md`) の研究コンペンディウムです。protocol 本文、その土台となる凍結済みの証拠、
 測定 apparatus、完了済み run と前向き 2 アームの per-draw データ、アームの試行記録、事後の観察 1 つに
 対する held-out 検査、そして 3 つの verdict (完了済み run と前向き 2 アーム) を同梱 per-draw annotation

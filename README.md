@@ -1,11 +1,11 @@
 # Three gates, three proxies
 
-*An instrument autopsy of a sealed LLM-agent evaluation*
+*Auditing the null-report checks of a pre-registered LLM-agent evaluation*
 
 [![repro](https://github.com/mikotomiura/collapsed-decision-space/actions/workflows/repro.yml/badge.svg)](https://github.com/mikotomiura/collapsed-decision-space/actions/workflows/repro.yml)
 
 This repository is the research compendium for **a sealed, pre-registered evaluation and an
-autopsy of the gates that decided what its outcome is worth** (`manuscript/main.md`). It holds the
+audit of the gates that decided what its outcome is worth** (`manuscript/main.md`). It holds the
 protocol, the frozen evidence the protocol builds on, the measurement apparatus, the per-draw data of
 the completed run and of the two prospective arms, the arms' attempt logs, a held-out test of one
 post hoc observation, and a single command that re-derives all three verdicts -- the completed

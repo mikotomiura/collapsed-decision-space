@@ -1,8 +1,8 @@
-# Three gates, three proxies: an instrument autopsy of a sealed LLM-agent evaluation
+# Three gates, three proxies: auditing the null-report checks of a pre-registered LLM-agent evaluation
 
 <!-- TMLR:DROP -->
 
-**A sealed, pre-registered evaluation, its outcome reported against the sealed rules, and an autopsy of the gates that decided what that outcome is worth. Every analysis outside the sealed rules is labelled by when it was fixed (§2.4).**
+**A sealed, pre-registered evaluation, its outcome reported against the sealed rules, and an audit of the gates that decided what that outcome is worth. Every analysis outside the sealed rules is labelled by when it was fixed (§2.4).**
 No prospective draw existed when the decision rules were sealed. They are sealed in machine-readable
 form, so that the branch reported afterwards can be re-derived from the rules as they stood before
 it (§J).
@@ -22,24 +22,24 @@ it (§J).
 
 ## Abstract
 
-A pre-registered evaluation that may end in a null has to fix in advance what a null would be
-worth. We report an instrument autopsy of one that did: a sealed evaluation of whether an
-agent-internal channel, a scalar from a language-model agent's recent movement composed into its
-sampling temperature, shifts a five-way zone decision beyond a declared margin. Sealed after a completed run on one model and applied to two prospective arms, its rules stop at R4, apparatus validity. The three gates that decide what a null
-report is worth each ran as written, and each read a quantity other than the one its reading
-depends on. The power gate reads a pooled chi-square surrogate, not the stratified permutation test
-the decision turns on. A post hoc simulation of the sealed pipeline, declared before it was run,
-finds the test's rejection rate at the surrogate's 1.0 from half the registered effect size upward
-on the completed run's channel-off base, and below it at smaller shifts: at a tenth of the margin
-the surrogate returns 1.0 where the test rejects in 122 of 1,000 simulated replicates. The entropy
-floor reads per-context entropy, not support: two runs of one model clear it while their
-channel-off draws never produce two of the five zones. The cap on draws with no zone, which the
-estimand drops, reads the largest per-cell rate, not the difference between conditions: all three
-runs pass it, while a held-out test of a post hoc observation found more such draws in the
-channel-on blocks of both arms (156 against 94; 107 against 61). Those draws were mostly the string
-"null" in one arm and missing or malformed JSON in the other, and the difference is confounded with
-execution order. The claim concerns the instrument, not the channel, does not depend on the
-margin's value, and is confined to two models and eight frozen contexts.
+A pre-registered evaluation that may end in a null must fix in advance what a null is worth, through
+gates on power, read-out variability and dropped outputs. We audit the three gates of one sealed
+evaluation of a language-model agent. The agent receives one fixed prompt, set in a simulated world
+with five named zones, and returns a plan naming its next zone. The evaluation asked whether a
+change in sampling driven by the agent's recent movement shifts that choice by more than a
+total-variation margin of 0.10. Its rules stopped at the measurability gate, with no estimate for
+the second of two models. Each gate ran as written and read a quantity other than the one its
+reading depends on. The power gate evaluates a chi-square surrogate rather than the permutation test
+that decides. On the first run's channel-off base, along the surrogate's direction, a post hoc
+simulation declared in advance finds that test's rejection rate at the surrogate's 1.0 from half the
+registered effect size upward, but at a tenth of the margin the surrogate returns 1.0 where the test
+rejects in 122 of 1,000 simulated replicates. The entropy floor passes two runs whose channel-off
+draws leave two of the five zones empty. The cap on draws with no recorded zone reads the worst cell
+rather than the difference between conditions. A held-out test found more such draws in both arms'
+channel-on blocks (156 against 94; 107 against 61), mostly the string "null" in one arm and missing
+or malformed JSON in the other, confounded with execution order. This case motivates three
+diagnostics for interpreting protocol gates. The claims concern these gates on two models and one
+prompt, not the effect of the channel.
 
 ---
 
@@ -515,7 +515,7 @@ specification requires, without judging it against the margin.
 
 ### 7.1 Three diagnostics
 
-This case motivates three diagnostics for interpreting protocol gates. Each is stated by its input,
+Three diagnostics for interpreting protocol gates follow from this case. Each is stated by its input,
 what it looks at, what it can show, what it cannot, and the work it rests on. Their usefulness on
 other protocols, and how often gates read proxies elsewhere, are not examined here.
 
