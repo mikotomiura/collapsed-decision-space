@@ -350,8 +350,8 @@ replicates in each of the four feasible directions (D1, D2, D3, D5), and the tes
 These are not four independent confirmations: the replicates share their channel-off draws, and D1
 and D5 give identical statistics there from `delta_tv` = 0.05 upward. At the margin, a pass of the
 power gate and the test's simulated rejection rate agree on this base, and the test's rate reaches
-0.8 at the margin in every pair of base and direction that the declared grid runs at that size;
-the grid does not run every direction on every base. Along the surrogate's
+0.8 in every base and direction the declared grid runs at that size, which is not every direction
+on every base. Along the surrogate's
 own direction on the same base they agree from `delta_tv` = 0.05 upward and part below it
 (Figure 2).
 
@@ -359,7 +359,7 @@ own direction on the same base they agree from `delta_tv` = 0.05 upward and part
 alone rejects in 411 of 500 replicates (`0.822`) while the pipeline stops at R4 in 500 of 500, and
 P(R2) first reaches 0.8 there at `delta_tv` = 0.10 (497 of 500). The simulation does not cover other
 bases, other directions, shifts that differ in size between contexts, or numbers of draws other than
-the completed run's. §B.3 gives the declaration, the design and every declared cell.
+the completed run's.
 
 ---
 

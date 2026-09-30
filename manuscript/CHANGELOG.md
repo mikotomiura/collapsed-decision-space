@@ -288,8 +288,10 @@ upward": the two named the same 0.10. The abstract of `CITATION.cff` is the same
   appendix on the simulation, and that shifts one grid step apart are not distinguished; "not an
   estimate of any effect of the channel" and "It estimates nothing the channel did" left, since the
   introduction and the limitations say it. The simulation paragraph now says that at the margin the
-  test's rate reaches 0.8 in every pair of base and direction that the declared grid runs at
-  that size, and that the grid does not run every direction on every base.
+  test's rate reaches 0.8 in every base and direction the declared grid runs at that size, which
+  is not every direction on every base. "§B.3 gives the declaration, the design and every declared
+  cell." left the end of the section on the simulation: the caption of Figure 2 points to the same
+  appendix section.
 - *Gate 2*: a post hoc paragraph says what the simulation shows about the empty zones (one grid step
   at most for the test) and about the degenerate base, and that the primary arm's base was not
   simulated.
