@@ -64,8 +64,7 @@ other than the one the reading of its result depends on:**
   missing or malformed JSON in the other, and confounded with the fixed on-then-off block order.
 
 The prospective arms and the held-out test did not resolve this; they exposed it. The claim does not
-depend on the value of the 0.10 margin, says nothing about the channel's effect, and is confined to
-two models and eight frozen contexts. An earlier version of the manuscript drew a different
+depend on the value of the 0.10 margin, says nothing about the channel's effect, and is confined to two models and one frozen prompt run in eight pairs of blocks. An earlier version of the manuscript drew a different
 conclusion from the completed run; `manuscript/CHANGELOG.md` says why that reading is withdrawn.
 
 **Wherever this work speaks of an effect, its subject is the channel.** It is not walking, and it
@@ -97,8 +96,8 @@ The full guard list, with the search patterns used to enforce it, is in
   runs — stated only with its qualifiers: the explicit-null qualifier holds for the control arm and
   not for the primary arm, what was recorded as `None` differs between the arms, the difference is
   confounded with execution order, and the test is not a formal pre-registration
-- the envelope is bounded: one apparatus, one sampling regime, two model families, eight frozen
-  contexts
+- the envelope is bounded: one apparatus, one sampling regime, two model families, and one frozen
+  prompt run in eight pairs of blocks (the sealed text's eight frozen contexts)
 
 **Out of reach of this design** (three of twenty-eight guards, quoted for orientation)
 
@@ -291,6 +290,10 @@ change.
 The deposit carries an earlier working title of the manuscript in its title field. Its metadata is
 not edited, because the deposit's last-modified time is one of the server times the recorded witness
 anchors on, and an edit would move that anchor.
+
+The tag `stage1-submitted` marks the state of this repository submitted to PCI Registered Reports in
+September 2026. It is kept as a record of that submission and is not the state of the manuscript,
+which has since been restructured; `manuscript/CHANGELOG.md` records what changed.
 
 One preliminary study is reported in the protocol but its machine-readable record was not retained,
 so no quantity from it is quoted anywhere. That gap is disclosed rather than worked around.

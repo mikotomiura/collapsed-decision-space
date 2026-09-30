@@ -86,3 +86,49 @@ adjacent paper is removed with it.
 **Registered-report vocabulary.** The preface to the decision rules and the section on what breaks
 the seal no longer name in-principle acceptance, a recommender or a completion report. The rule
 block generated from the seal is unchanged.
+
+### Sentences about earlier versions, rewritten as present facts
+
+The appendices described several earlier states of the compendium. Each now states the present
+fact; the earlier state is recorded here. The three disclosures of a sealed text that does not match
+the data or the run output stay in the manuscript: the sealed reading of R4 (*What the sealed rules
+returned*), the sealed word "pooled" (*The six quantities the rules read*), and the sealed script's
+word "floor" (*Data, code and reproducibility*).
+
+- *The six quantities the rules read*: "earlier drafts of this protocol said 'pooled', which named
+  nothing that exists" is now "the sealed text's word 'pooled' names a quantity the run output does
+  not contain".
+- *Claim-boundary enforcement*: the negative control's sentence is described as "a sentence that
+  corrects an earlier reading" rather than "the withdrawal of an earlier reading". The fixture is
+  unchanged.
+- *What the seal covers*: the provenance module "was missing from an earlier version of this list —
+  which is why the seal now also fails if a sealed script imports a local module that is not itself
+  sealed".
+- *Provenance gaps* and *What the checks reach*: the per-draw record of the completed run was, in
+  earlier versions of the compendium, referenced by hash rather than included, to keep the
+  repository small; it has been shipped since 2026-09-25, when the recomputation of the two
+  prospective verdicts was added as well.
+- *Data, code and reproducibility*:
+  - The paragraph on the tag `stage1-submitted`, which marks the state submitted to PCI Registered
+    Reports in September 2026, moved to the README.
+  - The sealed `repro.sh` "describes step 8 in the vocabulary of an earlier version" of the section on
+    the support of the read-out, "in which the permutation-null mean was called a floor".
+  - "The deposit carries an earlier working title of this manuscript in its title field."
+  - On step 14: "we would rather say so than be found out", and "An independent review demonstrated
+    the gap by writing a witness from nothing … and an earlier version of this check reported no
+    problems at all. The closure requirements above are the repair for what an offline check can
+    repair; this paragraph is the repair for the rest."
+  - On step 9: "An earlier version of this section said that a single altered digit fails the run".
+- *AI usage disclosure*: "these two rows were both wrong by the time anyone read them once before",
+  and "The figure here was briefly pinned to a commit on a feature branch, which the squash-merge of
+  that branch left unreachable from `main`; the row now names a commit on `main`, and the count fell
+  from 30 to 20 because squashing is what the public history actually records."
+- *Section numbers cited by files that cannot change*: "This manuscript was reordered for submission:
+  the body comes first, then the references, then the appendices, and its sections were renumbered"
+  (2026-09-26). The table's column "Earlier number" is now "Number cited".
+
+### The anonymous build
+
+`analysis/scripts/make_pdf_source.py` no longer rewrites the sentence on the tag of an earlier
+submission, because the sentence left the manuscript. `analysis/scripts/check_pdf_identity.py` still
+fails the anonymous build if the tag or that venue reaches the page.

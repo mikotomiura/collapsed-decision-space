@@ -1095,7 +1095,7 @@ as a pre-declared constant. No rule in §E re-analyses any of this material.
 | `rho_hat` | R1–R5 | Fraction of contexts whose per-context entropy of the zone distribution, pooled over both conditions with unparseable draws excluded, reaches `h_min_bits` (apparatus validity). It reads entropy, not the number of zones produced; §5 shows the two coming apart in both directions |
 | `power` | R1–R3, R5 | Monte-Carlo power of a pooled one-sample chi-square goodness-of-fit test against an alternative built by moving mass from the largest to the smallest cell of the empirical channel-off distribution: the nominal sensitivity of a surrogate diagnostic. **This is not the power of the permutation test that produces `permutation_reject`**, which is the test the decision actually turns on; the two use different statistics and are not interchangeable (§4.1), and §4.2 simulates the second post hoc. At the registered `delta_tv` it is 1.0 for both bases §B.1 checks, near-uniform and degenerate, so a pass does not distinguish them; §4.1 shows its sensitivity when a cell of the base is empty |
 | `permutation_reject` | R1, R2, R5 | Outcome of the permutation test at the declared α |
-| `none_rate_max_observed` | R4 | The apparatus computes the fraction of draws yielding no parseable zone **per (context, condition) cell** and records the maximum across cells. No pooled figure is produced anywhere in the run output, so the maximum is the quantity R4 is evaluated on; earlier drafts of this protocol said "pooled", which named nothing that exists. The scorer independently returns `INCONCLUSIVE` if any single cell exceeds `none_rate_max`, so R4's second condition partly duplicates a gate upstream of it. It caps the rate in any one cell; it does not read how the rate differs between the conditions (§6) |
+| `none_rate_max_observed` | R4 | The apparatus computes the fraction of draws yielding no parseable zone **per (context, condition) cell** and records the maximum across cells. No pooled figure is produced anywhere in the run output, so the maximum is the quantity R4 is evaluated on. The sealed text's word "pooled" names a quantity the run output does not contain. The scorer independently returns `INCONCLUSIVE` if any single cell exceeds `none_rate_max`, so R4's second condition partly duplicates a gate upstream of it. It caps the rate in any one cell; it does not read how the rate differs between the conditions (§6) |
 | `verdict` | R5 | The categorical verdict emitted by the scorer for the control arm |
 
 Table: The six quantities the sealed rules read.
@@ -1290,8 +1290,8 @@ exists only so that a silently broken pattern cannot report success. A pattern t
 the fixture fails the run. A second fixture, `manuscript/_claim_boundary_negative_control.md`, holds
 the opposite: sentences this manuscript and the seal must be able to say -- the sealed reading of R4,
 the sealed note that the completed run attained power 1.0, the statements that the sealed design
-did not evaluate the power of the permutation test and what its post hoc simulation reports, the
-withdrawal of an earlier reading -- and the run fails if
+did not evaluate the power of the permutation test and what its post hoc simulation reports, a
+sentence that corrects an earlier reading -- and the run fails if
 any pattern matches one of them. The block of §E generated from the seal is scanned with the rest of
 this manuscript, so a pattern that matched a sealed sentence could never be satisfied.
 
@@ -1310,7 +1310,7 @@ Before any prospective draw is collected, eleven files are sealed, in six groups
 | The rules | `seal/decision-rules.json` | The decision itself. Everything else exists to stop this changing quietly |
 | The run | `seal/arm-spec.json` | Every value the list below calls a not-minor deviation |
 | The protocol | `seal/protocol.md` | The part of this manuscript whose alteration would change how the result reads |
-| The code that reads them | `apply_decision_rules.py`, `render_decision_rules.py`, `verify_seal.py`, `check_seal_scope.py`, `_provenance.py` | A checker that can be edited is not a check. The last of these supplies the hashing the others use, and was missing from an earlier version of this list — which is why the seal now also fails if a sealed script imports a local module that is not itself sealed |
+| The code that reads them | `apply_decision_rules.py`, `render_decision_rules.py`, `verify_seal.py`, `check_seal_scope.py`, `_provenance.py` | A checker that can be edited is not a check. The last of these supplies the hashing the others use, and the seal also fails if a sealed script imports a local module that is not itself sealed |
 | The code that reaches outside | `collect_zenodo_witness.py` | The only script here that touches the network. It reads an archive's public record and writes down the checksums and server-assigned times it finds, which is the one input to these checks that does not come from the author. A collector editable after the deposit could be taught to write down whatever made the comparison agree |
 | The record and the command | `analysis/freeze-provenance.json`, `repro.sh` | The provenance of the frozen thresholds, and the fourteen steps that check all of the above |
 
@@ -1369,10 +1369,8 @@ matters in general.
 
 ### I.4 Provenance gaps we are carrying
 
-The ES-1 verdict record is not shipped (§A). The per-draw record of the completed run was, in
-earlier versions of this compendium, referenced by hash rather than included, to keep the
-repository small; since 2026-09-25 it is shipped byte for byte in `data/completed/`, checked by
-step 3 against its size and digest in `data/data.md` and against the digest the run's own manifest
+The ES-1 verdict record is not shipped (§A). The per-draw record of the completed run is shipped byte for byte in
+`data/completed/`, checked by step 3 against its size and digest in `data/data.md` and against the digest the run's own manifest
 pinned, and re-parsed as §6.1 describes. A
 separate report of the upstream apparatus's determinism properties is citable [40], but it is a
 different body of evidence and does not stand in for the missing ES-1 record: the gap below is
@@ -1391,8 +1389,8 @@ All three gaps are stated rather than worked around.
 
 ### I.5 What the checks reach on the prospective arms, and what they do not
 
-The reproduction script evaluates the sealed rules against the two landed verdicts, and, since
-2026-09-25, step 5 also recomputes both verdicts from the arms' per-draw annotations and manifests
+The reproduction script evaluates the sealed rules against the two landed verdicts, and step 5 also
+recomputes both verdicts from the arms' per-draw annotations and manifests
 in `data/prospective/`, exactly as it does for the completed run, and requires them to agree with
 the landed files field by field. Whether the landed verdicts follow from the annotations shipped
 beside them is therefore checked, not recorded. That the annotations agree with the raw per-draw
@@ -1482,10 +1480,6 @@ carries the pre-registration. The files listed in §H are sealed by content: `se
 records their SHA-256 and a self-hash over itself, and step 12 below fails if the checkout in front
 of you does not hold exactly those bytes. **The pin is a hash, not a branch name and not a tag.**
 
-The tag `stage1-submitted` in this repository marks the state submitted to PCI Registered Reports
-in September 2026. It is kept as a record of that submission and is **not** the state of this
-manuscript, which has since been rewritten.
-
 The upstream source repository the apparatus and the provenance records come from is
 <https://github.com/mikotomiura/ERRE-Sandbox>, and §G.2 gives the commit identifiers within it.
 Apart from the archival deposit of the sealed files described in §J, there is no separate
@@ -1534,10 +1528,10 @@ reporting a count of steps that passed.
 
 The fourteen steps include no test suite and no `pytest` run: this repository has none, and its
 checks run as the steps themselves and, for the held-out test, as the `heldout-stay` workflow. The
-sealed `repro.sh` also describes step 8 in the vocabulary of an earlier version of §M.3, in which
-the permutation-null mean was called a floor. Its comments and its progress line are sealed bytes
-and keep that wording, and the script and output file names it calls are kept for the same reason;
-the quantity the step computes is the permutation-null mean.
+sealed `repro.sh` names step 8, and the script and output file it calls, with the word "floor"
+(`collapse_and_floor`). Those names are sealed bytes and stay as they are. The quantity the step
+computes is the permutation-null mean of §M.3, a reference value for the observed statistic rather
+than a floor under it.
 
 The post hoc simulation of §4.2 is outside the fourteen steps, because `repro.sh` is sealed and a
 step cannot be added to it. Its code, grid and declaration are in `analysis/autopsy/` and its
@@ -1582,22 +1576,21 @@ step 14 recomputes that maximum rather than reading it, and fails if the recorde
 one the witness's own deposit listing implies. The publication date the deposit carries is supplied
 by the depositor, and the checker refuses to admit it to the anchor for that reason.
 
-The deposit carries an earlier working title of this manuscript in its title field. Its metadata is
-not edited, and no new version is created under the concept identifier: the deposit's last-modified
+The deposit's title field carries a working title that differs from the title of this manuscript.
+Its metadata is not edited, and no new version is created under the concept identifier: the deposit's last-modified
 time is one of the server times the witness records, so an edit would move the anchor described above and the
 collector would no longer reproduce the witness.
 
-**What step 14 establishes is less than its name suggests, and we would rather say so than be
-found out.** The step is offline. It establishes two things: that the recorded witness agrees with
+**What step 14 establishes is less than its name suggests.** The step is offline. It establishes two things: that the recorded witness agrees with
 these bytes, and that the witness is closed against itself — its anchor is the maximum of the
 server-assigned times it carries, and those times are exactly the ones its own deposit listing
 implies, one created and one updated per deposited file, with no invented name and no duplicate.
 It does *not* establish that the witness is what the archive returned. It cannot: a file in this
-repository is a file in this repository, whatever it describes. An independent review demonstrated
-the gap by writing a witness from nothing — digests computed locally in an algorithm no archive
-publishes, timestamps from the year 2000, a per-file time naming a file that did not exist — and an
-earlier version of this check reported no problems at all. The closure requirements above are the
-repair for what an offline check can repair; this paragraph is the repair for the rest.
+repository is a file in this repository, whatever it describes. The closure requirements above
+reject a witness written from nothing -- digests computed locally in an algorithm no archive
+publishes, timestamps from the year 2000, a per-file time naming a file that does not exist. They
+cannot reject a witness that is closed against itself and still not what the archive returned;
+that limit is what this paragraph states.
 
 Turning a *recorded* external half into a *checked* one takes one online act, and it is the
 reader's: the witness records the public URL it was read from, and re-running the collector against
@@ -1630,7 +1623,7 @@ The recomputation step is the strongest of these. Every other step compares a re
 shipped file; this one runs the scorer on each shipped per-draw annotation, at the sealed
 Monte-Carlo settings, and requires the resulting verdict string, all nine gate read-outs and all
 four per-context maps to agree with the recorded verdict: `data/raw/cproper-verdict.json` for the
-completed run and, since 2026-09-25, `data/raw/control-verdict.json` and
+completed run and `data/raw/control-verdict.json` and
 `data/raw/primary-verdict.json` for the two arms. The completed run's record (§B), and the two verdicts step 13
 reads, are therefore derivable from this repository rather than merely quoted from it. The step
 also alters each compared field of a copy of each record in turn and requires the comparison to
@@ -1644,9 +1637,9 @@ too. Its scope is bounded twice over, and we state both bounds rather than let t
 stronger than it is. It covers only the quantities obtainable mechanically from the frozen
 inputs; numbers outside that set are not covered at all. And within that set it tests
 **occurrence, not uniqueness**: several of these values appear at more than one point in this
-manuscript, so altering one occurrence while leaving another intact would not fail the run. An
-earlier version of this section said that a single altered digit fails the run, which is true
-only of a quantity that occurs exactly once, and the check does not determine which those are.
+manuscript, so altering one occurrence while leaving another intact would not fail the run. A
+single altered digit fails the run only for a quantity that occurs exactly once, and the check does
+not determine which those are.
 
 For quantities whose literals are too common for that -- small counts, zone counts, the rows of the
 tables in §4.1, §5, §6.2 and §B.1, and the counts and class breakdown of the held-out
@@ -1705,14 +1698,11 @@ history reachable from the commit named in each row. Both halves of that sentenc
 A single commit may carry more than one trailer, so the upstream history holds 286 such lines
 across those 205 commits, and a count of lines reported as a count of commits would overstate the
 figure by two fifths. And a count with no commit pinned beside it cannot be reproduced at all,
-because the next commit changes it -- these two rows were both wrong by the time anyone read them
-once before, for exactly that reason. Each row is therefore true of the commit it names and of no
+because the next commit changes it. Each row is therefore true of the commit it names and of no
 other, which is the most a count of this kind can be: the commit that records a figure cannot be
 included in it, so the row for this repository names the last commit before the one that wrote the
-row. It also has to name a commit a reader can still reach. The figure here was briefly pinned to a
-commit on a feature branch, which the squash-merge of that branch left unreachable from `main`; the
-row now names a commit on `main`, and the count fell from 30 to 20 because squashing is what the
-public history actually records. Anyone can recompute both with `git log --format=%H%x01%B%x02` over the named commit and count
+row. It also has to name a commit a reader can still reach, which is why the row names a commit on
+`main`. Anyone can recompute both with `git log --format=%H%x01%B%x02` over the named commit and count
 the entries whose body matches `co-authored-by:.*claude`, case-insensitively.
 
 All AI-assisted output was reviewed, edited and validated by the human author, who made the
@@ -1729,14 +1719,13 @@ guard that silently stopped working fails the run.
 
 ## L. Section numbers cited by files that cannot change
 
-This manuscript was reordered for submission: the body comes first, then the references, then the
-appendices, and its sections were renumbered. Some files cite a section by its earlier number and
-cannot be edited, because the seal (§H), the freeze of the held-out test (§6.2) or the declaration
+Some files cite a section of this manuscript by a number it no longer carries, and cannot be
+edited, because the seal (§H), the freeze of the held-out test (§6.2) or the declaration
 of the post hoc simulation (§4.2) binds their bytes. Each such citation is listed below with the
 section it now means. `analysis/scripts/check_crossrefs.py` requires every row to match the file it
 names, and fails if any other file in those groups cites a section of the manuscript.
 
-| File | Line | Earlier number | Now |
+| File | Line | Number cited | Now |
 |---|---|---|---|
 | `analysis/autopsy/DECLARATION.md` | 8 | 1.4 | §2.4 |
 | `analysis/autopsy/grid.json` | 38 | 5.2 | §B.1 |

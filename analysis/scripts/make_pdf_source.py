@@ -125,18 +125,14 @@ TAG_NAMES: tuple[str, ...] = ("autopsy-b3-declared", "stage1-submitted")
 TAG_PLACEHOLDER = "[tag withheld for review]"
 
 #: Sentences of the manuscript that the anonymous build rewrites, each matched exactly and required
-#: to occur once. The first names the author's own prior preprint by its subtitle, which a search
-#: resolves as surely as its title (TASK-POST review); the second names the venue this work was
-#: submitted to before (user ruling of 2026-09-26, DA-C-16). The named build carries both as written.
+#: to occur once. The one left names the author's own prior preprint by its subtitle, which a search
+#: resolves as surely as its title (TASK-POST review). The sentence on the venue this work was
+#: submitted to before left the manuscript in the 2026-09-30 revision (it is in the README), and
+#: ``check_pdf_identity.py`` still fails the anonymous build if that venue reaches the page.
 ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     (
         "The determinism and byte-exact cross-platform replay properties of the upstream apparatus\n",
         "The determinism properties of the upstream apparatus\n",
-    ),
-    (
-        "The tag `stage1-submitted` in this repository marks the state submitted to PCI Registered "
-        "Reports\nin September 2026.",
-        "A tag in this repository marks the state of an earlier submission of this work.",
     ),
 )
 
