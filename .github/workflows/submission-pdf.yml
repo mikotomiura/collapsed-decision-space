@@ -133,6 +133,13 @@ jobs:
             --raw build/pdf/paper-raw.txt --aux build/pdf/paper.aux \
             ${{ inputs.anonymous && '--anonymous' || '' }}
 
+      - name: Push the real References past the page budget, and require the check to fail
+        # The self-test in the compendium workflow shows the page-budget check reads synthetic pages
+        # correctly; this shows it reads these pages. Blank pages are inserted before the page that
+        # carries the References until they fall one page past the budget, and the check must return
+        # exactly the diagnostic for that; the unmutated pages must pass.
+        run: python3 analysis/scripts/check_pdf_text.py build/pdf/paper.txt --page-mutation
+
       - name: Check that nothing in the anonymous PDF identifies the author
         # Reads the information dictionary, any XMP packet, every link annotation and every
         # inflated stream, the page, and the generated source the page was set from. The words the

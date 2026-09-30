@@ -87,10 +87,14 @@ ANONYMOUS_PHRASES: tuple[str, ...] = ("Anonymous authors", "Paper under double-b
 #: opening words are what ``make_pdf_source.py`` moves there from the manuscript.
 FIRST_PAGE_PHRASES: tuple[str, ...] = ("Use of AI assistance.",)
 
-#: The page budget. The main text is meant to run to about twelve pages, and the bibliography
-#: stands between it and the appendices, so the page on which "References" is set bounds the main
-#: text. It must also come before the first appendix, or the bound would measure nothing.
-REFERENCES_LAST_PAGE = 13
+#: The page budget. A TMLR regular submission has at most 12 pages of "main content, before
+#: references" (TMLR FAQ, https://jmlr.org/tmlr/faq.html; the 2025 annual report calls 12 pages
+#: "the maximum number of pages for TMLR regular submissions"). The bibliography stands between the
+#: main text and the appendices, so the page on which "References" is set bounds the main text. The
+#: bound errs on the safe side: a main text of exactly twelve pages that pushes the heading to the
+#: top of page 13 fails here. The heading must also come before the first appendix, or the bound
+#: would measure nothing.
+REFERENCES_LAST_PAGE = 12
 #: The first appendix's title. LaTeX numbers the appendices (TEMPLATE-DIFF.md), and pdftotext sets
 #: the letter on a line of its own before the title, so the title line is what is matched; a letter
 #: on the same line is allowed for an extractor that joins them.
@@ -262,6 +266,51 @@ def page_budget_self_test() -> tuple[int, list[str]]:
         elif len(found) != 1 or expected not in found[0]:
             problems.append(f"{name}: caught for another reason: expected {expected!r}, got {found}")
     return len(cases), problems
+
+
+def page_mutation(
+    pages: list[str], last_page: int, first_appendix: str, figure_captions: list[str]
+) -> tuple[list[str], list[str]]:
+    """Push the real References heading past the budget with blank pages, and require the S2 fail.
+
+    The self-test shows that :func:`page_budget_problems` reads synthetic pages correctly; this shows
+    that it reads the pages of the PDF actually built. ``k`` empty pages are inserted before the
+    page that carries the References heading, ``k`` chosen so that the heading lands on the first
+    page past the budget. The unmutated pages are the control (``k`` = 0) and must pass; the mutant
+    must return exactly the diagnostic of case S2 and nothing else. Returns what it did, as lines to
+    print, and what went wrong.
+    """
+    report: list[str] = []
+    failures: list[str] = []
+    control = page_budget_problems(pages, last_page, first_appendix, figure_captions)
+    references = lines_matching(pages, REFERENCES_PATTERN)
+    report.append(
+        f"k = 0 (control): References on page {references[0][0] if references else None}, "
+        f"{len(control)} problem(s)"
+    )
+    if control:
+        failures.append(f"the control (k = 0) returned {control}")
+    if len(references) != 1:
+        failures.append(f"the References heading occurs {len(references)} times, so no mutant is built")
+        return report, failures
+    start = references[0][0]
+    k = last_page + 1 - start
+    if k <= 0:
+        failures.append(f"References already begin on page {start}, past the budget; k would be {k}")
+        return report, failures
+    mutant = pages[: start - 1] + [""] * k + pages[start - 1 :]
+    moved = lines_matching(mutant, REFERENCES_PATTERN)
+    found = page_budget_problems(mutant, last_page, first_appendix, figure_captions)
+    report.append(
+        f"k = {k}: References moved from page {start} to page {moved[0][0] if moved else None}, "
+        f"{len(found)} problem(s): {found}"
+    )
+    expected = f"References begin on page {last_page + 1}"
+    if not found:
+        failures.append(f"k = {k}: not caught (no problem returned)")
+    elif len(found) != 1 or expected not in found[0]:
+        failures.append(f"k = {k}: caught for another reason: expected {expected!r}, got {found}")
+    return report, failures
 
 
 def figure_numbers(repo_root: Path) -> dict[str, str]:
@@ -520,7 +569,39 @@ def main(argv: list[str] | None = None) -> int:
         help="run the page-budget and .aux checks on synthetic input whose answer is known, and "
         "nothing else",
     )
+    parser.add_argument(
+        "--page-mutation",
+        action="store_true",
+        help="insert blank pages before the References of the extracted text until they fall one "
+        "page past the budget, require the page-budget check to fail with exactly that "
+        "diagnostic, and require the unmutated text to pass; nothing else",
+    )
     args = parser.parse_args(argv)
+
+    if args.page_mutation:
+        if args.extracted is None or not args.extracted.is_file():
+            parser.error("--page-mutation needs the extracted text")
+        pages = args.extracted.read_text(encoding="utf-8", errors="replace").split("\f")
+        captions = sorted(
+            figure_numbers(args.repo_root).values(),
+            key=lambda label: int(label.split()[1][:-1]),
+        )
+        report, failures = page_mutation(
+            pages, REFERENCES_LAST_PAGE, FIRST_APPENDIX_PATTERN, captions
+        )
+        for line in report:
+            print(f"[pdf-text] page mutation: {line}")
+        if failures:
+            print("[pdf-text] FAIL: page mutation", file=sys.stderr)
+            for failure in failures:
+                print(f"  - {failure}", file=sys.stderr)
+            return 1
+        print(
+            "[pdf-text] OK page mutation: the real pages pass, and with the References pushed one "
+            f"page past REFERENCES_LAST_PAGE = {REFERENCES_LAST_PAGE} they fail with exactly the "
+            "S2 diagnostic"
+        )
+        return 0
 
     if args.self_test:
         ran_pages, failures = page_budget_self_test()
