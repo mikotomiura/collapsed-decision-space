@@ -311,6 +311,17 @@ Table: The surrogate's power against the completed run's channel-off base, from 
 alone says almost nothing about whether the test that decides could detect a shift of the declared
 size; §4.2 evaluates that test by simulation.
 
+<!-- TMLR:FIGURE power -->
+**Figure 2.** [Post hoc] Top: how often the sealed permutation test alone rejects (test) and how
+often the sealed pipeline reaches R2 (pipeline), along the surrogate's direction D1 on the completed
+run's channel-off base `C` and on the degenerate base `G`, beside the R3 surrogate at the same shift;
+the plotted values are printed beneath. A marker's shape shows the quantity and its size the base, so
+that curves which coincide, as the test and the pipeline on `C` nearly do, can both be seen. Bottom:
+for every declared base and direction, the smallest declared shift at which each rate reaches 0.8
+(n.r.: not reached in the declared grid; n/a: not in the grid). Simulated under assumed channel-off
+distributions, not an estimate of any effect of the channel.
+<!-- /TMLR:FIGURE -->
+
 ### 4.2 Simulated operating characteristics of the sealed pipeline
 
 **[Post hoc]** The simulation measures what the gate was meant to stand for. It asks how often the
@@ -337,17 +348,6 @@ and D5 give identical statistics there from `delta_tv` = 0.05 upward. At the reg
 this base, a pass of the power gate and the test's simulated rejection rate agree. Along the
 surrogate's own direction on the same base they agree from `delta_tv` = 0.05 upward and part below it
 (Figure 2).
-
-<!-- TMLR:FIGURE power -->
-**Figure 2.** [Post hoc] Top: how often the sealed permutation test alone rejects (test) and how
-often the sealed pipeline reaches R2 (pipeline), along the surrogate's direction D1 on the completed
-run's channel-off base `C` and on the degenerate base `G`, beside the R3 surrogate at the same shift;
-the plotted values are printed beneath. A marker's shape shows the quantity and its size the base, so
-that curves which coincide, as the test and the pipeline on `C` nearly do, can both be seen. Bottom:
-for every declared base and direction, the smallest declared shift at which each rate reaches 0.8
-(n.r.: not reached in the declared grid; n/a: not in the grid). Simulated under assumed channel-off
-distributions, not an estimate of any effect of the channel.
-<!-- /TMLR:FIGURE -->
 
 **[Post hoc]** The test and the pipeline come apart on the degenerate base: along D1, at `delta_tv` = 0.02 the test
 alone rejects in 411 of 500 replicates (`0.822`) while the pipeline stops at R4 in 500 of 500, and
