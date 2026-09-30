@@ -316,3 +316,17 @@ upward": the two named the same 0.10. The abstract of `CITATION.cff` is the same
   the higher temperature and top-p among the alternatives.
 - *What the two arms' gate quantities do and do not compare*: "the quantity that would answer it was
   not estimable there" became "the registered scoring procedure returned no estimate there".
+
+## 2026-10-01 — a reading of the final PDF before submission
+
+Three sentences of the appendices had not followed earlier changes. None moves a claim or a number.
+
+- *AI usage disclosure*: the Claude models now include Opus 5.5, and the Codex models `gpt-6-astra`.
+  Both were used after the list was written: the commits of this repository name Opus 5.5 in their
+  trailers, and `gpt-6-astra` reviewed the revisions of 2026-09-30 and 2026-10-01.
+- *Provenance gaps we are carrying*: "All three gaps are stated" became "Both gaps are stated". The
+  third, the per-draw record of the completed run, has been shipped since 2026-09-25, and the
+  paragraph already said so.
+- *What the record of the dropped draws does not show*: "(results section)" became "(§I.5)". The
+  unnumbered results section it named became *What the sealed rules returned* on 2026-09-30, and the
+  shipped records of the two arms are described in *What the checks reach on the prospective arms*.
