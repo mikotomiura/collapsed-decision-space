@@ -29,17 +29,17 @@ with five named zones, and returns a plan naming its next zone. The evaluation a
 change in sampling driven by the agent's recent movement shifts that choice by more than a
 total-variation margin of 0.10. Its rules stopped at the measurability gate, with no estimate for
 the second of two models. Each gate ran as written and read a quantity other than the one its
-reading depends on. The power gate evaluates a chi-square surrogate rather than the permutation test
-that decides. On the first run's channel-off base, along the surrogate's direction, a post hoc
-simulation declared in advance finds that test's rejection rate at the surrogate's 1.0 from half the
-registered effect size upward, but at a tenth of the margin the surrogate returns 1.0 where the test
-rejects in 122 of 1,000 simulated replicates. The entropy floor passes two runs whose channel-off
-draws leave two of the five zones empty. The cap on draws with no recorded zone reads the worst cell
-rather than the difference between conditions. A held-out test found more such draws in both arms'
-channel-on blocks (156 against 94; 107 against 61), mostly the string "null" in one arm and missing
-or malformed JSON in the other, confounded with execution order. This case motivates three
-diagnostics for interpreting protocol gates. The claims concern these gates on two models and one
-prompt, not the effect of the channel.
+reading depends on. The power gate evaluates a chi-square surrogate, not the permutation test that
+decides. A post hoc simulation of that test, fixed before it ran, shifts the first run's channel-off
+distribution as the surrogate's alternative does: the test's rejection rate stands at the
+surrogate's 1.0 from half the registered effect size upward, but at a tenth of the margin the
+surrogate returns 1.0 where the test rejects in 122 of 1,000 simulated replicates. The entropy floor
+passes two runs whose channel-off draws leave two of the five zones empty. The cap on draws with no
+recorded zone reads the worst cell rather than the difference between conditions. A held-out test
+found more such draws in both arms' channel-on blocks (156 against 94; 107 against 61), mostly the
+string "null" in one arm and missing or malformed JSON in the other, confounded with execution
+order. This case motivates three diagnostics for interpreting protocol gates. The claims concern
+these gates on two models and one prompt, not the effect of the channel.
 
 ---
 

@@ -170,3 +170,14 @@ The dates now name their time zone: "2026-09-14 and 2026-09-15 (Japan Standard T
 logs shipped in `data/attempts/` record their times in UTC, in which both runs fall on 2026-09-14;
 the frozen held-out specification and the other records of this repository give the dates in Japan
 Standard Time.
+
+### One sentence of the abstract
+
+The sentence on the simulation of the power gate read: "On the first run's channel-off base, along
+the surrogate's direction, a post hoc simulation declared in advance finds that test's rejection
+rate at the surrogate's 1.0 from half the registered effect size upward, …". It now says what the
+simulation does before what it finds: "A post hoc simulation of that test, fixed before it ran,
+shifts the first run's channel-off distribution as the surrogate's alternative does: the test's
+rejection rate stands at the surrogate's 1.0 from half the registered effect size upward, …". The
+numbers, the base, the direction and the layer are unchanged, and so is the abstract of
+`CITATION.cff`, which must be the same text.
