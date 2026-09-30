@@ -1500,8 +1500,7 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         fragments.append(
             (
                 "agreement phrase, Abstract",
-                f"at the surrogate's {surrogate[('C', agree_from)]!r} from half the registered "
-                "effect size upward",
+                f"at the surrogate's {surrogate[('C', agree_from)]!r} from half the margin upward",
             )
         )
 
@@ -1847,6 +1846,11 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         for condition in ("on", "off")
     )
     dropped = sum(arms[arm]["none"][condition] for arm in ("control", "primary") for condition in ("on", "off"))  # fmt: skip
+
+    def points(arm: str) -> str:
+        """The frozen rate difference of recorded None, channel-on minus channel-off, in points."""
+        return f"{float(arms[arm]['none']['rate_difference']) * 100:.1f}"
+
     fragments += [
         (
             "held-out counts, in the abstract",
@@ -1856,6 +1860,15 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             "held-out counts, in the table of §3",
             f"{c_none['on']} against {c_none['off']} in the control arm and {p_none['on']} against "
             f"{p_none['off']} in the primary arm",
+        ),
+        (
+            "held-out rate difference, in the abstract",
+            f"{points('control')} and {points('primary')} percentage points",
+        ),
+        (
+            "held-out rate difference, in §6.2",
+            f"{points('control')} percentage points in the control arm and {points('primary')} in "
+            "the primary arm",
         ),
         (
             "held-out excess of malformed JSON",
@@ -2533,6 +2546,11 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
             "M4 one more empty destination among the prospective None",
             lambda root: _rewrite_json(root / result, _set(("arms", "primary", "classes", "K", "off"), 1)),
             "empty destinations among the prospective None",
+        ),
+        (
+            "M48 a held-out rate difference moves",
+            lambda root: _rewrite_json(root / result, _set(("arms", "control", "none", "rate_difference"), "0.035833")),
+            "held-out rate difference, in the abstract",
         ),
         (
             "M5 the completed run loses a None draw",

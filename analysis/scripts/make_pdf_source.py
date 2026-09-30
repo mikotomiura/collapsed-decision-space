@@ -239,6 +239,53 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
         "| Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit",
         "| Upstream source repository (identified after review), at commit",
     ),
+    # The 2026-10-01 pre-submission review (``.steering`` DA-TR-20, m-1 and M-4). The named build is
+    # one author's and says "the author"; the anonymous build must not say how many there are.
+    ("reviewed and validated by the author.", "reviewed and validated by the authors."),
+    ("does not come from the author.", "does not come from the authors."),
+    ("identifies the author.", "identifies the authors."),
+    ("seconds on the author's machine.", "seconds on the machine used for this study."),
+    ("validated by the human author, who made the", "validated by the human authors, who made the"),
+    ("belonging to the\nauthor, and the models", "belonging to the\nauthors, and the models"),
+    ("The author declares no competing interests.", "The authors declare no competing interests."),
+    # §H and §J: file names that name the archive the deposit is held in.
+    ("| `collect_zenodo_witness.py` |", "| the witness collector |"),
+    (
+        "`analysis/scripts/collect_zenodo_witness.py`, which is sealed, reads that listing and records "
+        "it as\n`seal/zenodo-witness.json`, pairing",
+        "The sealed witness collector reads that listing and records it as\nthe deposit witness, "
+        "pairing",
+    ),
+    (
+        "`seal/zenodo-witness.json` records what that deposit publishes",
+        "The deposit witness records what that deposit publishes",
+    ),
+    # §L: a file name whose suffix names the language of the frozen specification.
+    (
+        "| `analysis/heldout-stay/SPEC.ja.md` | 21 | 8 | §E |",
+        "| the held-out test's specification | 21 | 8 | §E |",
+    ),
+    (
+        "| `analysis/heldout-stay/SPEC.ja.md` | 147 | 12.1 | §8.1 |",
+        "| the held-out test's specification | 147 | 12.1 | §8.1 |",
+    ),
+    (
+        "| `analysis/heldout-stay/SPEC.ja.md` | 169 | 6.3 | §C.4 |",
+        "| the held-out test's specification | 169 | 6.3 | §C.4 |",
+    ),
+    # §G.2, the table: upstream commit times to the second, which a search of the upstream history
+    # would resolve. The dates are what the argument needs.
+    ("| Commit time (UTC) |", "| Commit date (UTC) |"),
+    ("| 2026-07-07T17:08:49Z |", "| 2026-07-07 |"),
+    ("| 2026-07-10T09:25:18Z |", "| 2026-07-10 |"),
+    ("| 2026-07-10T12:25:06Z |", "| 2026-07-10 |"),
+    # §1, the first contribution: nothing is supplied for review, so what it rests on can be checked
+    # only once the compendium is public.
+    (
+        "compare most quoted quantities with the data, are in this repository (§J).",
+        "compare most quoted quantities with the data, will be made public after review and can be "
+        "checked there (§J).",
+    ),
 )
 
 #: The author's own prior work in the reference list. Named by identifier, not by author, because

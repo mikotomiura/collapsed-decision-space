@@ -209,3 +209,110 @@ numbers, the base, the direction and the layer are unchanged, and so is the abst
   clause "and the obvious distilled candidate belongs to the same family as the reference" (model
   family and think regime). Figure 2's source moved to the end of the power gate's
   first subsection, which changes where the float is set and nothing in the text.
+
+## 2026-10-01 — after a pre-submission review
+
+A pre-submission review found the claims narrowly stated but the framing broader than the evidence
+for two of the three gates, and the prose hard to follow for its code names and file paths. The
+changes below narrow, separate and move what the manuscript says. None adds an analysis, a test or a
+simulation, and every rendered number moved with its sentence.
+
+### The abstract
+
+Rebuilt around the setting, what each gate read, what each did to the decision, and the names of
+the three diagnostics. It now says that the evaluation is the authors' own; that on the records each
+condition was sampled at one fixed temperature and top-p, the channel-on block first; that the power gate agrees with the test at the margin in the simulation but passes a tenth
+of it as well; that the entropy floor decided the outcome although every cell of the second model
+produced two to four zones; and that the cap passed every run. "A held-out test found more such
+draws" became "A test specified after that difference was seen, on draws already collected, found
+such draws … more often", with the differences as rates and the assumption its *p*-values rest on.
+The rendered phrase "from half the registered effect size upward" now reads "from half the margin
+upward": the two named the same 0.10. The abstract of `CITATION.cff` is the same text.
+
+### The introduction
+
+- The opening of the second paragraph no longer states the three gates as what every pre-registered
+  evaluation must have: "A pre-registered evaluation that may end in a null must fix in advance what
+  a null is worth … It does so through gates" became "… has to settle in advance what a null will be
+  worth … The one studied here does so through three gates".
+- "We examine one sealed evaluation of this kind." became "We designed and sealed this evaluation
+  ourselves, and examine it here."
+- The paragraph on what each gate read now says what each did to the decision, and when each reading
+  was first seen. It replaces "The prospective arms and a held-out test did not settle this; they
+  exposed it." The title of the table of the three gates says that its right column was set after
+  the results were seen.
+- "they do not use the value of the margin" became "they do not rest on whether 0.10 was a
+  well-chosen margin, although whether the power gate agrees with the test depends on that value";
+  *Estimand, test, margin and gates* says the same in place of "The claims of this paper do not use
+  the value."
+- The first contribution is the case itself; "shipped with rules, records and checks that redraw
+  every figure …" became a sentence that says where those are.
+- Removed: "§2 sets out the agent, the manipulation, the estimand and the gates. §3 reports what the
+  sealed rules returned, and §4 to §6 take the three gates in turn. §7 states the diagnostics, and §8
+  the limitations."
+
+### Setting and protocol
+
+- Removed: "§C gives the sealed design, and §I.2 the cost of sample access."
+- "Stratifying by block does not make the draws within a block exchangeable over their positions,
+  and the held-out test states that as an assumption (§6.2)." left *The manipulation and the runs*;
+  the title of the held-out test's table now carries the assumption.
+- After the analysis map, three sentences that restated its rows left: "The [Post hoc] layer is the
+  re-analysis of the completed run that the sealed plan excludes (§F), carried out outside that plan
+  and labelled as such. The [Held-out] layer tests a hypothesis the [Post hoc] layer produced, on
+  draws collected before its specification existed, and is not given the standing of the sealed
+  analysis." The map's post hoc row points to the appendix on eligibility instead of to a section of
+  `seal/protocol.md`.
+
+### What the sealed rules returned
+
+- The recorded quantities are named in words (the recorded power, the estimate, the share of
+  admitted contexts, the largest rate of draws with no recorded zone); the appendix *The six
+  quantities the rules read* gives the record's name for each. A sentence says that values are
+  quoted to the digits the records carry.
+- "The branch below was derived by hand from the two landed verdicts and `seal/decision-rules.json`,
+  quantity by quantity, in `manuscript/REPORTED-BRANCH.md`." became "the branch below was also
+  derived by hand from the two verdicts and the sealed rules (§J)"; the figure's caption names "the
+  sealed rule file". Removed: "and 9,600 in total"; "the estimate sits 0.007490 from the centre of a
+  tolerance of 0.03" became "the estimate lying within the tolerance of 0.03 around the completed
+  run's".
+- The sealed reading of R4 is quoted word for word, and the text says in its own words that the
+  registered scoring returned no estimate, while each condition's zone distribution can still be
+  described.
+- Removed: "§M gives further results of the run, including the scorer's exit label record by record
+  (§M.4)." The exit-label sentence points to that appendix section.
+
+### The three gates
+
+- *Gate 1*: Figure 2's caption says that the rates are Monte Carlo estimates with intervals in the
+  appendix on the simulation, and that shifts one grid step apart are not distinguished; "not an
+  estimate of any effect of the channel" and "It estimates nothing the channel did" left, since the
+  introduction and the limitations say it. The simulation paragraph now says that at the margin the
+  test's rate reaches 0.8 in every base and direction the declared grid runs at that size, which
+  is not every direction on every base. "§B.3 gives the declaration, the design and every declared
+  cell." left the end of the section on the simulation: the caption of Figure 2 points to the same
+  appendix section.
+- *Gate 2*: a post hoc paragraph says what the simulation shows about the empty zones (one grid step
+  at most for the test) and about the degenerate base, and that the primary arm's base was not
+  simulated.
+- *Gate 3*: the prompting module's path and line numbers moved to the appendix *What the record of
+  the dropped draws does not show*; the held-out test's file names moved to *Data, code and
+  reproducibility*; a section of `seal/protocol.md` became a reference to the sealed rules. The
+  differences between conditions are stated as rates. The sentence on exchangeability moved into
+  the title of the held-out test's table. The order paragraph names the higher temperature and top-p
+  of the channel-on blocks.
+- The appendix section *The secondary six-category distance of the held-out test* moved into the
+  held-out test's section, beside the control arm's five-zone estimate; the appendix section is gone.
+
+### Lessons and limitations
+
+- "it measures the power the decision actually has" became "it measures the power the decision would
+  have under the simulated bases and shifts".
+- "Dropping them is a complete-case analysis, which can be biased when the dropped units differ from
+  those kept" became a sentence that says what the estimand then describes, and for which reading it
+  can be biased.
+- *Condition is confounded with execution order*: the file, the lines and the commit that fix the
+  order moved to *What the checks reach on the prospective arms*; a clause names a generic effect of
+  the higher temperature and top-p among the alternatives.
+- *What the two arms' gate quantities do and do not compare*: "the quantity that would answer it was
+  not estimable there" became "the registered scoring procedure returned no estimate there".

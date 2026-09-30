@@ -90,9 +90,15 @@ PDF_WITHHELD: tuple[tuple[str, str], ...] = (
     # that lets the bundle's own scan accept them.
     ("a placeholder location", r"anonymous\.invalid"),
     ("a placeholder identifier", r"10\.0000/anonymous"),
-    # The deposit's registration time, which a search of the archive would resolve (user ruling of
-    # 2026-09-30, DA-TR-17).
-    ("the deposit's registration time", r"2026-09-13T23:44:39"),
+    # A time to the second: the deposit's registration time, which a search of the archive would
+    # resolve (user ruling of 2026-09-30, DA-TR-17), and the upstream commit times of §G.2, which a
+    # search of the upstream history would (the 2026-10-01 pre-submission review, DA-TR-20 m-1).
+    ("a time to the second", r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"),
+    # The same review (m-1): the number of authors, the archive's name inside two file names, and
+    # a file suffix that names the language of the frozen specification.
+    ("a singular author", r"\bthe\s+(?:human\s+)?author\b"),
+    ("the archive's name", r"zenodo"),
+    ("a language-tagged file name", r"SPEC\.ja"),
     # The de-identification tool, which names what the anonymous build was made from.
     ("the de-identification tool", r"make_anonymous_bundle"),
 )
@@ -121,7 +127,11 @@ MUTATION_SAMPLES: dict[str, tuple[str, ...]] = {
     "a supplement": ("the review supplement", "files under manuscript/supplement/ are"),
     "a placeholder location": ("https://anonymous.invalid/repo",),
     "a placeholder identifier": ("10.0000/anonymous.concept",),
-    "the deposit's registration time": ("2026-09-13T23:44:39.000Z",),
+    "a time to the second": ("2026-09-13T23:44:39.000Z", "2026-07-07T17:08:49Z"),
+    # The singular put back as it breaks across a line, which a line-by-line check would miss.
+    "a singular author": ("validated by the\nauthor.",),
+    "the archive's name": ("seal/zenodo-witness.json",),
+    "a language-tagged file name": ("analysis/heldout-stay/SPEC.ja.md",),
     "the de-identification tool": ("analysis/scripts/make_anonymous_bundle.py",),
 }
 
