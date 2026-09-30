@@ -38,6 +38,7 @@ import argparse
 import collections
 import contextlib
 import io
+import itertools
 import json
 import shutil
 import sys
@@ -1930,6 +1931,329 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
     return fragments + posthoc, problems + posthoc_problems
 
 
+#: The per-draw records of the three runs: each line carries the prompt the draw was sent and the
+#: sampling it was drawn with. :func:`records_identity` reads them in full.
+RECORDS_SOURCES: tuple[tuple[str, str], ...] = (
+    ("completed run", "data/completed/bank_records.jsonl"),
+    ("control arm", "data/prospective/control/run_records.jsonl"),
+    ("primary arm", "data/prospective/primary/run_records.jsonl"),
+)
+_CONDITIONS: tuple[str, str] = ("on", "off")
+
+
+def _load_records(path: Path) -> list[dict[str, Any]]:
+    """One record per line.
+
+    Split on ``\\n`` alone: a prompt or a response may carry U+2028, which ``str.splitlines``
+    would treat as a line break inside a record.
+    """
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").split("\n")
+        if line.strip()
+    ]
+
+
+def records_identity(root: Path) -> tuple[dict[str, Any], list[str]]:
+    """What the per-draw records say about the setting every draw was made in.
+
+    Computed from the records, never stated here: per run and condition, the number of draws and
+    the distinct sampling settings; per run, the distinct (system prompt, user prompt) pairs, by
+    SHA-256; and the order of the draws as blocks of one context and one condition. Then the same
+    across the runs. The manuscript's "eight frozen contexts" are, on these records, one prompt
+    pair in eight pairs of blocks, and this function is what establishes that, rather than a
+    reading of the design documents.
+
+    Returns ``(summary, problems)``. A run whose records are absent is a problem, not a skip: the
+    statements this supports are about all three runs.
+    """
+    import hashlib  # noqa: PLC0415
+
+    summary: dict[str, Any] = {"runs": {}}
+    problems: list[str] = []
+    for label, rel in RECORDS_SOURCES:
+        path = root / rel
+        if not path.is_file():
+            problems.append(f"the records identity has no source at {rel}")
+            continue
+        rows = _load_records(path)
+        sampling: dict[str, set[tuple[tuple[str, Any], ...]]] = {c: set() for c in _CONDITIONS}
+        counts: collections.Counter[str] = collections.Counter()
+        pairs: set[tuple[str, str]] = set()
+        for row in rows:
+            condition = row["condition"]
+            if condition not in sampling:
+                problems.append(f"{label}: a draw has condition {condition!r}")
+                continue
+            counts[condition] += 1
+            sampling[condition].add(tuple(sorted(row["sampling"].items())))
+            pairs.add(
+                (
+                    hashlib.sha256(row["system_prompt"].encode("utf-8")).hexdigest(),
+                    hashlib.sha256(row["user_prompt"].encode("utf-8")).hexdigest(),
+                )
+            )
+        for condition in _CONDITIONS:
+            if len(sampling[condition]) != 1:
+                problems.append(
+                    f"{label}: the channel-{condition} draws carry {len(sampling[condition])} "
+                    f"distinct sampling settings {sorted(sampling[condition])}"
+                )
+        if len(pairs) != 1:
+            problems.append(
+                f"{label}: the draws carry {len(pairs)} distinct (system, user) prompt pairs"
+            )
+        blocks = [
+            (key, sum(1 for _ in group))
+            for key, group in itertools.groupby(
+                rows, key=lambda r: (r["frozen_ctx_id"], r["condition"])
+            )
+        ]
+        sizes = sorted({size for _, size in blocks})
+        contexts = [key[0] for key, _ in blocks[0::2]]
+        paired = len(blocks) % 2 == 0 and all(
+            on[0] == (ctx, "on") and off[0] == (ctx, "off")
+            for on, off, ctx in zip(blocks[0::2], blocks[1::2], contexts, strict=True)
+        )
+        if len(sizes) != 1:
+            problems.append(f"{label}: the blocks are not of one size: sizes {sizes}")
+        if not paired or len(set(contexts)) != len(contexts):
+            problems.append(
+                f"{label}: the draws are not in pairs of a channel-on block followed by a "
+                "channel-off block of the same context, each context once: "
+                f"{[key for key, _ in blocks][:6]}"
+            )
+        summary["runs"][label] = {
+            "draws": len(rows),
+            "per_condition": dict(counts),
+            "sampling": {c: sorted(s) for c, s in sampling.items()},
+            "prompt_pairs": sorted(pairs),
+            "block_sizes": sizes,
+            "block_pairs": len(blocks) // 2,
+        }
+    if problems:
+        return summary, problems
+    runs = summary["runs"]
+    for condition in _CONDITIONS:
+        values = {label: tuple(run["sampling"][condition]) for label, run in runs.items()}
+        if len(set(values.values())) != 1:
+            problems.append(f"the channel-{condition} sampling differs between runs: {values}")
+    all_pairs = {pair for run in runs.values() for pair in run["prompt_pairs"]}
+    if len(all_pairs) != 1:
+        problems.append(
+            f"the prompt pair differs between runs: {len(all_pairs)} distinct pairs over "
+            f"{len(runs)} runs"
+        )
+    for key in ("block_sizes", "block_pairs"):
+        values = {label: str(run[key]) for label, run in runs.items()}
+        if len(set(values.values())) != 1:
+            problems.append(f"the runs differ in {key}: {values}")
+    first = next(iter(runs.values()))
+    summary.update(
+        draws=sum(run["draws"] for run in runs.values()),
+        sampling={c: dict(first["sampling"][c][0]) for c in _CONDITIONS},
+        prompt_pairs=len(all_pairs),
+        block_pairs=first["block_pairs"],
+        block_size=first["block_sizes"][0],
+    )
+    return summary, problems
+
+
+def identity_fragments(summary: dict[str, Any]) -> list[tuple[str, str]]:
+    """The phrases the manuscript will carry for :func:`records_identity`, rendered from it.
+
+    **Provisional wording, not yet compared with main.md.** The sentences that state the setting
+    belong to the restructured section 2 of the revision, and that step registers these fragments
+    in :func:`rendered_fragments` in the same commit as the prose: a registered fragment the
+    manuscript does not yet carry would fail the run. Until then :func:`check_records_identity_fire`
+    is what holds them to the records.
+    """
+    on, off = summary["sampling"]["on"], summary["sampling"]["off"]
+    penalty = (
+        f"with repeat_penalty {on['repeat_penalty']} in both"
+        if on["repeat_penalty"] == off["repeat_penalty"]
+        else f"with repeat_penalty {on['repeat_penalty']} and {off['repeat_penalty']}"
+    )
+    pairs = _word(summary["prompt_pairs"])
+    size = summary["block_size"]
+    return [
+        (
+            "sampling, both conditions",
+            f"channel-on draws are sampled at temperature {on['temperature']:.2f} and top_p "
+            f"{on['top_p']:.2f}, channel-off draws at temperature {off['temperature']:.2f} and "
+            f"top_p {off['top_p']:.2f}, {penalty}",
+        ),
+        (
+            "one prompt pair",
+            f"all {summary['draws']:,} draws of the three runs carry {pairs} system prompt and "
+            f"{pairs} user prompt",
+        ),
+        (
+            "blocks",
+            f"{_word(summary['block_pairs'])} pairs of blocks, each pair {size} channel-on draws "
+            f"followed by {size} channel-off draws",
+        ),
+    ]
+
+
+def _fragment_problems(fragments: list[tuple[str, str]], text: str) -> list[str]:
+    """Each fragment must occur in ``text`` exactly once, whitespace collapsed on both sides."""
+    flat = " ".join(text.split())
+    problems: list[str] = []
+    for what, fragment in fragments:
+        count = flat.count(" ".join(fragment.split()))
+        if count == 0:
+            problems.append(f"{what}: main.md does not carry {fragment!r}")
+        elif count > 1:
+            problems.append(
+                f"{what}: main.md carries {fragment!r} {count} times. A phrase quoted more than "
+                "once is not protected against one of its copies being altered; render each "
+                "occurrence as its own fragment"
+            )
+    return problems
+
+
+def _judge_case(label: str, reported: list[str], expect: str | None) -> list[str]:
+    """A self-check case's verdict: a clean control, or the named diagnostic among what fired."""
+    joined = " | ".join(reported)
+    if expect is None:
+        if reported:
+            return [f"self-check {label}: expected to report nothing, got {reported!r}"]
+        return []
+    if not reported:
+        return [f"self-check {label}: expected to report a problem, got none"]
+    if expect not in joined:
+        return [
+            f"self-check {label}: fired, but not for the expected reason "
+            f"(wanted text containing {expect!r}, got {joined!r})"
+        ]
+    return []
+
+
+def check_records_identity_fire(repo_root: Path) -> list[str]:
+    """Alter the records one way at a time, on copies, and require :func:`records_identity` to say so.
+
+    Each case names the diagnostic it must produce; a case that fails for another reason is not
+    counted as caught. The records are copies of the shipped files, not invented ones. The last
+    cases hold the fragment comparison to the rendered values: a text carrying every fragment once
+    stands in for the manuscript, and a copy of it with one digit changed must fail.
+    """
+    missing = [rel for _, rel in RECORDS_SOURCES if not (repo_root / rel).is_file()]
+    if missing:
+        return [f"the records identity has no source at {missing}, so its self-check cannot run"]
+
+    def rewrite(
+        rel: str, edit: Callable[[dict[str, Any]], bool], *, every: bool = False
+    ) -> Callable[[Path], None]:
+        """Re-serialise the lines ``edit`` changes (every one, or the first), and no other."""
+
+        def mutate(root: Path) -> None:
+            path = root / rel
+            lines = path.read_text(encoding="utf-8").split("\n")
+            changed = 0
+            for index, line in enumerate(lines):
+                if not line.strip():
+                    continue
+                row = json.loads(line)
+                if edit(row):
+                    lines[index] = json.dumps(row, ensure_ascii=False)
+                    changed += 1
+                    if not every:
+                        break
+            if not changed:
+                raise _NoOpMutation(f"no line of {rel} matches the mutation")
+            path.write_text("\n".join(lines), encoding="utf-8", newline="\n")
+
+        return mutate
+
+    def set_sampling(condition: str, key: str, value: float) -> Callable[[dict[str, Any]], bool]:
+        def edit(row: dict[str, Any]) -> bool:
+            if row["condition"] != condition or row["sampling"][key] == value:
+                return False
+            row["sampling"][key] = value
+            return True
+
+        return edit
+
+    def append_to(field: str, condition: str | None) -> Callable[[dict[str, Any]], bool]:
+        def edit(row: dict[str, Any]) -> bool:
+            if condition is not None and row["condition"] != condition:
+                return False
+            row[field] += " "
+            return True
+
+        return edit
+
+    completed, control, primary = (rel for _, rel in RECORDS_SOURCES)
+    cases: tuple[tuple[str, Callable[[Path], None] | None, str | None], ...] = (
+        ("I0 unaltered copies", None, None),
+        ("I1 one draw's sampling changes", rewrite(control, set_sampling("on", "temperature", 0.83)), "control arm: the channel-on draws carry 2 distinct sampling settings"),
+        ("I2 one draw's prompt changes", rewrite(primary, append_to("user_prompt", "off")), "primary arm: the draws carry 2 distinct (system, user) prompt pairs"),
+        ("I3a one run's prompt changes throughout, so only the runs disagree", rewrite(completed, append_to("system_prompt", None), every=True), "the prompt pair differs between runs"),
+        ("I3b one run's channel-off sampling changes throughout", rewrite(primary, set_sampling("off", "temperature", 0.71), every=True), "the channel-off sampling differs between runs"),
+        ("I4 a run's records are absent", lambda root: (root / control).unlink(), "the records identity has no source at data/prospective/control/run_records.jsonl"),
+        ("I6 a draw is missing from a block", lambda root: _drop_first_line(root / completed), "completed run: the blocks are not of one size"),
+    )  # fmt: skip
+
+    problems: list[str] = []
+    rendered: list[tuple[str, str]] = []
+    for label, mutate, expect in cases:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "repo"
+            for _, rel in RECORDS_SOURCES:
+                (root / rel).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(repo_root / rel, root / rel)
+            if mutate is not None:
+                try:
+                    mutate(root)
+                except _NoOpMutation as exc:
+                    problems.append(f"self-check {label}: {exc}")
+                    continue
+            summary, reported = records_identity(root)
+        if mutate is None and not reported:
+            rendered = identity_fragments(summary)
+        problems += _judge_case(label, reported, expect)
+
+    # The fragment comparison, on a stand-in for the manuscript built from the rendered phrases.
+    if not rendered:
+        return [*problems, "self-check I5: the unaltered records rendered no phrase to compare"]
+    text = "\n\n".join(f"Prose before. {fragment}. Prose after." for _, fragment in rendered)
+    sampling = rendered[0][1]
+    text_cases: tuple[tuple[str, str | None, str | None], ...] = (
+        ("I5 every rendered phrase once", text, None),
+        ("I5a a value in the text is one digit off", text.replace("0.82", "0.83", 1) if "0.82" in sampling else None, "sampling, both conditions: main.md does not carry"),
+        ("I5b a phrase quoted twice", text + "\n\n" + rendered[1][1], "one prompt pair: main.md carries"),
+    )  # fmt: skip
+    for label, candidate, expect in text_cases:
+        if candidate is None:
+            problems.append(f"self-check {label}: the mutation had nothing to change")
+            continue
+        problems += _judge_case(label, _fragment_problems(rendered, candidate), expect)
+
+    if not problems:
+        mutations = sum(1 for case in (*cases, *text_cases) if case[2] is not None)
+        print(
+            f"[numbers] OK records self-check: {mutations} mutations of the per-draw records and "
+            "of the rendered phrases caught for the expected reason, 2 controls clean"
+        )
+    return problems
+
+
+def check_records_identity(repo_root: Path) -> list[str]:
+    """Run :func:`records_identity` on the shipped records and report what it establishes."""
+    summary, problems = records_identity(repo_root)
+    if not problems:
+        on, off = summary["sampling"]["on"], summary["sampling"]["off"]
+        print(
+            f"[numbers] OK records identity     = {len(summary['runs'])} runs, "
+            f"{summary['draws']:,} draws; channel-on {on}, channel-off {off}; "
+            f"{summary['prompt_pairs']} (system, user) prompt pair across every run and "
+            f"condition; each run {summary['block_pairs']} pairs of a channel-on and a "
+            f"channel-off block of {summary['block_size']} draws (not yet compared with main.md)"
+        )
+    return problems
+
+
 def check_rendered_fragments(repo_root: Path) -> list[str]:
     """Require every rendered row and phrase to occur in the manuscript exactly once.
 
@@ -1944,17 +2268,9 @@ def check_rendered_fragments(repo_root: Path) -> list[str]:
     if missing:
         return [f"the rendered comparison has no source at {missing}"]
     fragments, problems = rendered_fragments(repo_root)
-    text = " ".join((repo_root / "manuscript" / "main.md").read_text(encoding="utf-8").split())
-    for what, fragment in fragments:
-        count = text.count(" ".join(fragment.split()))
-        if count == 0:
-            problems.append(f"{what}: main.md does not carry {fragment!r}")
-        elif count > 1:
-            problems.append(
-                f"{what}: main.md carries {fragment!r} {count} times. A phrase quoted more than "
-                "once is not protected against one of its copies being altered; render each "
-                "occurrence as its own fragment"
-            )
+    problems += _fragment_problems(
+        fragments, (repo_root / "manuscript" / "main.md").read_text(encoding="utf-8")
+    )
     if not problems:
         print(
             f"[numbers] OK rendered              = {len(fragments)} rows and phrases rendered from "
@@ -2306,6 +2622,8 @@ def main(argv: list[str] | None = None) -> int:
     problems: list[str] = check_branch_guards_fire()
     problems.extend(check_third_finding_guards_fire(repo_root))
     problems.extend(check_rendered_fragments_fire(repo_root))
+    problems.extend(check_records_identity_fire(repo_root))
+    problems.extend(check_records_identity(repo_root))
     covered_in_readme = 0
 
     for label, filename, keys, how in REQUIRED:
