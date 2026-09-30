@@ -414,8 +414,7 @@ runs the two come apart in both directions. Clearing a per-context entropy floor
 certify the support that the power calculation depends on. A floor of 0.5 bit requires at least two
 zones in a context and says nothing more about the support. At the frozen thresholds R4 does not flag
 the completed run or the control arm. That depends on the thresholds rather than on the shape of the
-rule: a floor set above 0.68 would have fired on the completed run too. §M.1 and §M.2 give the
-reasons in full.
+rule: a floor set above 0.68 would have fired on the completed run too.
 
 ---
 
@@ -519,9 +518,8 @@ specification requires, without judging it against the margin.
 
 ### 7.1 Three diagnostics
 
-Three diagnostics for interpreting protocol gates follow from this case. Each is stated by its input,
-what it looks at, what it can show, what it cannot, and the work it rests on. Their usefulness on
-other protocols, and how often gates read proxies elsewhere, are not examined here.
+Three diagnostics for interpreting protocol gates follow from this case. Their usefulness on other
+protocols, and how often gates read proxies elsewhere, are not examined here.
 
 **Simulate the power of the test that decides.** The input is the sealed pipeline, its decision test,
 and channel-off bases taken from the runs or assumed. The diagnostic looks at how often the decision
@@ -568,8 +566,7 @@ problem [38, 39], and it motivates asking whether a wired mechanism propagates. 
 in a pre-registered setting is adjacent work on a different object [27]. Language-model output moves
 with the formatting of the prompt [45], with the positions and identifiers of listed options [46],
 and with required output formats [47]. The apparatus fixes its template, the order in which the
-template lists the zones, and its JSON schema, and varies none of them. §N.1 discusses this work
-further.
+template lists the zones, and its JSON schema, and varies none of them.
 
 ---
 
@@ -581,8 +578,7 @@ The two arms differ in model family and, unavoidably, in think regime. Within th
 budget there is no non-Qwen model at this scale with a native thinking regime, and the obvious
 distilled candidate belongs to the same family as the reference. The design therefore attributes
 nothing to either factor alone, and no result under §E licenses an attribution to one of them. This
-confound was declared in advance and is carried as a limitation. Obtaining R1 across the two arms
-would not have licensed any statement about which of the two factors is responsible.
+confound was declared in advance and is carried as a limitation.
 
 ### 8.2 Condition is confounded with execution order
 
@@ -606,7 +602,7 @@ result. The collapse of the decision space is at least as plausibly a property o
 prompt, the parser, the zone vocabulary, the frozen bank -- as of any model, and both arms run the
 same harness on the same prompt. If the same two zones went unproduced in both, the agreement would
 be evidence that the apparatus behaves consistently, not that the channel fails to propagate in two
-model families. §I.7 says what would distinguish the two.
+model families.
 
 Every claim here is bounded by one apparatus, one disabled-thinking regime, two models and one frozen
 prompt run in eight pairs of blocks, with a five-way zone decision. §I gives further limitations.

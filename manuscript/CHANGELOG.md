@@ -194,3 +194,12 @@ numbers, the base, the direction and the layer are unchanged, and so is the abst
   copy is an intermediate of the build and is not submitted. In the anonymous PDF, the deposit's
   identifiers and registration time are withheld, and the statements of what a reader can check
   say that they need the public compendium.
+- To keep the references on page 12 after the additions above, these sentences left the body:
+  "§I.6 says what a pass of R3 can be read as." (power gate); "§M.1 and §M.2 give the reasons in
+  full." (entropy floor); "Each is stated by its input, what it looks at, what it can show, what it
+  cannot, and the work it rests on." (the three diagnostics, which still follow that order);
+  "§N.1 discusses this work further." (related work); "Obtaining R1 across the two arms would not
+  have licensed any statement about which of the two factors is responsible." (model family and
+  think regime); "§I.7 says what would distinguish the two." (a shared collapse). The appendix
+  sections they pointed to are unchanged. Figure 2's source moved to the end of the power gate's
+  first subsection, which changes where the float is set and nothing in the text.
