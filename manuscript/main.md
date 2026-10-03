@@ -1511,9 +1511,11 @@ Apart from the archival deposit of the sealed files described in §J, there is n
 supplementary archive: the data, the analysis scripts, the apparatus and the reproduction command
 are all in the repository named here.
 
-**The submission PDF is derived, not maintained.** The PDF is built from
-this manuscript by `analysis/scripts/make_pdf_source.py` with pandoc 3.5 and the official TMLR style
-(vendored in `manuscript/tmlr/` and pinned there by SHA-256); there is no second manuscript. Its
+**Only this manuscript is maintained; every other form of it is derived and read back.** The PDF
+is built from this manuscript by `analysis/scripts/make_pdf_source.py` with pandoc 3.5, typeset in
+the TMLR style (vendored in `manuscript/tmlr/` and pinned there by SHA-256), and is not edited by
+hand. Its reference list is read from the References section, which is itself rendered from
+`manuscript/refs.json` by `analysis/scripts/render_references.py`. Its
 three figures are drawn by `analysis/scripts/make_figures.py` from the shipped data, and
 `make_figures.py --check` requires every number a figure sets to match that data. The finished PDF
 is then read back: `check_pdf_text.py` requires the headings, the quantities, the characters at risk
