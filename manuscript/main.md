@@ -1609,6 +1609,20 @@ performs all of it. The anonymous build takes its manuscript from a copy of this
 de-identified by `analysis/scripts/make_anonymous_bundle.py`, which reports what identifying strings
 it cannot remove and why; that copy is an intermediate of the build and is not submitted.
 
+There are two forms derived in this way, the PDF and a `.docx` set in APA 7 style, and neither is
+maintained by hand. The `.docx` is built from this manuscript by
+`analysis/scripts/make_docx_source.py` with pandoc 3.5. Its citations and its reference list are set
+from `manuscript/refs.json` by pandoc's citeproc, in the APA style of the Citation Style Language
+project (vendored in `manuscript/docx/` and pinned there by SHA-256), and its figures are the same
+three drawings, each typeset on its own and read back for its numbers before it is converted to an
+image. The conversion records every change it makes: the title page and the Author Note, which take
+the author table and the AI-use disclosure of §K, the citations, the reference list, the labels of
+the figures and tables, and what it leaves out. `analysis/scripts/check_docx_text.py` then reads
+the `.docx` back. It enumerates the same changes from the inputs on its own and checks each against
+the file, compares the rest of the text with this manuscript word for word, and requires each
+figure's picture to be the image recorded for that figure; copies of the file broken one way at a
+time must each be reported for what was broken. The manual `apa-docx` workflow performs all of it.
+
 This repository contains the frozen inputs of the completed studies (`data/raw/`, each pinned by
 SHA-256 and size in `data/data.md`), the analysis scripts (`analysis/scripts/`), and the measurement
 apparatus as an import closure of 69 modules (`analysis/apparatus/`) reproduced byte-for-byte from

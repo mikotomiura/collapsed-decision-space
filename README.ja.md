@@ -263,6 +263,7 @@ tag `stage1-submitted` は、2026 年 9 月に PCI Registered Reports へ投稿�
 |---|---|
 | コード (`analysis/`, `repro.sh`) | Apache-2.0 OR MIT — `LICENSE` / `LICENSE-MIT` |
 | 本文と図 (`manuscript/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
+| `.docx` のために同梱した Citation Style Language project の APA 7 の引用様式 (`manuscript/docx/apa.csl`) | CC BY-SA 3.0 — ファイルの中に記載。由来は `manuscript/docx/VENDORED.json` |
 | 封印した protocol・規則とその記録 (`seal/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
 | 凍結した入力 (`data/raw/`) | CC BY 4.0 — 著者が生成した研究データ。由来は `data/data.md` |
 | 完了済み run の draw ごとの記録 (`data/completed/`) | CC BY 4.0 |
