@@ -488,7 +488,7 @@ def check_figures(repo_root: Path, pages: list[str]) -> list[str]:
 WIDEST_TABLE_COLUMNS: tuple[str, ...] = (
     "Planned analysis",
     "Role",
-    "Realised outcome known at seal time?",
+    "Realized outcome known at seal time?",
     "Reported after the run",
 )
 
