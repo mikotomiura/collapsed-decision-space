@@ -860,7 +860,7 @@ The record of the completed run of §2.2, as the scorer wrote it:
 | `permutation_reject` | `False` |
 | `none_rate_max_observed` | `0.123333` |
 | `effective_k` / `n_contexts` | `8` / `8` |
-| per-context entropy `H(zone \| c)` | `0.628287` – `0.754149` bit |
+| per-context entropy H(zone \| c) | `0.628287` – `0.754149` bit |
 | per-context TV distance | `0.010227` – `0.054712` |
 | model digest | `500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41` |
 
