@@ -95,8 +95,8 @@ FIRST_PAGE_PHRASES: tuple[str, ...] = ("Use of AI assistance.",)
 #: bound errs on the safe side: a main text of exactly twelve pages that pushes the heading to the
 #: top of page 13 fails here.
 #:
-#: **The limit is that venue's rule, so it applies to the anonymous build alone** -- the build made
-#: for submission there. The named build is the preprint line, has no page limit, and reports the
+#: **The limit is that venue's rule, so it applies to the anonymous build alone** -- the build set
+#: in that venue's anonymous format. The named build is the preprint line, has no page limit, and reports the
 #: page the References begin on instead (2026-10-04). This is the one check in this file that holds
 #: for one build and not the other, and the only one ever relaxed. Everything else about where the
 #: main text ends -- the References and the first appendix set once each, in that order, with every
@@ -319,12 +319,51 @@ def page_self_test() -> tuple[int, list[str]]:
 def _references_on(pages: list[str], start: int, target: int) -> list[str]:
     """A copy of ``pages`` with the page that carries the References heading moved to ``target``.
 
-    Blank pages are inserted before it to move it later; pages after the first are removed from in
-    front of it to move it earlier. Only where the heading falls changes.
+    Blank pages are inserted before it to move it later. To move it earlier, the pages after the
+    first are folded into the first one, their lines kept in order, until the heading falls on
+    ``target``: no line is dropped, so a caption or heading on a folded page is still there and still
+    before the References (Codex review of 2026-10-04: deleting those pages instead made a sound
+    layout with a figure on page 2 fail). Only where page boundaries fall changes.
     """
     if target >= start:
         return pages[: start - 1] + [""] * (target - start) + pages[start - 1 :]
-    return pages[:1] + pages[1 + (start - target) :]
+    fold = start - target
+    return ["\n".join(pages[: 1 + fold])] + pages[1 + fold :]
+
+
+def page_mutation_self_test() -> tuple[int, list[str]]:
+    """Run :func:`page_mutation` on synthetic pages whose answer is known.
+
+    Each case is ``(name, anonymous, pages, the failure it must report or None)``. The controls are
+    sound layouts placed where the mutation has to fold pages (a figure on page 2, the References
+    past the limit) or to insert them (the References within it); the last case is a layout that is
+    not sound, which must be reported as the control failing rather than mutated.
+    """
+    last = REFERENCES_LAST_PAGE
+    one, two = CAPTION_ON_PAGE.format(number=1), CAPTION_ON_PAGE.format(number=2)
+    captions = [one, two]
+    app = FIRST_APPENDIX_TITLE
+    early = ((f"{one} A caption", 2, 2), (f"{two} Another caption", 5, 4))
+    past = _pages(("References", last + 2, 3), (app, last + 4, 1), *early)
+    within = _pages(("References", last - 2, 3), (app, last, 1), *early)
+    broken = _pages(("References", last, 3), (app, last + 2, 1), early[0], (f"{two} Late", last + 1, 1))
+    cases: tuple[tuple[str, bool, list[str], str | None], ...] = (
+        ("M1 the named build, a figure on page 2 and the References past the limit", False, past, None),
+        ("M2 the anonymous build, the same layout", True, past, None),
+        ("M3 the anonymous build, the References within the limit", True, within, None),
+        ("M4 a figure set after the References", False, broken, "structure, the real pages (control)"),
+    )  # fmt: skip
+    problems: list[str] = []
+    for name, anonymous, pages, expected in cases:
+        _, failures = page_mutation(
+            pages, last, FIRST_APPENDIX_PATTERN, captions, anonymous=anonymous
+        )
+        if expected is None:
+            if failures:
+                problems.append(f"{name}: the control failed: {failures}")
+        elif not failures or not failures[0].startswith(expected):
+            problems.append(f"{name}: expected a failure starting {expected!r}, got {failures}")
+    return len(cases), problems
 
 
 def page_mutation(
@@ -740,13 +779,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.self_test:
         ran_pages, failures = page_self_test()
+        ran_mutation, mutation_failures = page_mutation_self_test()
         ran_aux, aux_failures = aux_self_test()
-        failures += aux_failures
-        ran = ran_pages + ran_aux
-        if ran_pages == 0 or ran_aux == 0:
+        failures += mutation_failures + aux_failures
+        ran = ran_pages + ran_mutation + ran_aux
+        if ran_pages == 0 or ran_mutation == 0 or ran_aux == 0:
             print(
-                f"[pdf-text] FAIL: the self-test ran {ran_pages} page and {ran_aux} .aux "
-                "cases; neither may be zero",
+                f"[pdf-text] FAIL: the self-test ran {ran_pages} page, {ran_mutation} page-mutation "
+                f"and {ran_aux} .aux cases; none may be zero",
                 file=sys.stderr,
             )
             return 1
@@ -756,10 +796,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  - {failure}", file=sys.stderr)
             return 1
         print(
-            f"[pdf-text] OK self-test: {ran_pages} page and {ran_aux} .aux cases run, each "
-            "returned exactly the expected diagnostic (or none, for the controls), read as the "
-            f"anonymous build (with the limit of {REFERENCES_LAST_PAGE} pages) or the named build "
-            "(without it)"
+            f"[pdf-text] OK self-test: {ran_pages} page, {ran_mutation} page-mutation and "
+            f"{ran_aux} .aux cases run, each returned exactly the expected diagnostic (or none, for "
+            f"the controls), read as the anonymous build (with the limit of {REFERENCES_LAST_PAGE} "
+            "pages) or the named build (without it)"
         )
         return 0
     if args.extracted is None or args.raw is None or args.aux is None:
