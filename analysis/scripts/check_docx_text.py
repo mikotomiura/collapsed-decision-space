@@ -17,9 +17,10 @@ place in ``main.md``, its input and its output, and each item is checked by itse
   out are the ones the prose wrote before the marker; the text citeproc set is the row of
   ``manuscript/docx/citations-apa.tsv``, and that row names each entry's first author and year as
   ``refs.json`` has them;
-* **the reference list** -- one entry per item of ``refs.json``, every author, the year, the title,
-  the container, volume, issue, pages or article number, edition, publisher and DOI or URL in it,
-  and every item cited;
+* **the reference list** -- one entry per item of ``refs.json``, read as its fields in order (every
+  author, the year, the title, the container, volume and issue, pages or article number, edition,
+  publisher, DOI or URL) with nothing but punctuation between them; the entries in APA order, and
+  every item cited;
 * **the Author Note** -- the author table's rows, verbatim, and the AI disclosure moved there from
   §K: once in the ``.docx``, and nowhere else;
 * **the title page and the abstract** -- the title, author and affiliation as ``main.md`` and
@@ -33,10 +34,16 @@ place in ``main.md``, its input and its output, and each item is checked by itse
 **Everything else is compared word for word**, in order, with the same normalisation on both sides
 (Unicode NFC, straight quotes, collapsed whitespace). The items above stand in the comparison as
 placeholders, so that a citation or a table that moved, or a paragraph lost beside one, still shows.
+The reference list stands there too, as one placeholder under its heading, and the page breaks
+before it and before each appendix are required where they belong and nowhere else. A paragraph
+whose style marks it for an item (a picture, a page break) must hold nothing else.
 
 Then the text is read for what must not be in it: a British spelling outside the places where one
 is kept (the generated rule text of §E, code, the reference list), a character the manuscript
-depends on that is missing, and the residue of a citation that did not resolve.
+depends on that is missing, the residue of a citation that did not resolve, and the brackets of the
+comparison's own placeholders. Content the reader cannot account for -- in a text box, in a header,
+in a comment, hidden, or in an element it does not read -- is reported rather than skipped; content
+controls are read through.
 
 **And the check is checked.** ``--self-test`` builds a small ``.docx`` from a synthetic manuscript,
 which must pass, and then breaks a copy of it one way at a time -- a paragraph dropped or doubled, a
@@ -194,6 +201,8 @@ def _unquoted(text: str) -> str:
 
 PLACEHOLDER_CITE = "\u27e6CITE\u27e7"
 EM_DASH, EN_DASH = chr(0x2014), chr(0x2013)
+#: The brackets of every placeholder of the comparison; neither may occur in the text of the .docx.
+RESERVED = chr(0x27E6) + chr(0x27E7)
 
 
 def _blank_code(text: str) -> str:
@@ -576,6 +585,7 @@ class DPara:
     runs: list[tuple[str, str]]  # (text, character style)
     images: list[str]  # relationship identifiers of embedded pictures
     bookmarks: list[str]
+    hidden: bool = False  # a run with text is hidden (w:vanish)
 
     @property
     def text(self) -> str:
@@ -595,6 +605,7 @@ class Docx:
     media: dict[str, str]  # relationship id -> sha256 of the part it targets
     footnotes: list[str]
     parts: dict[str, bytes]
+    problems: list[Problem] = field(default_factory=list)  # what the reader could not account for
 
 
 def _style_names(parts: dict[str, bytes]) -> dict[str, str]:
@@ -606,8 +617,17 @@ def _style_names(parts: dict[str, bytes]) -> dict[str, str]:
     return names
 
 
+def _is_hidden(run: ET.Element) -> bool:
+    vanish = run.find(f"{w('rPr')}/{w('vanish')}")
+    return vanish is not None and vanish.get(w("val"), "true") not in ("0", "false", "off")
+
+
 def _runs(
-    element: ET.Element, names: dict[str, str], runs: list[tuple[str, str]], images: list[str]
+    element: ET.Element,
+    names: dict[str, str],
+    runs: list[tuple[str, str]],
+    images: list[str],
+    hidden: list[bool] | None = None,
 ) -> None:
     for child in element:
         tag = child.tag
@@ -638,8 +658,10 @@ def _runs(
                         images.append(blip.get(f"{{{R}}}embed", ""))
             if parts:
                 runs.append(("".join(parts), style))
+                if hidden is not None and _is_hidden(child) and "".join(parts).strip():
+                    hidden.append(True)
         else:
-            _runs(child, names, runs, images)
+            _runs(child, names, runs, images, hidden)
 
 
 def _para(element: ET.Element, index: int, names: dict[str, str], bookmarks: list[str]) -> DPara:
@@ -648,15 +670,95 @@ def _para(element: ET.Element, index: int, names: dict[str, str], bookmarks: lis
     style = names.get(style_id, style_id) if style_id else "Normal"
     runs: list[tuple[str, str]] = []
     images: list[str] = []
-    _runs(element, names, runs, images)
-    return DPara(index, style, runs, images, bookmarks)
+    hidden: list[bool] = []
+    _runs(element, names, runs, images, hidden)
+    return DPara(index, style, runs, images, bookmarks, bool(hidden))
+
+
+#: Elements of the body (and of a table cell) that hold no text of their own, or none that shows.
+_INERT = frozenset(
+    w(tag) for tag in ("bookmarkStart", "bookmarkEnd", "sectPr", "proofErr", "permStart", "permEnd")
+)
+
+
+def _blocks(
+    container: ET.Element,
+    index: int | None,
+    names: dict[str, str],
+    out: list[DPara | DTable],
+    problems: list[Problem],
+    pending: list[str],
+) -> list[str]:
+    """Read the paragraphs and tables of a body or a content control, in order, into ``out``.
+
+    A content control (``w:sdt``) and custom XML are read through, so that what they hold is checked
+    like everything else; an element that carries text and is none of these is reported rather than
+    skipped (Codex review of 2026-10-04: a paragraph inside a content control passed unread).
+    """
+    for position, child in enumerate(container):
+        at = position if index is None else index
+        if child.tag == w("bookmarkStart"):
+            pending.append(child.get(w("name"), ""))
+        elif child.tag == w("p"):
+            out.append(_para(child, at, names, pending))
+            pending = []
+        elif child.tag == w("tbl"):
+            out.append(DTable(at, _table_rows(child, at, names, problems), pending))
+            pending = []
+        elif child.tag in (w("sdt"), w("customXml")):
+            content = child.find(w("sdtContent")) if child.tag == w("sdt") else child
+            if content is not None:
+                pending = _blocks(content, at, names, out, problems, pending)
+        elif child.tag not in _INERT and any((t.text or "").strip() for t in child.iter(w("t"))):
+            problems.append(
+                Problem(
+                    "structure",
+                    "unread content",
+                    f"an element the check does not read holds text: {child.tag}",
+                )
+            )
+    return pending
+
+
+def _table_rows(
+    table: ET.Element, index: int, names: dict[str, str], problems: list[Problem]
+) -> list[list[DPara]]:
+    rows = []
+    for row in table.findall(w("tr")):
+        cells = []
+        for cell in row.findall(w("tc")):
+            inner: list[DPara | DTable] = []
+            _blocks(cell, index, names, inner, problems, [])
+            if any(isinstance(b, DTable) for b in inner):
+                problems.append(
+                    Problem("structure", "unread content", "a table nested in a table cell")
+                )
+            paragraphs = [b for b in inner if isinstance(b, DPara)]
+            runs = [r for p in paragraphs for r in [*p.runs, (" ", "")]]
+            cells.append(
+                DPara(
+                    index,
+                    "cell",
+                    runs[:-1] if runs else [],
+                    [i for p in paragraphs for i in p.images],
+                    [],
+                    any(p.hidden for p in paragraphs),
+                )
+            )
+        rows.append(cells)
+    return rows
+
+
+def _part_text(data: bytes) -> str:
+    return "".join(t.text or "" for t in ET.fromstring(data).iter(w("t")))
 
 
 def read_docx(data: bytes) -> Docx:
     archive = zipfile.ZipFile(io.BytesIO(data))
     parts = {name: archive.read(name) for name in archive.namelist()}
     names = _style_names(parts)
-    body = ET.fromstring(parts["word/document.xml"]).find(w("body"))
+    document = ET.fromstring(parts["word/document.xml"])
+    body = document.find(w("body"))
     if body is None:
         raise ValueError("word/document.xml has no body")
     rels: dict[str, str] = {}
@@ -668,33 +770,28 @@ def read_docx(data: bytes) -> Docx:
         for rid, target in rels.items()
         if "word/" + target in parts and target.startswith("media/")
     }
+    problems: list[Problem] = []
     blocks: list[DPara | DTable] = []
-    pending: list[str] = []
-    for index, child in enumerate(body):
-        if child.tag == w("bookmarkStart"):
-            pending.append(child.get(w("name"), ""))
-        elif child.tag == w("p"):
-            blocks.append(_para(child, index, names, pending))
-            pending = []
-        elif child.tag == w("tbl"):
-            rows = []
-            for row in child.findall(w("tr")):
-                cells = []
-                for cell in row.findall(w("tc")):
-                    paragraphs = [_para(p, index, names, []) for p in cell.findall(w("p"))]
-                    runs = [r for p in paragraphs for r in [*p.runs, (" ", "")]]
-                    cells.append(
-                        DPara(
-                            index,
-                            "cell",
-                            runs[:-1] if runs else [],
-                            [i for p in paragraphs for i in p.images],
-                            [],
-                        )
-                    )
-                rows.append(cells)
-            blocks.append(DTable(index, rows, pending))
-            pending = []
+    _blocks(body, None, names, blocks, problems, [])
+    # Text that shows on the page but is in no paragraph or table read above.
+    if any(True for _ in document.iter(w("txbxContent"))):
+        problems.append(Problem("structure", "unread content", "a text box"))
+    for name, part in parts.items():
+        if re.fullmatch(r"word/(header|footer)\d*\.xml", name) and _part_text(part).strip() not in (
+            "",
+            "1",
+        ):
+            problems.append(Problem("structure", "unread content", f"{name} carries text"))
+        if name == "word/comments.xml" and any(
+            True for _ in ET.fromstring(part).iter(w("comment"))
+        ):
+            problems.append(Problem("structure", "unread content", "comments"))
+    for block in blocks:
+        cells = [block] if isinstance(block, DPara) else [c for row in block.rows for c in row]
+        if any(c.hidden for c in cells):
+            problems.append(
+                Problem("structure", "hidden text", f"docx block {block.index} holds hidden text")
+            )
     footnotes: list[str] = []
     if "word/footnotes.xml" in parts:
         for note in ET.fromstring(parts["word/footnotes.xml"]).iter(w("footnote")):
@@ -703,7 +800,7 @@ def read_docx(data: bytes) -> Docx:
             runs: list[tuple[str, str]] = []
             _runs(note, names, runs, [])
             footnotes.append("".join(t for t, _ in runs))
-    return Docx(blocks, media, footnotes, parts)
+    return Docx(blocks, media, footnotes, parts, problems)
 
 
 # --------------------------------------------------------------------------------------------------
@@ -764,6 +861,11 @@ class Item:
     cites: list[int] = field(default_factory=list)  # main: citation numbers; .docx: group indices
     block: Any = None
     generated: bool = False
+    page_break: bool = False  # .docx: a page-break paragraph stands right before it
+
+
+#: The reference list, in the text compared word for word, where it stands.
+BIBLIOGRAPHY_KEY = "P|" + chr(0x27E6) + "BIBLIOGRAPHY" + chr(0x27E7)
 
 
 def _line_offsets(text: str) -> list[int]:
@@ -781,7 +883,10 @@ def main_stream(m: Manuscript) -> list[Item]:
         by_block.setdefault(cite.block, []).append(cite)
     items: list[Item] = []
     for index, block in enumerate(m.blocks):
-        if block.kind in ("footnote", "references", "note", "marker", "rule"):
+        if block.kind in ("footnote", "note", "marker", "rule"):
+            continue
+        if block.kind == "references":
+            items.append(Item(BIBLIOGRAPHY_KEY, block.line, [], block))
             continue
         if block.kind == "figure":
             items.append(Item(f"P|\u27e6FIGURE {block.number}\u27e7", block.line, [], block))
@@ -881,14 +986,29 @@ def docx_view(doc: Docx) -> DocView:
             ),
             -1,
         )
-    head = [
-        b for b in blocks[: repeat + 1] if isinstance(b, DPara) and (b.text.strip() or b.images)
-    ]
+    # The title pages hold paragraphs only: a table or a picture there is in no contract (Codex
+    # review of 2026-10-04: a table placed before the repeated title passed unread).
+    for block in blocks[: repeat + 1]:
+        if isinstance(block, DTable) or block.images:
+            problems.append(
+                Problem("head", "title pages", f"docx block {block.index} is a table or a picture")
+            )
+    head = [b for b in blocks[: repeat + 1] if isinstance(b, DPara) and b.text.strip()]
     groups: list[tuple[str, int]] = []
     items: list[Item] = []
     figures: dict[int, dict[str, Any]] = {}
     tables: dict[int, dict[str, Any]] = {}
     bibliography: list[DPara] = []
+    pending_break = False
+    in_bibliography = False
+
+    def add(item: Item) -> None:
+        nonlocal pending_break, in_bibliography
+        item.page_break = pending_break
+        pending_break = False
+        in_bibliography = item.key == BIBLIOGRAPHY_KEY
+        items.append(item)
+
     i = repeat + 1
     while i < len(blocks):
         block = blocks[i]
@@ -898,10 +1018,21 @@ def docx_view(doc: Docx) -> DocView:
                     "table", f"docx block {block.index}", "a table with no 'Table N' label above it"
                 )
             )
-            items.append(Item("P|\u27e6TABLE ?\u27e7", block.index, [], block))
+            add(Item("P|\u27e6TABLE ?\u27e7", block.index, [], block))
             i += 1
             continue
-        if block.style == "Page Break" or (not block.text.strip() and not block.images):
+        if block.style == "Page Break":
+            pending_break = True
+            if not block.text.strip() and not block.images:
+                i += 1
+                continue
+            # A page-break paragraph shows what it holds; it is read like any other paragraph.
+            problems.append(
+                Problem(
+                    "structure", "page breaks", f"docx block {block.index}: a page break holds text"
+                )
+            )
+        elif not block.text.strip() and not block.images:
             i += 1
             continue
         if block.style in ("Figure Number", "Table Number"):
@@ -942,10 +1073,14 @@ def docx_view(doc: Docx) -> DocView:
             if number in target:
                 problems.append(Problem(kind.lower(), f"{kind} {number}", "the label occurs twice"))
             target[number] = group
-            items.append(Item(f"P|\u27e6{kind.upper()} {number}\u27e7", block.index, [], block))
+            add(Item(f"P|\u27e6{kind.upper()} {number}\u27e7", block.index, [], block))
             i = j
             continue
         if block.style == "Bibliography":
+            # The reference list stands in the text as one placeholder, where it is; a reference
+            # set anywhere else adds a second one (Codex review of 2026-10-04).
+            if not in_bibliography:
+                add(Item(BIBLIOGRAPHY_KEY, block.index, [], block))
             bibliography.append(block)
             i += 1
             continue
@@ -960,7 +1095,7 @@ def docx_view(doc: Docx) -> DocView:
         text, mine = _text_with_groups(block, groups)
         heading = re.fullmatch(r"heading (\d)", block.style)
         key = (f"H{heading.group(1)}|" if heading else "P|") + norm(text)
-        items.append(Item(_tidy(key), block.index, mine, block))
+        add(Item(_tidy(key), block.index, mine, block))
         i += 1
     return DocView(head, items, groups, figures, tables, bibliography, problems)
 
@@ -1057,16 +1192,26 @@ def _ordinal(number: int) -> str:
 
 
 def reference_fields(item: dict[str, Any]) -> list[tuple[str, str]]:
-    """What an entry of the reference list must carry, field by field, from ``refs.json``."""
+    """What an entry of the reference list prints, field by field and in order, from ``refs.json``.
+
+    The order is APA 7's for each type, as the vendored style sets it: authors, year, title, then
+    the source (a web page: when it was read and where; a preprint: its number and archive; a book:
+    its edition and publisher; an article or paper: container, volume and issue, pages or article
+    number), then the DOI or the URL.
+    """
     fields: list[tuple[str, str]] = []
     for author in item["author"]:
         fields.append(("author", author.get("literal") or f"{author['family']}, {author['given']}"))
     year = f"({item['issued']['date-parts'][0][0]})" if "issued" in item else "(n.d.)"
     fields.append(("year", year))
     fields.append(("title", item["title"]))
-    for key in ("container-title", "publisher"):
-        if item.get(key) and not (key == "publisher" and item["type"] == "article"):
-            fields.append((key, item[key]))
+    if item["type"] == "webpage":
+        y, mo, d = item["accessed"]["date-parts"][0]
+        fields.append(("accessed", f"Retrieved {MONTHS[mo - 1]} {d}, {y}"))
+        fields.append(("URL", item["URL"]))
+        return fields
+    if item.get("container-title"):
+        fields.append(("container-title", item["container-title"]))
     if item.get("volume"):
         fields.append(
             ("volume", item["volume"] + (f"({item['issue']})" if item.get("issue") else ""))
@@ -1082,19 +1227,56 @@ def reference_fields(item: dict[str, Any]) -> list[tuple[str, str]]:
         )
     if item.get("edition"):
         fields.append(("edition", f"({_ordinal(int(item['edition']))} ed.)"))
+    if item.get("publisher") and item["type"] in ("article", "book"):
+        fields.append(("publisher", item["publisher"]))
     if item.get("DOI"):
         fields.append(("DOI", f"https://doi.org/{item['DOI']}"))
     elif item.get("URL"):
         fields.append(("URL", item["URL"]))
-    if item.get("accessed"):
-        y, mo, d = item["accessed"]["date-parts"][0]
-        fields.append(("accessed", f"Retrieved {MONTHS[mo - 1]} {d}, {y}"))
     return fields
+
+
+#: What may stand between two fields of an entry, and after the last: punctuation, and the "from"
+#: of "Retrieved …, from". Anything else -- a digit, a word -- is text the data does not explain
+#: (Codex review of 2026-10-04: a volume "98" for 8 and an invented entry appended to a paragraph
+#: both passed a check that looked for each field anywhere in the paragraph).
+_GAP = re.compile(r"[\s.,;:&()]*(?:from[\s.,;:&()]*)?")
+
+
+def entry_problems(item: dict[str, Any], text: str) -> list[str]:
+    """Read an entry as its fields in order, with nothing but punctuation between them."""
+    entry = _unquoted(text)
+    cursor = 0
+    problems: list[str] = []
+    for name, value in reference_fields(item):
+        want = _unquoted(value)
+        at = entry.find(want, cursor)
+        if at < 0:
+            problems.append(f"no {name} {value!r} after {entry[max(0, cursor - 20) : cursor]!r}")
+            continue
+        if not _GAP.fullmatch(entry[cursor:at]):
+            problems.append(f"{entry[cursor:at]!r} stands before the {name} {value!r}")
+        cursor = at + len(want)
+    if not _GAP.fullmatch(entry[cursor:]):
+        problems.append(f"{entry[cursor:]!r} follows the last field")
+    return problems
+
+
+def _sort_key(item: dict[str, Any]) -> tuple[tuple[str, ...], int]:
+    """APA 7's order of the reference list: by the authors' names in turn, then by year."""
+
+    def plain(name: str) -> str:
+        decomposed = unicodedata.normalize("NFKD", name)
+        return "".join(c for c in decomposed if not unicodedata.combining(c)).lower()
+
+    names = tuple(plain(a.get("family") or a.get("literal")) for a in item["author"])
+    return names, item["issued"]["date-parts"][0][0] if "issued" in item else 0
 
 
 def check_bibliography(inp: Inputs, view: DocView) -> list[Problem]:
     problems: list[Problem] = []
     entries: dict[int, DPara] = {}
+    order: list[int] = []
     for para in view.bibliography:
         ids = [int(x) for name in para.bookmarks for x in re.findall(r"^ref-cds(\d+)$", name)]
         if not ids:
@@ -1105,6 +1287,7 @@ def check_bibliography(inp: Inputs, view: DocView) -> list[Problem]:
         if ids[-1] in entries:
             problems.append(Problem("bibliography", f"[{ids[-1]}]", "the entry occurs twice"))
         entries[ids[-1]] = para
+        order.append(ids[-1])
     known = {item["x-cds"]["n"]: item for item in inp.refs}
     for n, item in known.items():
         if n not in entries:
@@ -1112,18 +1295,28 @@ def check_bibliography(inp: Inputs, view: DocView) -> list[Problem]:
                 Problem("bibliography", f"[{n}]", "not in the reference list of the .docx")
             )
             continue
-        text = _unquoted(entries[n].text)
-        missing = [
-            f"{name} {value!r}"
-            for name, value in reference_fields(item)
-            if _unquoted(value) not in text
-        ]
-        if missing:
-            problems.append(
-                Problem("bibliography", f"[{n}]", "the entry does not carry " + "; ".join(missing))
-            )
+        found = entry_problems(item, entries[n].text)
+        if found:
+            problems.append(Problem("bibliography", f"[{n}]", "; ".join(found)))
     for n in sorted(set(entries) - set(known)):
         problems.append(Problem("bibliography", f"[{n}]", "an entry refs.json does not hold"))
+    listed = [n for n in order if n in known]
+    if listed != sorted(listed, key=lambda n: _sort_key(known[n])):
+        problems.append(
+            Problem("bibliography", "order", f"the entries are not in APA order: {listed}")
+        )
+    # One list, right after its heading (Codex review of 2026-10-04: a reference moved into the
+    # introduction, bookmark and all, was still found by its identifier).
+    places = [i for i, x in enumerate(view.items) if x.key == BIBLIOGRAPHY_KEY]
+    heading = [i for i, x in enumerate(view.items) if x.key.endswith("|References")]
+    if len(places) != 1 or len(heading) != 1 or places[0] != heading[0] + 1:
+        problems.append(
+            Problem(
+                "bibliography",
+                "location",
+                f"the references stand at {len(places)} place(s), not as one list under the heading",
+            )
+        )
     cited = {n for c in inp.manuscript.cites for n in c.ids}
     if cited != set(known):
         problems.append(
@@ -1212,7 +1405,26 @@ def check_citations(
     for mi, di in pairs:
         ks, gs = main_items[mi].cites, view.items[di].cites
         if len(ks) != len(gs):
-            continue  # the text comparison reports the paragraph
+            # Always reported, whatever the text comparison says: a literal placeholder in the text
+            # would otherwise stand in for a citation (Codex review of 2026-10-04).
+            for k in ks[len(gs) :] or ks:
+                problems.append(
+                    Problem(
+                        "citation",
+                        f"citation {k}",
+                        f"main.md:{m.cites[k - 1].line}: the .docx paragraph sets {len(gs)} "
+                        f"citation(s) where main.md has {len(ks)}",
+                    )
+                )
+            if not ks:
+                problems.append(
+                    Problem(
+                        "citation",
+                        f"main.md:{main_items[mi].where}",
+                        f"the .docx paragraph sets {len(gs)} citation(s) where main.md has none",
+                    )
+                )
+            continue
         for k, g in zip(ks, gs, strict=True):
             seen.add(g)
             got = norm(view.groups[g][0])
@@ -1389,6 +1601,12 @@ def check_figures(inp: Inputs, view: DocView, doc: Docx) -> list[Problem]:
                 )
             )
             continue
+        if body.text.strip():
+            # The picture's paragraph is checked for the picture, so it must hold nothing else
+            # (Codex review of 2026-10-04: text set beside a figure passed unread).
+            problems.append(
+                Problem("figure", where, f"the picture's paragraph holds text: {body.text[:50]!r}")
+            )
         sha = doc.media.get(body.images[0])
         if record is not None and sha != record.get("sha256"):
             other = [f["name"] for f in manifest.values() if f.get("sha256") == sha]
@@ -1517,10 +1735,14 @@ def check_text(
                 problems.append(
                     Problem("british", _where(para.index, located), f"British spelling {british}")
                 )
+            # The placeholders the comparison uses are reserved: one in the text itself could stand
+            # in for what it replaces (Codex review of 2026-10-04).
             residue = sorted(
                 {
                     x.group(0)
-                    for x in re.finditer(r"\[@[^\]]*\]|@cds\d+|\?\?\?|\[\d+(?:,\s*\d+)*\]", prose)
+                    for x in re.finditer(
+                        r"\[@[^\]]*\]|@cds\d+|\?\?\?|\[\d+(?:,\s*\d+)*\]|[" + RESERVED + "]", prose
+                    )
                 }
             )
             if residue:
@@ -1545,6 +1767,27 @@ def check_text(
                     "the AI usage disclosure appendix is not in the .docx with its text",
                 )
             )
+    # A page break before the references and before each appendix, and nowhere else in the text
+    # (Codex review of 2026-10-04: removing every break passed, since only the record was compared).
+    wanted = {
+        str(b.line)
+        for b in inp.manuscript.blocks
+        if b.kind == "heading" and (b.raw == "References" or (b.appendix and b.level == 1))
+    }
+    to_main = {di: main_items[mi] for mi, di in pairs}
+    found = set()
+    for di, item in enumerate(view.items):
+        if item.page_break:
+            mine = to_main.get(di)
+            found.add(str(mine.where) if mine is not None else f"docx block {item.where}")
+    if found != wanted:
+        problems.append(
+            Problem(
+                "structure",
+                "page breaks",
+                f"missing before main.md lines {sorted(wanted - found)}, extra before {sorted(found - wanted)}",
+            )
+        )
     return problems
 
 
@@ -1640,7 +1883,7 @@ def run_checks(inp: Inputs, data: bytes) -> tuple[list[Problem], dict[str, Any]]
     doc = read_docx(data)
     view = docx_view(doc)
     main_items = main_stream(inp.manuscript)
-    problems = list(view.problems)
+    problems = doc.problems + view.problems
     fulltext, pairs = align(main_items, view.items)
     problems += fulltext
     problems += check_contract(inp)
@@ -2070,7 +2313,8 @@ def m_keep_note(data, contract, state):
         raise NoTarget("no reference list")
     m: Manuscript = state["inputs"].manuscript
     note = norm(inline(m.note.raw))
-    heading = next(b for b in m.blocks if b.kind == "heading" and b.raw == "References")
+    # Reported after the reference list, which stands in the comparison where its block stands.
+    references = next(b for b in m.blocks if b.kind == "references")
 
     def edit(root):
         body = _body(root)
@@ -2084,7 +2328,7 @@ def m_keep_note(data, contract, state):
     return (
         _rewrite(data, edit),
         contract,
-        {("drop", "note after the references"), ("fulltext", f"main.md:{heading.line}")},
+        {("drop", "note after the references"), ("fulltext", f"main.md:{references.line}")},
     )
 
 
@@ -2095,6 +2339,185 @@ def m_residue(data, contract, state):
         contract,
         {("residue", f"main.md:{line}"), ("fulltext", f"main.md:{line}")},
     )
+
+
+# The ways past the check that the Codex review of 2026-10-04 found, each kept as a mutation.
+
+
+def m_volume(data, contract, state):
+    """A reference's volume changed so that the old value still occurs inside the new one (8 → 98)."""
+    for position, para in enumerate(state["view"].bibliography):
+        index, n = _entry(state, position)
+
+        def edit(root, index=index):
+            for node in _texts(list(_body(root))[index]):
+                if re.fullmatch(r"\d+", node.text):
+                    node.text = "9" + node.text
+                    return
+            raise NoTarget("no volume of its own run")
+
+        try:
+            return _rewrite(data, edit), contract, {("bibliography", f"[{n}]")}
+        except NoTarget:
+            continue
+    raise NoTarget("no reference with a volume")
+
+
+def m_append_reference(data, contract, state):
+    """An invented entry appended to an existing reference's paragraph."""
+    index, n = _entry(state, 0)
+    return (
+        _append(data, index, " Invented, A. (2020). An invented title. Nowhere, 1, 1–2."),
+        contract,
+        {("bibliography", f"[{n}]")},
+    )
+
+
+def m_placeholder(data, contract, state):
+    """A citation replaced by unstyled text that reads as the comparison's own placeholder."""
+    view, main_items, pairs = state["view"], state["main_items"], state["pairs"]
+    for mi, di in pairs:
+        if len(main_items[mi].cites) != 1:
+            continue
+        k, index, line = main_items[mi].cites[0], view.items[di].where, main_items[mi].where
+
+        def edit(root, index=index):
+            runs = _citation_runs(list(_body(root))[index])[0]
+            for run in runs:
+                props = run.find(w("rPr"))
+                if props is not None:
+                    run.remove(props)
+            texts = [t for run in runs for t in run.iter(w("t"))]
+            texts[0].text = PLACEHOLDER_CITE
+            for node in texts[1:]:
+                node.text = ""
+
+        return (
+            _rewrite(data, edit),
+            contract,
+            {("citation", f"citation {k}"), ("residue", f"main.md:{line}")},
+        )
+    raise NoTarget("no paragraph with one citation")
+
+
+def _break_before_references(state: dict[str, Any]) -> tuple[int, int]:
+    """(.docx block of the page break before References, main.md line of the block before it)."""
+    view, main_items = state["view"], state["main_items"]
+    heading = next(x for x in view.items if x.key.endswith("|References"))
+    blocks = state["doc"].blocks
+    at = next(i for i, b in enumerate(blocks) if isinstance(b, DPara) and b.index == heading.where)
+    page_break = blocks[at - 1]
+    if not (isinstance(page_break, DPara) and page_break.style == "Page Break"):
+        raise NoTarget("no page break before References")
+    mine = next(i for i, x in enumerate(main_items) if x.key.endswith("|References"))
+    return page_break.index, main_items[mine - 1].where
+
+
+def m_drop_break(data, contract, state):
+    index, _ = _break_before_references(state)
+    return (
+        _rewrite(data, lambda r: _body(r).remove(list(_body(r))[index])),
+        contract,
+        {("structure", "page breaks")},
+    )
+
+
+def m_text_in_break(data, contract, state):
+    index, before = _break_before_references(state)
+
+    def edit(root):
+        para = list(_body(root))[index]
+        run = ET.SubElement(para, w("r"))
+        ET.SubElement(run, w("t")).text = "The primary effect was 99.9 percent."
+
+    return (
+        _rewrite(data, edit),
+        contract,
+        {("structure", "page breaks"), ("fulltext", f"main.md:{before}")},
+    )
+
+
+def m_text_beside_figure(data, contract, state):
+    index = _figure_image(state, 1)
+
+    def edit(root):
+        para = list(_body(root))[index]
+        run = ET.SubElement(para, w("r"))
+        ET.SubElement(run, w("t")).text = "The primary effect was 99.9 percent."
+
+    return _rewrite(data, edit), contract, {("figure", "Figure 1")}
+
+
+def m_table_on_title_page(data, contract, state):
+    table = next((b for b in state["doc"].blocks if isinstance(b, DTable)), None)
+    if table is None:
+        raise NoTarget("no table")
+
+    def edit(root):
+        body = _body(root)
+        body.insert(1, copy.deepcopy(list(body)[table.index]))
+
+    return _rewrite(data, edit), contract, {("head", "title pages")}
+
+
+def m_move_reference(data, contract, state):
+    """The first reference, with its identifying bookmark, moved into the introduction."""
+    view, main_items, pairs = state["view"], state["main_items"], state["pairs"]
+    first = view.bibliography[0].index
+    heading = next(i for i, x in enumerate(main_items) if x.key.startswith("H1|1. "))
+    target = next(
+        (view.items[di].where, main_items[mi].where) for mi, di in pairs if mi == heading + 1
+    )
+
+    def edit(root):
+        body = _body(root)
+        children = list(body)
+        moved = [children[first]]
+        k = first - 1
+        while k >= 0 and children[k].tag == w("bookmarkStart"):
+            moved.insert(0, children[k])
+            k -= 1
+        for element in moved:
+            body.remove(element)
+        at = list(body).index(children[target[0]]) + 1
+        for offset, element in enumerate(moved):
+            body.insert(at + offset, element)
+
+    return (
+        _rewrite(data, edit),
+        contract,
+        {("fulltext", f"main.md:{target[1]}"), ("bibliography", "location")},
+    )
+
+
+def m_content_control(data, contract, state):
+    """A paragraph set a second time inside a content control (w:sdt)."""
+    index, line = _target(state)
+
+    def edit(root):
+        body = _body(root)
+        sdt = ET.Element(w("sdt"))
+        ET.SubElement(sdt, w("sdtPr"))
+        content = ET.SubElement(sdt, w("sdtContent"))
+        content.append(copy.deepcopy(list(body)[index]))
+        body.insert(index + 1, sdt)
+
+    return _rewrite(data, edit), contract, {("fulltext", f"main.md:{line}")}
+
+
+def m_hidden(data, contract, state):
+    """A run of a paragraph hidden: its text is in the file, not on the page."""
+    index, _ = _target(state)
+
+    def edit(root):
+        run = next(r for r in list(_body(root))[index].iter(w("r")) if _texts(r))
+        props = run.find(w("rPr"))
+        if props is None:
+            props = ET.Element(w("rPr"))
+            run.insert(0, props)
+        ET.SubElement(props, w("vanish"))
+
+    return _rewrite(data, edit), contract, {("structure", "hidden text")}
 
 
 def m_contract(data, contract, state):
@@ -2126,6 +2549,16 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("the note after the references kept", m_keep_note),
     ("a citation left unresolved", m_residue),
     ("the record of the conversion altered", m_contract),
+    ("a reference's volume changed (8 to 98)", m_volume),
+    ("an invented entry appended to a reference", m_append_reference),
+    ("a citation replaced by the placeholder's text", m_placeholder),
+    ("the page break before References dropped", m_drop_break),
+    ("text set in a page-break paragraph", m_text_in_break),
+    ("text set beside a figure's picture", m_text_beside_figure),
+    ("a table set on the title pages", m_table_on_title_page),
+    ("a reference moved into the text", m_move_reference),
+    ("a paragraph set again inside a content control", m_content_control),
+    ("a run of a paragraph hidden", m_hidden),
 )
 
 
