@@ -32,6 +32,10 @@ on:
           this option.
         type: boolean
         default: false
+  # TEMPORARY, for the pull request that adds this workflow only: GitHub dispatches only workflows
+  # that are on the default branch, so this run checks the workflow before it is merged. Removed in
+  # the last commit of that pull request; no preprint is public while it runs.
+  pull_request:
 
 permissions:
   contents: read
@@ -127,7 +131,7 @@ jobs:
       - name: Generate the pandoc source and the record of the conversion
         run: |
           python3 analysis/scripts/make_docx_source.py --out-dir build/docx \
-            ${{ inputs.no-preprint && '--no-preprint' || '' }}
+            ${{ (github.event_name == 'pull_request' || inputs.no-preprint) && '--no-preprint' || '' }}
 
       - name: Build the .docx twice and compare the bytes
         # The date the .docx records is the date of the commit, not of the build. A citation citeproc
