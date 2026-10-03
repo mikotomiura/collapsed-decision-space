@@ -263,4 +263,10 @@ tag `stage1-submitted` は、2026 年 9 月に PCI Registered Reports へ投稿�
 |---|---|
 | コード (`analysis/`, `repro.sh`) | Apache-2.0 OR MIT — `LICENSE` / `LICENSE-MIT` |
 | 本文と図 (`manuscript/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
-| 凍結データ (`data/raw/`) | 著者が生成した研究データ。由来は `data/data.md` |
+| 封印した protocol・規則とその記録 (`seal/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
+| 凍結した入力 (`data/raw/`) | CC BY 4.0 — 著者が生成した研究データ。由来は `data/data.md` |
+| 完了済み run の draw ごとの記録 (`data/completed/`) | CC BY 4.0 |
+| 前向きの 2 アームの記録 (`data/prospective/`) | CC BY 4.0 |
+| 試行の記録 (`data/attempts/`) | CC BY 4.0 |
+| 事後 simulation の出力 (`data/posthoc/`) | CC BY 4.0 |
+| `repro.sh` が作り直す派生物 (`data/derived/`、追跡しない) | CC BY 4.0 |

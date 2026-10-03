@@ -14,7 +14,7 @@ it (§J).
 | Affiliation | Independent Researcher |
 | Correspondence | via the submission system of the venue this manuscript is submitted to |
 | Code and data | <https://github.com/mikotomiura/collapsed-decision-space>. Development continues on the default branch; what pins the protocol against later change is the seal of §H and §J, not a branch name |
-| License | Code: Apache-2.0 OR MIT. Manuscript and figures: CC BY 4.0 |
+| License | Code: Apache-2.0 OR MIT. Manuscript, figures, data and the sealed protocol: CC BY 4.0 |
 | Protocol status | The protocol was sealed before any prospective draw was collected. Each arm then produced one complete run, on 2026-09-14 (UTC); the control arm's first capture attempt was stopped from outside before it produced a verdict, and that arm was restarted from the beginning (§I.5). The two verdicts reach branch R4, reported in the results section. A held-out test of a post hoc observation was run afterwards, outside the seal (§2.4). §H states what the seal covers and what breaks it |
 
 ---
