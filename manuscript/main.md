@@ -623,72 +623,72 @@ prompt run in eight pairs of blocks, with a five-way zone decision. §I gives fu
 
 <!-- BEGIN RENDERED FROM manuscript/refs.json -- DO NOT EDIT BY HAND -->
 
-[2] Park, J. S. et al. *Generative Agents: Interactive Simulacra of Human Behavior.*
+[2] Park, J. S. et al. *Generative agents: Interactive simulacra of human behavior.*
 arXiv:2304.03442, 2023.
 
-[27] Otterson, J. *Adversarial Test-Hardening for AI-Written Code: An Instrument Autopsy and a
-Pre-Registered Causal Estimate of the Critic Loop.* arXiv:2607.23002, 2026.
+[27] Otterson, J. *Adversarial test-hardening for AI-written code: An instrument autopsy and a
+pre-registered causal estimate of the critic loop.* arXiv:2607.23002, 2026.
 
-[28] Singh, A. *Certifying Compressed Language Models: An Audit and a Statistical Toolkit.*
+[28] Singh, A. *Certifying compressed language models: An audit and a statistical toolkit.*
 arXiv:2608.15046, 2026.
 
-[29] Price, E., Tian, K., Xun, Z. and Zhu, Y. *Total Variation Distance Estimation in Autoregressive
-Models.* arXiv:2607.19510, 2026.
+[29] Price, E., Tian, K., Xun, Z. and Zhu, Y. *Total variation distance estimation in autoregressive
+models.* arXiv:2607.19510, 2026.
 
-[35] Card, D., Henderson, P., Khandelwal, U., Jia, R., Mahowald, K. and Jurafsky, D. *With Little
-Power Comes Great Responsibility.* Proceedings of the 2020 Conference on Empirical Methods in
+[35] Card, D., Henderson, P., Khandelwal, U., Jia, R., Mahowald, K. and Jurafsky, D. *With little
+power comes great responsibility.* Proceedings of the 2020 Conference on Empirical Methods in
 Natural Language Processing (EMNLP), pp. 9263–9274, 2020. doi:10.18653/v1/2020.emnlp-main.745
 
-[36] Lakens, D. *Equivalence Tests: A Practical Primer for t Tests, Correlations, and
-Meta-Analyses.* Social Psychological and Personality Science, 8(4), 355–362, 2017.
+[36] Lakens, D. *Equivalence tests: A practical primer for t tests, correlations, and
+meta-analyses.* Social Psychological and Personality Science, 8(4), 355–362, 2017.
 doi:10.1177/1948550617697177
 
-[37] Vaccaro, M. *Preregistration for Experiments with AI Agents.* arXiv:2606.11217, 2026.
+[37] Vaccaro, M. *Preregistration for experiments with AI agents.* arXiv:2606.11217, 2026.
 
 [38] Larooij, M. and Törnberg, P. *Validation is the central challenge for generative social
-simulation: a critical review of LLMs in agent-based modeling.* Artificial Intelligence Review,
+simulation: A critical review of LLMs in agent-based modeling.* Artificial Intelligence Review,
 59(1), article 15, 2025. doi:10.1007/s10462-025-11412-6
 
 [39] Tomašević, A., Cvetković, D., Major, S., Maletić, S., Anđelković, M., Vranić, A., Stupovski,
 B., Vudragović, D., Bogojević, A. and Mitrović Dankulov, M. *Towards operational validation of
-LLM-agent social simulations: a replicated study of a Reddit-like technology forum.* EPJ Data
+LLM-agent social simulations: A replicated study of a Reddit-like technology forum.* EPJ Data
 Science, 15(1), article 72, 2026. doi:10.1140/epjds/s13688-026-00674-x
 
 [41] Bastian, P., Dette, H. and Koletzko, L. *Testing equivalence of multinomial distributions — A
 constrained bootstrap approach.* Statistics & Probability Letters, 206, article 109999, 2024.
 doi:10.1016/j.spl.2023.109999
 
-[42] Jiao, J., Han, Y. and Weissman, T. *Minimax Estimation of the L1 Distance.* IEEE Transactions
+[42] Jiao, J., Han, Y. and Weissman, T. *Minimax estimation of the L1 distance.* IEEE Transactions
 on Information Theory, 64(10), 6672–6706, 2018. doi:10.1109/TIT.2018.2846245
 
 [43] Balakrishnan, S. and Wasserman, L. *Hypothesis testing for high-dimensional multinomials: A
 selective review.* The Annals of Applied Statistics, 12(2), 727–749, 2018. doi:10.1214/18-AOAS1155SF
 
-[44] Hoenig, J. M. and Heisey, D. M. *The Abuse of Power: The Pervasive Fallacy of Power
-Calculations for Data Analysis.* The American Statistician, 55(1), 19–24, 2001.
+[44] Hoenig, J. M. and Heisey, D. M. *The abuse of power: The pervasive fallacy of power
+calculations for data analysis.* The American Statistician, 55(1), 19–24, 2001.
 doi:10.1198/000313001300339897
 
-[45] Sclar, M., Choi, Y., Tsvetkov, Y. and Suhr, A. *Quantifying Language Models' Sensitivity to
-Spurious Features in Prompt Design or: How I learned to start worrying about prompt formatting.*
+[45] Sclar, M., Choi, Y., Tsvetkov, Y. and Suhr, A. *Quantifying language models' sensitivity to
+spurious features in prompt design or: How I learned to start worrying about prompt formatting.*
 arXiv:2310.11324, 2023.
 
-[46] Zheng, C., Zhou, H., Meng, F., Zhou, J. and Huang, M. *Large Language Models Are Not Robust
-Multiple Choice Selectors.* arXiv:2309.03882, 2023.
+[46] Zheng, C., Zhou, H., Meng, F., Zhou, J. and Huang, M. *Large language models are not robust
+multiple choice selectors.* arXiv:2309.03882, 2023.
 
-[47] Tam, Z. R., Wu, C.-K., Tsai, Y.-L., Lin, C.-Y., Lee, H.-y. and Chen, Y.-N. *Let Me Speak
-Freely? A Study On The Impact Of Format Restrictions On Large Language Model Performance.*
+[47] Tam, Z. R., Wu, C.-K., Tsai, Y.-L., Lin, C.-Y., Lee, H.-y. and Chen, Y.-N. *Let me speak
+freely? A study on the impact of format restrictions on large language model performance.*
 Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing: Industry
 Track, pp. 1218–1236, 2024. doi:10.18653/v1/2024.emnlp-industry.91
 
-[48] Dror, R., Baumer, G., Shlomov, S. and Reichart, R. *The Hitchhiker's Guide to Testing
-Statistical Significance in Natural Language Processing.* Proceedings of the 56th Annual Meeting of
+[48] Dror, R., Baumer, G., Shlomov, S. and Reichart, R. *The hitchhiker's guide to testing
+statistical significance in natural language processing.* Proceedings of the 56th Annual Meeting of
 the Association for Computational Linguistics (Volume 1: Long Papers), pp. 1383–1392, 2018.
 doi:10.18653/v1/P18-1128
 
 [49] Morris, T. P., White, I. R. and Crowther, M. J. *Using simulation studies to evaluate
 statistical methods.* Statistics in Medicine, 38(11), 2074–2102, 2019. doi:10.1002/sim.8086
 
-[50] Little, R. and Rubin, D. *Statistical Analysis with Missing Data, Third Edition.* Wiley, 2019.
+[50] Little, R. and Rubin, D. *Statistical analysis with missing data.* Wiley, 3rd edition, 2019.
 doi:10.1002/9781119482260
 
 <!-- END RENDERED FROM manuscript/refs.json -->

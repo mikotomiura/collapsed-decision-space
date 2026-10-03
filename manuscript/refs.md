@@ -51,14 +51,19 @@ what each reference is doing in the argument.
   citation line and matched against an independent citation. Its content was checked against the
   full text of its arXiv version (1712.06120).
 - **[50]**: Crossref gives the authors' given names as "Roderick" and "Donald" only, so the entry
-  carries those initials and no middle initials; none were taken from elsewhere. The edition is in
-  the title, as Crossref records it (its edition-number field says 1, which the title contradicts).
-  The statement cited is from the abstract of the book's chapter 3, "Complete-Case and Available-Case
+  carries those initials and no middle initials; none were taken from elsewhere. Crossref writes the
+  edition into the title ("…, Third Edition") while its edition-number field says 1; the OpenLibrary
+  record of the same book (ISBN 9780470526798) gives the title without it. Since 2026-10-04 the
+  entry holds the title alone and the edition (3) as its own field. The statement cited is from the abstract of the book's chapter 3, "Complete-Case and Available-Case
   Analysis, Including Weighting Methods".
 - Initials are copied as the source gives them: [41] is written with initials because that is all
   Crossref holds, and no fuller form was taken from elsewhere. [45] and [46] carry neither a DOI nor
   a journal reference and are cited as arXiv preprints; their records' comment fields name ICLR
   2024, which is the authors' own statement and is not written into the entry. The same holds for
   the comment field of [37].
+- **Titles are in sentence case** since 2026-10-04: the first word, the first word after a colon, a
+  question mark or a dash, proper nouns and acronyms keep their capitals, and nothing else in an
+  entry changed. **[2]**'s six authors, which the printed entry shortens to "et al.", are held in
+  `refs.json` as the arXiv API record lists them, reduced to initials.
 - Sources cited in the published files of this repository must be reachable by a reader of it.
   Working directories that are not shipped here are not citable sources.

@@ -12,8 +12,8 @@ markers is not what the data renders to. The same arrangement already holds the 
 can mistake the other's block for its own.
 
 **What each entry holds.** The fields CSL-JSON defines carry the meaning: the type, every author
-(family name and initials, in order), the title, the container, volume, issue, page or article
-number, publisher, DOI, URL and year. Initials are kept as initials, as in the central bibliography
+(family name and initials, in order), the title in sentence case, the container, volume, issue, page
+or article number, publisher, edition, DOI, URL and year. Initials are kept as initials, as in the central bibliography
 the numbers come from; a fuller form would be invention. A field the prose does not print (the URL
 of an arXiv record, the authors an "et al." stands for) is still held, so that a processor that
 needs it does not have to guess.
@@ -134,7 +134,15 @@ def validate(items: list[dict[str, Any]]) -> list[str]:
             problems.append(f"{label}: et-al-after = {cut!r} does not shorten the author list")
         if "page" in item and "number" in item and kind != "article":
             problems.append(f"{label}: both a page range and an article number")
+        if "edition" in item and not str(item["edition"]).isdigit():
+            problems.append(f"{label}: edition {item['edition']!r} is not a number")
     return problems
+
+
+def _ordinal(edition: str) -> str:
+    number = int(edition)
+    suffix = "th" if 10 <= number % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(number % 10, "th")
+    return f"{number}{suffix}"
 
 
 def _year(item: dict[str, Any]) -> str:
@@ -158,7 +166,8 @@ def _venue(item: dict[str, Any]) -> list[str]:
     if kind == "article":
         return [item["number"], _year(item)]
     if kind == "book":
-        return [item["publisher"], _year(item)]
+        edition = [f"{_ordinal(item['edition'])} edition"] if item.get("edition") else []
+        return [item["publisher"], *edition, _year(item)]
     parts = [item["container-title"]]
     if kind == "article-journal":
         volume = item["volume"] + (f"({item['issue']})" if item.get("issue") else "")
