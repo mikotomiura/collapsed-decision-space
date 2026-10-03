@@ -447,7 +447,13 @@ def parse_references(text: str, *, anonymous: bool = False) -> tuple[Reference, 
             venue = venue[: remark_match.start()].strip()
         undated = re.search(r",?\s*n\.d\.\s*$", venue)
         if undated:
-            # A web page that shows no date is cited "n.d.", not under the year it was read in.
+            # A web page that shows no date is cited "n.d.", not under the year it was read in. Only
+            # that form is read this way: its URL and the date it was read must both be there.
+            if not (note.startswith("http") and re.fullmatch(r"retrieved \d{4}-\d{2}-\d{2}", remark)):
+                _die(
+                    f"reference [{number}] is undated but is not a web page with its URL and "
+                    "the date it was retrieved"
+                )
             year = "n.d."
             venue = venue[: undated.start()].strip().rstrip(",.")
         else:

@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import datetime
 import json
 import re
 import sys
@@ -108,6 +109,31 @@ def load(root: Path) -> list[dict[str, Any]]:
     return data
 
 
+def _date_problem(value: Any, *, full: bool) -> str | None:
+    """What is wrong with a CSL date, or None. ``full`` requires year, month and day.
+
+    A date that is not a list of integers, or that names no day of the calendar, is refused: an
+    entry whose year reads "n.d." or whose access date is the 99th would otherwise render and parse
+    without a word (Codex review of 2026-10-04).
+    """
+    parts = value.get("date-parts") if isinstance(value, dict) else None
+    if not (isinstance(parts, list) and len(parts) == 1 and isinstance(parts[0], list)):
+        return f"is not a CSL date with one date-parts entry: {value!r}"
+    fields = parts[0]
+    if not fields or not all(isinstance(x, int) and not isinstance(x, bool) for x in fields):
+        return f"has date parts that are not integers: {fields!r}"
+    if len(fields) > 3 or (full and len(fields) != 3):
+        return f"has {len(fields)} date parts: {fields!r}"
+    year, month, day = (*fields, 1, 1)[:3]
+    try:
+        datetime.date(year, month, day)
+    except ValueError:
+        return f"is not a day of the calendar: {fields!r}"
+    if not 1000 <= year <= 2999:
+        return f"has an implausible year: {fields!r}"
+    return None
+
+
 def validate(items: list[dict[str, Any]]) -> list[str]:
     """What is wrong with the data itself, before anything is rendered from it."""
     problems: list[str] = []
@@ -146,6 +172,11 @@ def validate(items: list[dict[str, Any]]) -> list[str]:
             problems.append(f"{label}: et-al-after = {cut!r} does not shorten the author list")
         if "page" in item and "number" in item and kind != "article":
             problems.append(f"{label}: both a page range and an article number")
+        for field, full in (("issued", False), ("accessed", True)):
+            if field in item:
+                problem = _date_problem(item[field], full=full)
+                if problem:
+                    problems.append(f"{label}: {field} {problem}")
         if "edition" in item and not str(item["edition"]).isdigit():
             problems.append(f"{label}: edition {item['edition']!r} is not a number")
     return problems
@@ -310,6 +341,12 @@ def self_check(items: list[dict[str, Any]], manuscript: str) -> list[str]:
     author_dropped[-1]["author"] = author_dropped[-1]["author"][:-1] or [
         {"family": "X", "given": "X."}
     ]
+    undated_year = copy.deepcopy(items)
+    undated_year[0]["issued"] = {"date-parts": [["n.d."]]}
+    pages = [i for i, item in enumerate(items) if item["type"] == "webpage"]
+    impossible_day = copy.deepcopy(items)
+    if pages:
+        impossible_day[pages[0]]["accessed"] = {"date-parts": [[2026, 10, 99]]}
     block = extract_block(manuscript) or ""
     last_entry = wrap(render_entry(items[-1]))
     entry_removed = manuscript.replace(block, block.replace("\n\n" + last_entry, "", 1))
@@ -318,7 +355,14 @@ def self_check(items: list[dict[str, Any]], manuscript: str) -> list[str]:
         ("the year of the first entry moved", year_moved, manuscript, f"[{first}] differs"),
         ("an author of the last entry dropped", author_dropped, manuscript, f"[{last}] differs"),
         ("the last entry removed from main.md", items, entry_removed, f"[{last}] is in"),
+        ("the year of the first entry written as n.d.", undated_year, manuscript,
+         f"[{first}]: issued has date parts that are not integers"),
     )
+    if pages:
+        cases += (
+            ("the access date of the first web page made impossible", impossible_day, manuscript,
+             f"[{items[pages[0]]['x-cds']['n']}]: accessed is not a day of the calendar"),
+        )
     for name, data, text, expected in cases:
         found = compare(data, text)
         if expected is None:
@@ -365,8 +409,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(
             f"[references] OK: the References block of {MANUSCRIPT_PATH} is what the "
-            f"{len(items)} entries of {REFS_PATH} render to, and a moved year, a dropped author "
-            "and a removed entry are each reported against the entry they touch"
+            f"{len(items)} entries of {REFS_PATH} render to, and a moved year, a dropped author, "
+            "a removed entry, a year written as n.d. and an impossible access date are each "
+            "reported against the entry they touch"
         )
         return 0
 
