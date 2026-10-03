@@ -20,6 +20,16 @@ name: compendium
 #   render_references.py --check : main.md の References が manuscript/refs.json から描画したものと
 #                                一致することを要求する。年を動かす・著者を落とす・項目を消すの 3 変異が、
 #                                それぞれ触った項目の名で報告されることも毎回確かめる
+#   check_docx_text.py --self-test : APA 7 の .docx の読み戻しの検査を、合成の原稿と手書きの合成の
+#                                .docx で試す (pandoc は要らない、2026-10-04)。変異なしの対照が通り、
+#                                段落を落とす・重ねる・数字や記号を変える・図の画像を落とす / 入れ替える・
+#                                書誌を落とす / 年や著者を変える・引用先を替える・表のセル境界を動かす・
+#                                英国式の綴り・AI 開示を変える / 移動元に残す・変換の記録を変える・
+#                                改頁や図の画像の段落に文字を置く・書誌を本文へ動かす・content control や
+#                                隠し文字に段落を置く・表の行を content control に置く等の 32 の変異が、
+#                                それぞれ期待どおりの診断の組 (検査名と位置) で落ちることを要求する。
+#                                .docx を作る apa-docx.yml は手動実行だけなので、判定そのものは
+#                                ここで push・PR ごとに両 OS で固定する
 #
 # 前者の出力は両 OS で byte 一致を compare job で要求する。
 
@@ -79,6 +89,10 @@ jobs:
       - name: References rendered from manuscript/refs.json
         shell: bash
         run: uv run --project env --no-sync python analysis/scripts/render_references.py --check
+
+      - name: APA .docx read-back, a synthetic .docx and its mutations
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/check_docx_text.py --self-test
 
       - name: Upload the PC-records output
         uses: actions/upload-artifact@v4

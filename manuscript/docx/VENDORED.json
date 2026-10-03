@@ -1,0 +1,11 @@
+{
+  "source": "https://github.com/citation-style-language/styles",
+  "path": "apa.csl",
+  "commit": "3c6698d791a83016d699f50cbbea857f6ee3d2f8",
+  "commit_date": "2026-10-02",
+  "license": "CC-BY-SA-3.0 (the rights element of the file: http://creativecommons.org/licenses/by-sa/3.0/)",
+  "note": "A byte-for-byte copy of the APA 7 style of the Citation Style Language project, for pandoc's citeproc. Do not edit; make_docx_source.py compares this digest before every build and fails on a difference.",
+  "sha256": {
+    "apa.csl": "3917def5fc951b104d64216c3373096042368b9704ba269ca83c14ebaba889fc"
+  }
+}

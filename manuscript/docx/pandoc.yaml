@@ -1,0 +1,20 @@
+# pandoc defaults for the APA 7 .docx (pandoc 3.5). Paths with ${.} are relative to this file; the
+# source, the reference document and the figures are in the build directory pandoc runs in, which
+# make_docx_source.py writes. Heading levels shift by one because the level-one heading of main.md is
+# the title, which the title page carries.
+from: markdown
+to: docx
+reference-doc: reference.docx
+bibliography: ${.}/../refs.json
+csl: ${.}/apa.csl
+# citeproc first, then the filter that writes "and" in narrative citations (narrative-and.lua).
+filters:
+  - citeproc
+  - ${.}/narrative-and.lua
+shift-heading-level-by: -1
+# The labels and titles of figures and tables are paragraphs make_docx_source.py writes above them;
+# pandoc sets no caption of its own. The positions are stated anyway, so that a caption it did set
+# would go where APA puts it.
+figure-caption-position: above
+table-caption-position: above
+fail-if-warnings: true

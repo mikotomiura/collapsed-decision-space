@@ -64,3 +64,7 @@ manuscript/tmlr/tmlr.sty     -text
 manuscript/tmlr/tmlr.bst     -text
 manuscript/tmlr/fancyhdr.sty -text
 manuscript/tmlr/LICENSE      -text
+
+# 2026-10-04: the APA 7 style of the Citation Style Language project, copied byte for byte for the
+# .docx build. Its SHA-256 is pinned in `manuscript/docx/VENDORED.json`, and `.csl` has no rule above.
+manuscript/docx/apa.csl      -text
