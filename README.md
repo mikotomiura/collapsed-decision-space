@@ -115,6 +115,7 @@ its fixture, or starts matching one of the sentences its negative control lists 
 | Path | Contents |
 |---|---|
 | `manuscript/main.md` | The protocol |
+| `manuscript/refs.json` | The bibliography as CSL-JSON; the References section of `main.md` is rendered from it |
 | `manuscript/CLAIM-BOUNDARY.md` | The claim guards and their search patterns |
 | `manuscript/REPORTED-BRANCH.md` | How the reported decision branch is written, and what checking it establishes |
 | `seal/` | The sealed decision rules, arm specification and protocol text, with their manifest |

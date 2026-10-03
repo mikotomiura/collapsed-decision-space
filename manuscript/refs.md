@@ -2,8 +2,10 @@
 
 Reference numbers such as `[28]` are **permanent identifiers** drawn from the author's central,
 append-only bibliography. They are not renumbered between manuscripts, which is why the numbers in
-`main.md` are not consecutive. The full bibliographic entries a reader needs are in the References
-section of `main.md`; this file records what each reference is doing in the argument.
+`main.md` are not consecutive. The full bibliographic entries are held as data in `refs.json`, a
+CSL-JSON array, and the References section of `main.md` is rendered from it by
+`analysis/scripts/render_references.py`, which also fails if the two disagree. This file records
+what each reference is doing in the argument.
 
 ## What each reference carries
 

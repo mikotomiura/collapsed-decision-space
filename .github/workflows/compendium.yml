@@ -14,6 +14,9 @@ name: compendium
 #   check_pdf_text.py --self-test : 頁の予算の判定 (page_budget_problems) を合成の頁列で試す。
 #                                PDF を作る submission-pdf.yml は手動実行だけなので、判定そのものは
 #                                ここで push・PR ごとに両 OS で固定する。例ごとに期待の診断文を照合する
+#   render_references.py --check : main.md の References が manuscript/refs.json から描画したものと
+#                                一致することを要求する。年を動かす・著者を落とす・項目を消すの 3 変異が、
+#                                それぞれ触った項目の名で報告されることも毎回確かめる
 #
 # 前者の出力は両 OS で byte 一致を compare job で要求する。
 
@@ -69,6 +72,10 @@ jobs:
       - name: PDF identity scan, cited DOIs broken by the layout
         shell: bash
         run: uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py --self-test
+
+      - name: References rendered from manuscript/refs.json
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/render_references.py --check
 
       - name: Upload the PC-records output
         uses: actions/upload-artifact@v4

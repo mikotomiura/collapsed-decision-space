@@ -103,6 +103,7 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 | パス | 内容 |
 |---|---|
 | `manuscript/main.md` | protocol 本文 |
+| `manuscript/refs.json` | 書誌 (CSL-JSON)。`main.md` の References はここから描画する |
 | `manuscript/CLAIM-BOUNDARY.md` | claim ガードと検索パターン |
 | `manuscript/REPORTED-BRANCH.md` | 報告する決定分岐の書き方と、その照合が示すこと／示さないこと |
 | `seal/` | 封印済みの決定規則・アーム仕様・protocol 本文と、その manifest |

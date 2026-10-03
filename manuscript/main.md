@@ -621,6 +621,8 @@ prompt run in eight pairs of blocks, with a five-way zone decision. §I gives fu
 
 ## References
 
+<!-- BEGIN RENDERED FROM manuscript/refs.json -- DO NOT EDIT BY HAND -->
+
 [2] Park, J. S. et al. *Generative Agents: Interactive Simulacra of Human Behavior.*
 arXiv:2304.03442, 2023.
 
@@ -630,8 +632,8 @@ Pre-Registered Causal Estimate of the Critic Loop.* arXiv:2607.23002, 2026.
 [28] Singh, A. *Certifying Compressed Language Models: An Audit and a Statistical Toolkit.*
 arXiv:2608.15046, 2026.
 
-[29] Price, E., Tian, K., Xun, Z. and Zhu, Y. *Total Variation Distance Estimation in
-Autoregressive Models.* arXiv:2607.19510, 2026.
+[29] Price, E., Tian, K., Xun, Z. and Zhu, Y. *Total Variation Distance Estimation in Autoregressive
+Models.* arXiv:2607.19510, 2026.
 
 [35] Card, D., Henderson, P., Khandelwal, U., Jia, R., Mahowald, K. and Jurafsky, D. *With Little
 Power Comes Great Responsibility.* Proceedings of the 2020 Conference on Empirical Methods in
@@ -660,8 +662,7 @@ doi:10.1016/j.spl.2023.109999
 on Information Theory, 64(10), 6672–6706, 2018. doi:10.1109/TIT.2018.2846245
 
 [43] Balakrishnan, S. and Wasserman, L. *Hypothesis testing for high-dimensional multinomials: A
-selective review.* The Annals of Applied Statistics, 12(2), 727–749, 2018.
-doi:10.1214/18-AOAS1155SF
+selective review.* The Annals of Applied Statistics, 12(2), 727–749, 2018. doi:10.1214/18-AOAS1155SF
 
 [44] Hoenig, J. M. and Heisey, D. M. *The Abuse of Power: The Pervasive Fallacy of Power
 Calculations for Data Analysis.* The American Statistician, 55(1), 19–24, 2001.
@@ -689,6 +690,8 @@ statistical methods.* Statistics in Medicine, 38(11), 2074–2102, 2019. doi:10.
 
 [50] Little, R. and Rubin, D. *Statistical Analysis with Missing Data, Third Edition.* Wiley, 2019.
 doi:10.1002/9781119482260
+
+<!-- END RENDERED FROM manuscript/refs.json -->
 
 Reference numbers are permanent identifiers assigned in the author's central bibliography and are
 not renumbered between manuscripts.
