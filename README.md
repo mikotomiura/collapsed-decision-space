@@ -197,6 +197,20 @@ commit dates and ancestry:
 ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 ```
 
+### The PDF and the .docx
+
+The manuscript has two derived forms, and neither is part of `repro.sh`: the PDF, typeset in the
+TMLR style by the manual `submission-pdf` workflow, and a `.docx` in APA 7 style, built by the
+manual `apa-docx` workflow. Each workflow reads its file back against `manuscript/main.md` and fails
+on any difference it cannot account for (§J of the manuscript says what each checks). The
+self-tests of both read-backs run on every push, in the `compendium` workflow, on both operating
+systems.
+
+Building the `.docx` by hand takes pandoc 3.5, a TeX installation with TikZ and the `standalone`
+class (for the figures), poppler and LibreOffice; the steps are those of
+`.github/workflows/apa-docx.yml`, in that order. `analysis/scripts/check_docx_text.py --self-test`
+needs none of them.
+
 ## What the checks establish, and what they do not
 
 The distinction matters more than the green badge, so it is stated here rather than left implicit.

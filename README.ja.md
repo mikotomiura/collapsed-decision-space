@@ -181,6 +181,18 @@ bash repro.sh
 ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 ```
 
+### PDF と .docx
+
+原稿から派生させる形は 2 つで、どちらも `repro.sh` の外です。TMLR の様式で組む PDF は手動の
+`submission-pdf` workflow が、APA 7 の `.docx` は手動の `apa-docx` workflow が作ります。どちらの
+workflow も、作ったファイルを `manuscript/main.md` と突き合わせて読み戻し、説明できない差があれば
+落ちます (何を検査するかは原稿の §J)。2 つの読み戻しの検査の self-test は、`compendium` workflow
+が push ごとに両 OS で走らせます。
+
+`.docx` を手元で作るには、pandoc 3.5、TikZ と `standalone` class のある TeX (図のため)、poppler、
+LibreOffice が要ります。手順は `.github/workflows/apa-docx.yml` の段のとおりです。
+`analysis/scripts/check_docx_text.py --self-test` はどれも要りません。
+
 ## 検査が示すこと / 示さないこと
 
 緑のバッジより、この区別のほうが重要です。
