@@ -27,6 +27,10 @@ so that the rendered list reads as the hand-written one did:
 * ``number-prefix`` -- the text printed before an article number ("article ");
 * ``remark`` -- a parenthetical remark closing the entry, printed verbatim (none at present).
 
+An author is either a person (``family`` and ``given``, the initials) or an organisation
+(``literal``). A web page (``webpage``) carries the date it was read (``accessed``) and, when it
+shows none, no ``issued`` date: it is printed "n.d." rather than given the year it was read.
+
 **What the rendering does not do.** It does not set the list in any publication style. The PDF
 build reads the rendered prose back into BibTeX (``make_pdf_source.parse_references``), so the
 prose keeps the form that parser reads: ``[n] Authors. *Title.* venue, year. doi:...``.
@@ -59,13 +63,15 @@ END_MARKER = "<!-- END RENDERED FROM manuscript/refs.json -->"
 #: the rendered block byte for byte, so it is part of the rendering, not a preference.
 WIDTH = 100
 
-#: The fields each type must carry, beyond ``id``, ``type``, ``author``, ``title``, ``issued`` and
-#: ``x-cds.n``. An entry missing one fails rather than rendering a shorter reference.
+#: The fields each type must carry, beyond ``id``, ``type``, ``author``, ``title`` and ``x-cds.n``
+#: (and ``issued``, for every type but a web page). An entry missing one fails rather than rendering
+#: a shorter reference.
 REQUIRED_BY_TYPE: dict[str, tuple[str, ...]] = {
     "article": ("number",),  # a preprint: the repository's identifier
     "article-journal": ("container-title", "volume", "DOI"),
     "paper-conference": ("container-title", "page", "DOI"),
     "book": ("publisher", "DOI"),
+    "webpage": ("URL", "accessed"),
 }
 
 KNOWN_FIELDS = frozenset(
@@ -84,6 +90,7 @@ KNOWN_FIELDS = frozenset(
         "URL",
         "issued",
         "edition",
+        "accessed",
         "x-cds",
     }
 )
@@ -123,12 +130,17 @@ def validate(items: list[dict[str, Any]]) -> list[str]:
         if kind not in REQUIRED_BY_TYPE:
             problems.append(f"{label}: type {kind!r} is not one this renderer knows")
             continue
-        for field in ("author", "title", "issued", *REQUIRED_BY_TYPE[kind]):
+        dated = ("issued",) if kind != "webpage" else ()
+        for field in ("author", "title", *dated, *REQUIRED_BY_TYPE[kind]):
             if not item.get(field):
                 problems.append(f"{label}: {kind} entry has no {field!r}")
         for author in item.get("author", []):
-            if not (author.get("family") and author.get("given")):
-                problems.append(f"{label}: an author lacks a family name or initials: {author}")
+            person = bool(author.get("family") and author.get("given"))
+            if person == bool(author.get("literal")) or len(author) != (2 if person else 1):
+                problems.append(
+                    f"{label}: an author must be a person (family, given) or an organisation "
+                    f"(literal), not {author}"
+                )
         cut = x_cds.get("et-al-after")
         if cut is not None and not (isinstance(cut, int) and 0 < cut < len(item.get("author", []))):
             problems.append(f"{label}: et-al-after = {cut!r} does not shorten the author list")
@@ -146,11 +158,18 @@ def _ordinal(edition: str) -> str:
 
 
 def _year(item: dict[str, Any]) -> str:
+    if "issued" not in item:
+        return "n.d."
     return str(item["issued"]["date-parts"][0][0])
 
 
+def _date(value: dict[str, Any]) -> str:
+    year, month, day = value["date-parts"][0]
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
 def _authors(item: dict[str, Any]) -> str:
-    names = [f"{a['family']}, {a['given']}" for a in item["author"]]
+    names = [a.get("literal") or f"{a['family']}, {a['given']}" for a in item["author"]]
     cut = item["x-cds"].get("et-al-after")
     if cut:
         return ", ".join(names[:cut]) + " et al."
@@ -165,6 +184,8 @@ def _venue(item: dict[str, Any]) -> list[str]:
     kind = item["type"]
     if kind == "article":
         return [item["number"], _year(item)]
+    if kind == "webpage":
+        return ["Web page", _year(item)]
     if kind == "book":
         edition = [f"{_ordinal(item['edition'])} edition"] if item.get("edition") else []
         return [item["publisher"], *edition, _year(item)]
@@ -188,16 +209,30 @@ def render_entry(item: dict[str, Any]) -> str:
     title = item["title"]
     if not title.endswith((".", "?", "!")):
         title += "."
-    text = f"[{item['x-cds']['n']}] {authors} *{title}* " + ", ".join(_venue(item)) + "."
+    venue = ", ".join(_venue(item))
+    text = f"[{item['x-cds']['n']}] {authors} *{title}* {venue}" + ("" if venue.endswith(".") else ".")
     if item.get("DOI"):
         text += f" doi:{item['DOI']}"
+    if item["type"] == "webpage":
+        text += f" {item['URL']} (retrieved {_date(item['accessed'])})"
     if item["x-cds"].get("remark"):
         text += f" ({item['x-cds']['remark']})"
     return text
 
 
 def wrap(entry: str) -> str:
-    lines = textwrap.wrap(entry, width=WIDTH, break_long_words=False, break_on_hyphens=False)
+    # A token that would read as markup at the start of a line ("2013." as a list item) is bound to
+    # the token before it, so that the wrap cannot put it there.
+    tokens: list[str] = []
+    for token in entry.split(" "):
+        if tokens and _UNSAFE_LINE_START.match(token + " "):
+            tokens[-1] += "\0" + token
+        else:
+            tokens.append(token)
+    lines = textwrap.wrap(
+        " ".join(tokens), width=WIDTH, break_long_words=False, break_on_hyphens=False
+    )
+    lines = [line.replace("\0", " ") for line in lines]
     for line in lines[1:]:
         if _UNSAFE_LINE_START.match(line):
             raise SystemExit(

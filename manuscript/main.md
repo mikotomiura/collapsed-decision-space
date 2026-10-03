@@ -47,28 +47,51 @@ two models and one prompt, not the effect of the channel.
 
 ## 1. Introduction
 
-Generative agents are language-model agents that act in a simulated world, keep an internal state,
-and choose their next action from it [2]. Whether that state reaches the choices downstream of it
-is a question about the validity of such simulations [38, 39]. The agent studied here acts in a
-simulated world with five named zones. At each step it returns a plan, as a JSON object, that names
-the zone it moves to next. A scalar computed from its recent movement enters the sampling settings
-of that step. We call this path the channel. On the records of this study, every draw carries one
-fixed prompt, each condition was sampled at one fixed temperature and top-p, and each channel-on
-block ran before its channel-off block (§2.2).
-
 A pre-registered evaluation that may end in a null has to settle in advance what a null will be
-worth [35, 36, 44]. The one studied here does so through three gates, each with a threshold fixed
-before the data existed. Its power gate asks whether the design could detect a shift of the declared
-size. Its entropy floor asks whether the read-out varies enough to register such a shift. Its cap
-on draws with no recorded zone asks whether the scored draws stand for what each condition produced.
-A rule rather than a later judgment then settles whether a null may be reported.
+worth [35, 36, 44]. Registered Reports make that settlement part of the format: peer review and the
+decision to publish take place before the results are known [55], a design is meant to make a null
+result credible [54], and a protocol is expected to state outcome-neutral conditions, such as
+positive controls or the absence of floor and ceiling effects, that show its methods can test its
+hypotheses [56].
 
-We designed and sealed this evaluation ourselves, and examine it here. It asked whether the channel
-shifts the agent's choice of zone by more than a margin of 0.10 in total variation. Its rules were
-sealed after a completed run on one model and before any prospective draw existed. Applied to a
-control arm on the same model and a primary arm on a second model, the rules stopped at the
-measurability gate when its entropy floor fired on the second model, and that model yields no
-estimate.
+This paper takes up three such conditions: that the design could detect an effect of the size that
+matters, that the read-out could register one, and that the units scored stand for all that were
+collected. A power analysis is meant for the test that will be run [54], yet in one sample of
+preregistrations 5 of the 13 power analyses reported fully enough to check addressed a test other
+than the main test of the hypothesis [59]. A check for floor effects [56] raises a separate
+question: which property of the read-out does the check establish? And in online experiments,
+participants who drop out of conditions for different reasons can confound the comparison between
+them [63], while work on clinical trials cautions that unequal dropout rates alone do not establish
+bias [64].
+
+Meta-research has asked whether preregistered studies keep to their plans: of 27 early ones in
+*Psychological Science*, 25 deviated and one disclosed every deviation [57]. It has asked whether
+peer review checks the plans: in the public review histories of 201 PLOS articles, someone reported
+accessing the preregistration for 14% [58]. This paper asks a different question of one protocol
+that was applied as written: whether each of its gates read the quantity that the reading of its
+result depends on.
+
+We designed and sealed one such evaluation ourselves, and examine it here. Generative agents are
+language-model agents that act in a simulated world, keep an internal state, and choose their next
+action from it [2]. Whether that state reaches the choices downstream of it is a question about the
+validity of such simulations [38, 39]. The agent studied here acts in a simulated world with five
+named zones. At each step it returns a plan, as a JSON object, that names the zone it moves to next.
+A scalar computed from its recent movement enters the sampling settings of that step. We call this
+path the channel. On the records of this study, every draw carries one fixed prompt, each condition
+was sampled at one fixed temperature and top-p, and each channel-on block ran before its channel-off
+block (§2.2).
+
+The evaluation asked whether the channel shifts the agent's choice of zone by more than a margin of
+0.10 in total variation, and it settled in advance what a null would be worth through three gates,
+each with a threshold fixed before the data existed. Its power gate asks whether the design could
+detect a shift of the declared size. Its entropy floor asks whether the read-out varies enough to
+register such a shift. Its cap on draws with no recorded zone asks whether the scored draws stand
+for what each condition produced. A rule rather than a later judgment then settles whether a null
+may be reported. The protocol uses the term "outcome-neutral" for checks whose pass criteria were
+fixed in advance (§G.1), but it was not reviewed as a Registered Report. Its rules were sealed after
+a completed run on one model and before any prospective draw existed. Applied to a control arm on
+the same model and a primary arm on a second model, the rules stopped at the measurability gate
+when its entropy floor fired on the second model, and that model yields no estimate.
 
 This paper asks what each gate of that evaluation read, and what the reading of its result depends
 on.
@@ -571,17 +594,34 @@ formats [45, 47], which is what makes the content worth reading.
 
 ### 7.2 Related work
 
-Fixing an equivalence bound before analysis is standard practice [36], and declaring a materiality
-margin in advance has been applied to language-model evaluation [28]; this protocol follows that
-practice. Tests of equivalence between two multinomial distributions exist [41], and estimating a
-total-variation distance well from samples is a problem in its own right [29, 42]; the protocol runs
-neither kind of procedure and makes no efficiency claim for its plug-in estimate. Preregistration has
-been argued for experiments with AI agents [37]. Validating generative social simulations is an open
-problem [38, 39], and it motivates asking whether a wired mechanism propagates. Separating instrument artifacts from real effects
-in a pre-registered setting is adjacent work on a different object [27]. Language-model output moves
-with the formatting of the prompt [45], with the positions and identifiers of listed options [46],
-and with required output formats [47]. The apparatus fixes its template, the order in which the
-template lists the zones, and its JSON schema, and varies none of them.
+**Preregistration and Registered Reports.** In a Registered Report, outcome-neutral checks are to be
+specified before the results are known and to be independent of the primary outcome measures [56].
+In this protocol the term refers to pass criteria fixed in advance (§G.1), a usage that does not
+establish that independence. Its gates are computed from the same draws as the estimate (§4 to
+§6). The protocol was not reviewed as a Registered Report. Meta-research on
+preregistration has examined adherence to plans and the disclosure of deviations [57], how power
+analyses in preregistrations are reported [59], and whether reviewers check preregistrations [58].
+Preregistration has also been argued for experiments with AI agents [37].
+
+**Reading a null.** Fixing an equivalence bound before analysis is standard practice [36, 61], and
+declaring a materiality margin in advance has been applied to language-model evaluation [28]; this
+protocol follows that practice. The value of an equivalence test rests on how well its bounds are
+justified [61]. The margin here was frozen upstream before the completed run, no rationale for its
+value is added after the fact, and no equivalence test is run (§2.3, §N.2); failing to reject is not
+read as evidence that an effect is absent [62]. Power computed at an effect estimated from the data
+adds no information beyond the *p* value, and the recommended alternative is a sensitivity analysis
+over the smallest effect size of interest and a realistic range of expected effects [60]. The sealed
+power gate is computed at the registered margin rather than at an observed effect, but after the
+draws, on each run's own channel-off base and for a surrogate statistic (§4.1, §N.1).
+
+**Language-model evaluation.** Tests of equivalence between two multinomial distributions exist
+[41], and estimating a total-variation distance well from samples is a problem in its own right
+[29, 42]; the protocol runs neither kind of procedure and makes no efficiency claim for its plug-in
+estimate. Validating generative social simulations is an open problem [38, 39]. Separating
+instrument artifacts from real effects in a pre-registered setting is adjacent work on a different
+object [27]. Language-model output moves with the formatting of the prompt [45], with the positions
+and identifiers of listed options [46], and with required output formats [47]; the apparatus fixes
+its template, zone order and JSON schema, and varies none of them.
 
 ---
 
@@ -690,6 +730,47 @@ statistical methods.* Statistics in Medicine, 38(11), 2074–2102, 2019. doi:10.
 
 [50] Little, R. and Rubin, D. *Statistical analysis with missing data.* Wiley, 3rd edition, 2019.
 doi:10.1002/9781119482260
+
+[54] Kiyonaga, A. and Scimeca, J. M. *Practical considerations for navigating Registered Reports.*
+Trends in Neurosciences, 42(9), 568–572, 2019. doi:10.1016/j.tins.2019.07.003
+
+[55] Scheel, A. M., Schijen, M. R. M. J. and Lakens, D. *An excess of positive results: Comparing
+the standard psychology literature with Registered Reports.* Advances in Methods and Practices in
+Psychological Science, 4(2), article 25152459211007467, 2021. doi:10.1177/25152459211007467
+
+[56] Center for Open Science. *Registered Reports.* Web page, n.d.
+https://www.cos.io/initiatives/registered-reports (retrieved 2026-10-03)
+
+[57] Claesen, A., Gomes, S., Tuerlinckx, F. and Vanpaemel, W. *Comparing dream to reality: An
+assessment of adherence of the first generation of preregistered studies.* Royal Society Open
+Science, 8(10), article 211037, 2021. doi:10.1098/rsos.211037
+
+[58] Syed, M. *Some data indicating that editors and reviewers do not check preregistrations during
+the review process.* Journal of Trial and Error, 6(1), 8–19, 2026. doi:10.36850/e5ce-4cc5
+
+[59] Bakker, M., Veldkamp, C. L. S., van den Akker, O. R., van Assen, M. A. L. M., Crompvoets, E.,
+Ong, H. H. and Wicherts, J. M. *Recommendations in pre-registrations and internal review board
+proposals promote formal power analyses but do not increase sample size.* PLOS ONE, 15(7), article
+e0236079, 2020. doi:10.1371/journal.pone.0236079
+
+[60] Lakens, D. *Sample size justification.* Collabra: Psychology, 8(1), article 33267, 2022.
+doi:10.1525/collabra.33267
+
+[61] Lakens, D., Scheel, A. M. and Isager, P. M. *Equivalence testing for psychological research: A
+tutorial.* Advances in Methods and Practices in Psychological Science, 1(2), 259–269, 2018.
+doi:10.1177/2515245918770963
+
+[62] Harms, C. and Lakens, D. *Making 'null effects' informative: Statistical techniques and
+inferential frameworks.* Journal of Clinical and Translational Research, 3(2), 382, 2018.
+doi:10.18053/jctres.03.2017s2.007
+
+[63] Zhou, H. and Fishbach, A. *The pitfall of experimenting on the web: How unattended selective
+attrition leads to surprising (yet false) research conclusions.* Journal of Personality and Social
+Psychology, 111(4), 493–504, 2016. doi:10.1037/pspa0000056
+
+[64] Bell, M. L., Kenward, M. G., Fairclough, D. L. and Horton, N. J. *Differential dropout and bias
+in randomised controlled trials: When it matters and when it may not.* BMJ, 346, article
+e8668, 2013. doi:10.1136/bmj.e8668
 
 <!-- END RENDERED FROM manuscript/refs.json -->
 
