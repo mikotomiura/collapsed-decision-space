@@ -47,7 +47,9 @@ What it changes, and why each change is necessary:
    figure is the PNG of the figure ``make_figures.py`` draws from the shipped data, set as a
    standalone PDF and rasterised at 600 dpi.
 7. **The references and each appendix begin on a new page**, and the markers in HTML comments and
-   the horizontal rules are left out.
+   the horizontal rules are left out. Each table is followed by an empty line, and its columns get
+   widths for the face and size the ``.docx`` sets it in (:func:`weight_docx_columns`); neither
+   changes a word.
 
 Everything else is passed through byte for byte, including the section numbers, which the
 repository cites.
@@ -83,7 +85,6 @@ from make_pdf_source import (  # noqa: E402
     _shielded_spans,
     _textual_forms,
     parse_references,
-    weight_table_columns,
 )
 
 DROP_BEGIN = "<!-- TMLR:DROP -->"
@@ -117,8 +118,22 @@ PREPRINT_DESCRIPTION = "Preprint of an earlier version"
 #: ``Page Break`` of the reference document, which breaks the page before itself and is one point
 #: high. pandoc passes the raw block through as it is.
 PAGE_BREAK = '```{=openxml}\n<w:p><w:pPr><w:pStyle w:val="PageBreak"/></w:pPr></w:p>\n```'
+#: An empty single-spaced line after each table, in the style ``After Table``, so that the text or
+#: the heading that follows does not run into the table's bottom rule. It carries no text.
+AFTER_TABLE = '```{=openxml}\n<w:p><w:pPr><w:pStyle w:val="AfterTable"/></w:pPr></w:p>\n```'
 
 CITATION_STYLE = "Citation"
+
+#: The geometry the ``.docx`` sets a table in: 10 point (the table style of the reference document),
+#: a 6.5 in line, and cell margins of 108 twips either side. Courier New sets every character 0.6 em
+#: wide; Times New Roman, bold as in the heading row, is allowed 0.56 em. A column must hold the
+#: longest token in it that has no space, or Word breaks that token inside a word: the first reading
+#: of the ``.docx`` found "Wher/e" and "primar/y" in nine tables, with the widths the PDF build
+#: computes for its own 8 point typewriter face.
+DOCX_LINE_PT = 6.5 * 72
+DOCX_PADDING_PT = 2 * 5.4 + 4.0
+DOCX_CODE_CHAR_PT = 6.0
+DOCX_TEXT_CHAR_PT = 5.6
 
 
 def _die(message: str) -> None:
@@ -494,6 +509,63 @@ def _table_rows(lines: list[str]) -> list[list[str]]:
     return rows
 
 
+def _widest_token_pt(cell: str) -> float:
+    """The width of the widest token of a cell that cannot break, in points at the table's size."""
+    widest = 0.0
+    position = 0
+    for match in re.finditer(r"`([^`]*)`", cell):
+        for token in cell[position : match.start()].replace("*", "").split():
+            widest = max(widest, len(token) * DOCX_TEXT_CHAR_PT)
+        for token in match.group(1).split():
+            widest = max(widest, len(token) * DOCX_CODE_CHAR_PT)
+        position = match.end()
+    for token in cell[position:].replace("*", "").split():
+        widest = max(widest, len(token) * DOCX_TEXT_CHAR_PT)
+    return widest
+
+
+def weight_docx_columns(table: str) -> str:
+    """Give a pipe table's columns widths for the ``.docx``, by the dash counts of its separator row.
+
+    The rule is that of ``make_pdf_source.weight_table_columns``: each column's share follows its
+    longest cell, and a column is raised to the width its longest unbreakable token needs, the others
+    giving way. The floors are computed for the ``.docx``'s face and size (``DOCX_*``), and where they
+    cannot all be met the columns are set in proportion to them. Only the separator row changes.
+    """
+    lines = table.split("\n")
+    rows = _table_rows(lines)
+    if len(rows) < 2 or not all(re.fullmatch(r":?-{3,}:?", c) for c in rows[1]):
+        _die("a table without a separator row")
+    cells = [rows[0], *rows[2:]]
+    columns = len(rows[0])
+    if any(len(row) != columns for row in cells) or len(rows[1]) != columns:
+        return table  # a pipe inside a cell; leave the table as pandoc would see it
+    longest = [max(min(len(row[k]), 90) for row in cells) for k in range(columns)]
+    floors = [
+        (max(_widest_token_pt(row[k]) for row in cells) + DOCX_PADDING_PT) / DOCX_LINE_PT
+        for k in range(columns)
+    ]
+    if sum(floors) >= 1:
+        fractions = [f / sum(floors) for f in floors]
+    else:
+        share = [max(6, n) for n in longest]
+        fractions = [s / sum(share) for s in share]
+        for _ in range(columns):  # raise the columns below their floor, shrink the rest
+            short = [k for k in range(columns) if fractions[k] < floors[k]]
+            if not short:
+                break
+            fixed = {k: floors[k] for k in short}
+            rest = [k for k in range(columns) if k not in fixed]
+            room = 1 - sum(fixed.values())
+            total = sum(fractions[k] for k in rest)
+            fractions = [
+                fixed[k] if k in fixed else fractions[k] * room / total for k in range(columns)
+            ]
+    weights = [max(3, round(f * 300)) for f in fractions]
+    lines[1] = "|" + "|".join("-" * w for w in weights) + "|"
+    return "\n".join(lines)
+
+
 def parse_author_table(
     inner: list[str], offset: int
 ) -> tuple[dict[str, tuple[int, str]], list[int]]:
@@ -732,15 +804,16 @@ def build(repo_root: Path, *, no_preprint: bool) -> tuple[str, dict[str, Any]]:
             table_lines = source.split("\n")[: len(block.lines)]
             caption = "\n".join(source.split("\n")[block.caption_start - block.start :]).strip()
             caption = caption.removeprefix("Table: ").strip()
-            weighted, _ = weight_table_columns("\n".join(table_lines))
             out.append(_div("Table Number", f"Table {table_number}"))
             out.append(_div("Table Title", caption))
-            out.append(weighted)
+            out.append(weight_docx_columns("\n".join(table_lines)))
+            out.append(AFTER_TABLE)
             record["tables"].append(
                 {
                     "number": table_number,
                     "lines": [block.start + 1, block.start + len(block.lines)],
                     "caption_line": block.caption_start + 1,
+                    "spacer_after": True,
                 }
             )
         elif block.kind in ("para", "item"):
@@ -877,10 +950,13 @@ STYLES: tuple[str, ...] = (
         '<w:pageBreakBefore/><w:spacing w:line="20" w:lineRule="exact"/>',
         '<w:sz w:val="2"/><w:szCs w:val="2"/>',
     ),
+    _pstyle("AfterTable", "After Table", NO_INDENT + SINGLE),
     _cstyle(
         "VerbatimChar",
         "Verbatim Char",
-        '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+        # No size of its own: code takes the size of the text it stands in (10 point in a table, which
+        # is what weight_docx_columns assumes).
+        '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/>',
     ),
     _cstyle("Citation", CITATION_STYLE, ""),
     # APA tables: rules above and below the table and under the heading row, none between cells;
@@ -893,6 +969,8 @@ STYLES: tuple[str, ...] = (
     '<w:bottom w:val="single" w:sz="8" w:space="0" w:color="000000"/></w:tblBorders>'
     '<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/>'
     '<w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+    # A row is not broken across pages.
+    "<w:trPr><w:cantSplit/></w:trPr>"
     '<w:tblStylePr w:type="firstRow"><w:rPr>' + BOLD + "</w:rPr><w:tcPr><w:tcBorders>"
     '<w:bottom w:val="single" w:sz="8" w:space="0" w:color="000000"/></w:tcBorders>'
     '<w:vAlign w:val="bottom"/></w:tcPr></w:tblStylePr></w:style>',
