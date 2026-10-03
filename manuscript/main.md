@@ -2,7 +2,7 @@
 
 <!-- TMLR:DROP -->
 
-**A sealed, pre-registered evaluation, its outcome reported against the sealed rules, and an audit of the gates that decided what that outcome is worth. Every analysis outside the sealed rules is labelled by when it was fixed (§2.4).**
+**A sealed, pre-registered evaluation, its outcome reported against the sealed rules, and an audit of the gates that decided what that outcome is worth. Every analysis outside the sealed rules is labeled by when it was fixed (§2.4).**
 No prospective draw existed when the decision rules were sealed. They are sealed in machine-readable
 form, so that the branch reported afterwards can be re-derived from the rules as they stood before
 it (§J).
@@ -14,7 +14,7 @@ it (§J).
 | Affiliation | Independent Researcher |
 | Correspondence | via the submission system of the venue this manuscript is submitted to |
 | Code and data | <https://github.com/mikotomiura/collapsed-decision-space>. Development continues on the default branch; what pins the protocol against later change is the seal of §H and §J, not a branch name |
-| Licence | Code: Apache-2.0 OR MIT. Manuscript and figures: CC BY 4.0 |
+| License | Code: Apache-2.0 OR MIT. Manuscript, figures, data and the sealed protocol: CC BY 4.0 |
 | Protocol status | The protocol was sealed before any prospective draw was collected. Each arm then produced one complete run, on 2026-09-14 (UTC); the control arm's first capture attempt was stopped from outside before it produced a verdict, and that arm was restarted from the beginning (§I.5). The two verdicts reach branch R4, reported in the results section. A held-out test of a post hoc observation was run afterwards, outside the seal (§2.4). §H states what the seal covers and what breaks it |
 
 ---
@@ -47,28 +47,51 @@ two models and one prompt, not the effect of the channel.
 
 ## 1. Introduction
 
-Generative agents are language-model agents that act in a simulated world, keep an internal state,
-and choose their next action from it [2]. Whether that state reaches the choices downstream of it
-is a question about the validity of such simulations [38, 39]. The agent studied here acts in a
-simulated world with five named zones. At each step it returns a plan, as a JSON object, that names
-the zone it moves to next. A scalar computed from its recent movement enters the sampling settings
-of that step. We call this path the channel. On the records of this study, every draw carries one
-fixed prompt, each condition was sampled at one fixed temperature and top-p, and each channel-on
-block ran before its channel-off block (§2.2).
-
 A pre-registered evaluation that may end in a null has to settle in advance what a null will be
-worth [35, 36, 44]. The one studied here does so through three gates, each with a threshold fixed
-before the data existed. Its power gate asks whether the design could detect a shift of the declared
-size. Its entropy floor asks whether the read-out varies enough to register such a shift. Its cap
-on draws with no recorded zone asks whether the scored draws stand for what each condition produced.
-A rule rather than a later judgement then settles whether a null may be reported.
+worth [35, 36, 44]. Registered Reports make that settlement part of the format: peer review and the
+decision to publish take place before the results are known [55], a design is meant to make a null
+result credible [54], and a protocol is expected to state outcome-neutral conditions, such as
+positive controls or the absence of floor and ceiling effects, that show its methods can test its
+hypotheses [56].
 
-We designed and sealed this evaluation ourselves, and examine it here. It asked whether the channel
-shifts the agent's choice of zone by more than a margin of 0.10 in total variation. Its rules were
-sealed after a completed run on one model and before any prospective draw existed. Applied to a
-control arm on the same model and a primary arm on a second model, the rules stopped at the
-measurability gate when its entropy floor fired on the second model, and that model yields no
-estimate.
+This paper takes up three such conditions: that the design could detect an effect of the size that
+matters, that the read-out could register one, and that the units scored stand for all that were
+collected. A power analysis is meant for the test that will be run [54], yet in one sample of
+preregistrations 5 of the 13 power analyses reported fully enough to check addressed a test other
+than the main test of the hypothesis [59]. A check for floor effects [56] raises a separate
+question: which property of the read-out does the check establish? And in online experiments,
+participants who drop out of conditions for different reasons can confound the comparison between
+them [63], while work on clinical trials cautions that unequal dropout rates alone do not establish
+bias [64].
+
+Meta-research has asked whether preregistered studies keep to their plans: of 27 early ones in
+*Psychological Science*, 25 deviated and one disclosed every deviation [57]. It has asked whether
+peer review checks the plans: in the public review histories of 201 PLOS articles, someone reported
+accessing the preregistration for 14% [58]. This paper asks a different question of one protocol
+that was applied as written: whether each of its gates read the quantity that the reading of its
+result depends on.
+
+We designed and sealed one such evaluation ourselves, and examine it here. Generative agents are
+language-model agents that act in a simulated world, keep an internal state, and choose their next
+action from it [2]. Whether that state reaches the choices downstream of it is a question about the
+validity of such simulations [38, 39]. The agent studied here acts in a simulated world with five
+named zones. At each step it returns a plan, as a JSON object, that names the zone it moves to next.
+A scalar computed from its recent movement enters the sampling settings of that step. We call this
+path the channel. On the records of this study, every draw carries one fixed prompt, each condition
+was sampled at one fixed temperature and top-p, and each channel-on block ran before its channel-off
+block (§2.2).
+
+The evaluation asked whether the channel shifts the agent's choice of zone by more than a margin of
+0.10 in total variation, and it settled in advance what a null would be worth through three gates,
+each with a threshold fixed before the data existed. Its power gate asks whether the design could
+detect a shift of the declared size. Its entropy floor asks whether the read-out varies enough to
+register such a shift. Its cap on draws with no recorded zone asks whether the scored draws stand
+for what each condition produced. A rule rather than a later judgment then settles whether a null
+may be reported. The protocol uses the term "outcome-neutral" for checks whose pass criteria were
+fixed in advance (§G.1), but it was not reviewed as a Registered Report. Its rules were sealed after
+a completed run on one model and before any prospective draw existed. Applied to a control arm on
+the same model and a primary arm on a second model, the rules stopped at the measurability gate
+when its entropy floor fired on the second model, and that model yields no estimate.
 
 This paper asks what each gate of that evaluation read, and what the reading of its result depends
 on.
@@ -167,7 +190,7 @@ stratified test stand as sealed.
 
 For each context, the distance is the total variation between the five-zone distributions of its
 channel-on and channel-off draws. Draws with no recorded zone are dropped first and the rest
-renormalised. The primary estimand is the mean of that distance over the contexts the scorer admits.
+renormalized. The primary estimand is the mean of that distance over the contexts the scorer admits.
 A stratified permutation test, with the contexts as strata, tests
 whether the conditions differ at α = 0.05. It is a nil-null test, and failing to reject is not
 evidence of equivalence. The protocol runs no equivalence test [36, 41].
@@ -435,7 +458,7 @@ The primary arm's own base was not simulated.
 ### 6.1 What the dropped draws are
 
 The cap is the second condition of the measurability gate (R4). The estimand drops every draw with
-no recorded zone and renormalises over the five zones. The sealed protocol chose that over a sixth
+no recorded zone and renormalizes over the five zones. The sealed protocol chose that over a sixth
 category, and made the rate of such draws the quantity R4 reads (§E.2). The cap
 reads the largest rate over the 16 cells of one context and one condition, against 0.5. The reading
 of the gate depends on how the share of dropped draws differs between the channel-on and the
@@ -507,7 +530,7 @@ rather than an error. The frozen qualifier for writing that outputs naming `null
 increased holds for the control arm, where the same test applied to the string and JSON `null` alone
 gives *p* = 4.359535e-05, and not for the primary arm, where it gives *p* = 2.263667e-01. For the
 primary arm, what increased is recorded `None` in general. **What replicated is an operational
-outcome, the recorded `None`, and not the same behavioural meaning or the same parser-failure
+outcome, the recorded `None`, and not the same behavioral meaning or the same parser-failure
 mechanism across the two families.**
 
 **[Held-out]** The difference cannot be separated from execution order. Every context ran its
@@ -560,28 +583,45 @@ support matters to the power calculation.
 **Compare the rate of dropped outputs between conditions, and read their content.** The input is
 every draw the estimand drops, with its raw response. The diagnostic looks at the dropped count in
 each condition, and at the content of each dropped output as the parser's own steps classify it. It
-shows whether dropping and renormalising removes a difference between the conditions, and what the
+shows whether dropping and renormalizing removes a difference between the conditions, and what the
 dropped outputs are (§6). Dropping them is a complete-case analysis [50]: the estimand then
 describes the draws with a recorded zone, and read as a statement about every draw it can be biased
 when what is dropped differs between conditions. The diagnostic does not show a cause. When the conditions
-run in a fixed order, a difference between them is also a difference in position in the run. Randomising or counterbalancing
+run in a fixed order, a difference between them is also a difference in position in the run. Randomizing or counterbalancing
 the order separates the two only under assumptions about drift and about dependence between
 successive draws. Language-model output depends on the format of the prompt and on required output
 formats [45, 47], which is what makes the content worth reading.
 
 ### 7.2 Related work
 
-Fixing an equivalence bound before analysis is standard practice [36], and declaring a materiality
-margin in advance has been applied to language-model evaluation [28]; this protocol follows that
-practice. Tests of equivalence between two multinomial distributions exist [41], and estimating a
-total-variation distance well from samples is a problem in its own right [29, 42]; the protocol runs
-neither kind of procedure and makes no efficiency claim for its plug-in estimate. Preregistration has
-been argued for experiments with AI agents [37]. Validating generative social simulations is an open
-problem [38, 39], and it motivates asking whether a wired mechanism propagates. Separating instrument artefacts from real effects
-in a pre-registered setting is adjacent work on a different object [27]. Language-model output moves
-with the formatting of the prompt [45], with the positions and identifiers of listed options [46],
-and with required output formats [47]. The apparatus fixes its template, the order in which the
-template lists the zones, and its JSON schema, and varies none of them.
+**Preregistration and Registered Reports.** In a Registered Report, outcome-neutral checks are to be
+specified before the results are known and to be independent of the primary outcome measures [56].
+In this protocol the term refers to pass criteria fixed in advance (§G.1), a usage that does not
+establish that independence. Its gates are computed from the same draws as the estimate (§4 to
+§6). The protocol was not reviewed as a Registered Report. Meta-research on
+preregistration has examined adherence to plans and the disclosure of deviations [57], how power
+analyses in preregistrations are reported [59], and whether reviewers check preregistrations [58].
+Preregistration has also been argued for experiments with AI agents [37].
+
+**Reading a null.** Fixing an equivalence bound before analysis is standard practice [36, 61], and
+declaring a materiality margin in advance has been applied to language-model evaluation [28]; this
+protocol follows that practice. The value of an equivalence test rests on how well its bounds are
+justified [61]. The margin here was frozen upstream before the completed run, no rationale for its
+value is added after the fact, and no equivalence test is run (§2.3, §N.2); failing to reject is not
+read as evidence that an effect is absent [62]. Power computed at an effect estimated from the data
+adds no information beyond the *p* value, and the recommended alternative is a sensitivity analysis
+over the smallest effect size of interest and a realistic range of expected effects [60]. The sealed
+power gate is computed at the registered margin rather than at an observed effect, but after the
+draws, on each run's own channel-off base and for a surrogate statistic (§4.1, §N.1).
+
+**Language-model evaluation.** Tests of equivalence between two multinomial distributions exist
+[41], and estimating a total-variation distance well from samples is a problem in its own right
+[29, 42]; the protocol runs neither kind of procedure and makes no efficiency claim for its plug-in
+estimate. Validating generative social simulations is an open problem [38, 39]. Separating
+instrument artifacts from real effects in a pre-registered setting is adjacent work on a different
+object [27]. Language-model output moves with the formatting of the prompt [45], with the positions
+and identifiers of listed options [46], and with required output formats [47]; the apparatus fixes
+its template, zone order and JSON schema, and varies none of them.
 
 ---
 
@@ -621,74 +661,118 @@ prompt run in eight pairs of blocks, with a five-way zone decision. §I gives fu
 
 ## References
 
-[2] Park, J. S. et al. *Generative Agents: Interactive Simulacra of Human Behavior.*
+<!-- BEGIN RENDERED FROM manuscript/refs.json -- DO NOT EDIT BY HAND -->
+
+[2] Park, J. S. et al. *Generative agents: Interactive simulacra of human behavior.*
 arXiv:2304.03442, 2023.
 
-[27] Otterson, J. *Adversarial Test-Hardening for AI-Written Code: An Instrument Autopsy and a
-Pre-Registered Causal Estimate of the Critic Loop.* arXiv:2607.23002, 2026.
+[27] Otterson, J. *Adversarial test-hardening for AI-written code: An instrument autopsy and a
+pre-registered causal estimate of the critic loop.* arXiv:2607.23002, 2026.
 
-[28] Singh, A. *Certifying Compressed Language Models: An Audit and a Statistical Toolkit.*
+[28] Singh, A. *Certifying compressed language models: An audit and a statistical toolkit.*
 arXiv:2608.15046, 2026.
 
-[29] Price, E., Tian, K., Xun, Z. and Zhu, Y. *Total Variation Distance Estimation in
-Autoregressive Models.* arXiv:2607.19510, 2026.
+[29] Price, E., Tian, K., Xun, Z. and Zhu, Y. *Total variation distance estimation in autoregressive
+models.* arXiv:2607.19510, 2026.
 
-[35] Card, D., Henderson, P., Khandelwal, U., Jia, R., Mahowald, K. and Jurafsky, D. *With Little
-Power Comes Great Responsibility.* Proceedings of the 2020 Conference on Empirical Methods in
+[35] Card, D., Henderson, P., Khandelwal, U., Jia, R., Mahowald, K. and Jurafsky, D. *With little
+power comes great responsibility.* Proceedings of the 2020 Conference on Empirical Methods in
 Natural Language Processing (EMNLP), pp. 9263–9274, 2020. doi:10.18653/v1/2020.emnlp-main.745
 
-[36] Lakens, D. *Equivalence Tests: A Practical Primer for t Tests, Correlations, and
-Meta-Analyses.* Social Psychological and Personality Science, 8(4), 355–362, 2017.
+[36] Lakens, D. *Equivalence tests: A practical primer for t tests, correlations, and
+meta-analyses.* Social Psychological and Personality Science, 8(4), 355–362, 2017.
 doi:10.1177/1948550617697177
 
-[37] Vaccaro, M. *Preregistration for Experiments with AI Agents.* arXiv:2606.11217, 2026.
+[37] Vaccaro, M. *Preregistration for experiments with AI agents.* arXiv:2606.11217, 2026.
 
 [38] Larooij, M. and Törnberg, P. *Validation is the central challenge for generative social
-simulation: a critical review of LLMs in agent-based modeling.* Artificial Intelligence Review,
+simulation: A critical review of LLMs in agent-based modeling.* Artificial Intelligence Review,
 59(1), article 15, 2025. doi:10.1007/s10462-025-11412-6
 
 [39] Tomašević, A., Cvetković, D., Major, S., Maletić, S., Anđelković, M., Vranić, A., Stupovski,
 B., Vudragović, D., Bogojević, A. and Mitrović Dankulov, M. *Towards operational validation of
-LLM-agent social simulations: a replicated study of a Reddit-like technology forum.* EPJ Data
+LLM-agent social simulations: A replicated study of a Reddit-like technology forum.* EPJ Data
 Science, 15(1), article 72, 2026. doi:10.1140/epjds/s13688-026-00674-x
 
 [41] Bastian, P., Dette, H. and Koletzko, L. *Testing equivalence of multinomial distributions — A
 constrained bootstrap approach.* Statistics & Probability Letters, 206, article 109999, 2024.
 doi:10.1016/j.spl.2023.109999
 
-[42] Jiao, J., Han, Y. and Weissman, T. *Minimax Estimation of the L1 Distance.* IEEE Transactions
+[42] Jiao, J., Han, Y. and Weissman, T. *Minimax estimation of the L1 distance.* IEEE Transactions
 on Information Theory, 64(10), 6672–6706, 2018. doi:10.1109/TIT.2018.2846245
 
 [43] Balakrishnan, S. and Wasserman, L. *Hypothesis testing for high-dimensional multinomials: A
-selective review.* The Annals of Applied Statistics, 12(2), 727–749, 2018.
-doi:10.1214/18-AOAS1155SF
+selective review.* The Annals of Applied Statistics, 12(2), 727–749, 2018. doi:10.1214/18-AOAS1155SF
 
-[44] Hoenig, J. M. and Heisey, D. M. *The Abuse of Power: The Pervasive Fallacy of Power
-Calculations for Data Analysis.* The American Statistician, 55(1), 19–24, 2001.
+[44] Hoenig, J. M. and Heisey, D. M. *The abuse of power: The pervasive fallacy of power
+calculations for data analysis.* The American Statistician, 55(1), 19–24, 2001.
 doi:10.1198/000313001300339897
 
-[45] Sclar, M., Choi, Y., Tsvetkov, Y. and Suhr, A. *Quantifying Language Models' Sensitivity to
-Spurious Features in Prompt Design or: How I learned to start worrying about prompt formatting.*
+[45] Sclar, M., Choi, Y., Tsvetkov, Y. and Suhr, A. *Quantifying language models' sensitivity to
+spurious features in prompt design or: How I learned to start worrying about prompt formatting.*
 arXiv:2310.11324, 2023.
 
-[46] Zheng, C., Zhou, H., Meng, F., Zhou, J. and Huang, M. *Large Language Models Are Not Robust
-Multiple Choice Selectors.* arXiv:2309.03882, 2023.
+[46] Zheng, C., Zhou, H., Meng, F., Zhou, J. and Huang, M. *Large language models are not robust
+multiple choice selectors.* arXiv:2309.03882, 2023.
 
-[47] Tam, Z. R., Wu, C.-K., Tsai, Y.-L., Lin, C.-Y., Lee, H.-y. and Chen, Y.-N. *Let Me Speak
-Freely? A Study On The Impact Of Format Restrictions On Large Language Model Performance.*
+[47] Tam, Z. R., Wu, C.-K., Tsai, Y.-L., Lin, C.-Y., Lee, H.-y. and Chen, Y.-N. *Let me speak
+freely? A study on the impact of format restrictions on large language model performance.*
 Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing: Industry
 Track, pp. 1218–1236, 2024. doi:10.18653/v1/2024.emnlp-industry.91
 
-[48] Dror, R., Baumer, G., Shlomov, S. and Reichart, R. *The Hitchhiker's Guide to Testing
-Statistical Significance in Natural Language Processing.* Proceedings of the 56th Annual Meeting of
+[48] Dror, R., Baumer, G., Shlomov, S. and Reichart, R. *The hitchhiker's guide to testing
+statistical significance in natural language processing.* Proceedings of the 56th Annual Meeting of
 the Association for Computational Linguistics (Volume 1: Long Papers), pp. 1383–1392, 2018.
 doi:10.18653/v1/P18-1128
 
 [49] Morris, T. P., White, I. R. and Crowther, M. J. *Using simulation studies to evaluate
 statistical methods.* Statistics in Medicine, 38(11), 2074–2102, 2019. doi:10.1002/sim.8086
 
-[50] Little, R. and Rubin, D. *Statistical Analysis with Missing Data, Third Edition.* Wiley, 2019.
+[50] Little, R. and Rubin, D. *Statistical analysis with missing data.* Wiley, 3rd edition, 2019.
 doi:10.1002/9781119482260
+
+[54] Kiyonaga, A. and Scimeca, J. M. *Practical considerations for navigating Registered Reports.*
+Trends in Neurosciences, 42(9), 568–572, 2019. doi:10.1016/j.tins.2019.07.003
+
+[55] Scheel, A. M., Schijen, M. R. M. J. and Lakens, D. *An excess of positive results: Comparing
+the standard psychology literature with Registered Reports.* Advances in Methods and Practices in
+Psychological Science, 4(2), article 25152459211007467, 2021. doi:10.1177/25152459211007467
+
+[56] Center for Open Science. *Registered Reports.* Web page, n.d.
+https://www.cos.io/initiatives/registered-reports (retrieved 2026-10-03)
+
+[57] Claesen, A., Gomes, S., Tuerlinckx, F. and Vanpaemel, W. *Comparing dream to reality: An
+assessment of adherence of the first generation of preregistered studies.* Royal Society Open
+Science, 8(10), article 211037, 2021. doi:10.1098/rsos.211037
+
+[58] Syed, M. *Some data indicating that editors and reviewers do not check preregistrations during
+the review process.* Journal of Trial and Error, 6(1), 8–19, 2026. doi:10.36850/e5ce-4cc5
+
+[59] Bakker, M., Veldkamp, C. L. S., van den Akker, O. R., van Assen, M. A. L. M., Crompvoets, E.,
+Ong, H. H. and Wicherts, J. M. *Recommendations in pre-registrations and internal review board
+proposals promote formal power analyses but do not increase sample size.* PLOS ONE, 15(7), article
+e0236079, 2020. doi:10.1371/journal.pone.0236079
+
+[60] Lakens, D. *Sample size justification.* Collabra: Psychology, 8(1), article 33267, 2022.
+doi:10.1525/collabra.33267
+
+[61] Lakens, D., Scheel, A. M. and Isager, P. M. *Equivalence testing for psychological research: A
+tutorial.* Advances in Methods and Practices in Psychological Science, 1(2), 259–269, 2018.
+doi:10.1177/2515245918770963
+
+[62] Harms, C. and Lakens, D. *Making ‘null effects’ informative: Statistical techniques and
+inferential frameworks.* Journal of Clinical and Translational Research, 3(2), 382, 2018.
+doi:10.18053/jctres.03.2017s2.007
+
+[63] Zhou, H. and Fishbach, A. *The pitfall of experimenting on the web: How unattended selective
+attrition leads to surprising (yet false) research conclusions.* Journal of Personality and Social
+Psychology, 111(4), 493–504, 2016. doi:10.1037/pspa0000056
+
+[64] Bell, M. L., Kenward, M. G., Fairclough, D. L. and Horton, N. J. *Differential dropout and bias
+in randomised controlled trials: When it matters and when it may not.* BMJ, 346, article
+e8668, 2013. doi:10.1136/bmj.e8668
+
+<!-- END RENDERED FROM manuscript/refs.json -->
 
 Reference numbers are permanent identifiers assigned in the author's central bibliography and are
 not renumbered between manuscripts.
@@ -708,7 +792,7 @@ This section reports a completed preliminary study. It is not among the prospect
 and no rule in §E reads it except for the one constant named in §B; §F audits that separation
 quantity by quantity.
 
-The agent moves on a discretised world. An exponential moving average over its recent moves yields
+The agent moves on a discretized world. An exponential moving average over its recent moves yields
 a scalar λ, and λ composes into the temperature used for the next generation. A forensic run
 (`data/raw/es3-verdict-forensic.json`) established the properties of this channel. All values below
 are extracted mechanically by `analysis/scripts/extract_verdict_table.py`; none are transcribed by
@@ -717,7 +801,7 @@ hand.
 | Quantity | Value | What it says |
 |---|---|---|
 | `verdict` | `GO` | The channel is eligible to carry a downstream measurement |
-| `d_loco` (the point estimate) | `0.04682681825722385` | Within-cell locomotion amplitude, normalised by headroom |
+| `d_loco` (the point estimate) | `0.04682681825722385` | Within-cell locomotion amplitude, normalized by headroom |
 | `ci_lower` (90% percentile bootstrap) | `0.04529199663455194` | Above the pre-registered floor by a factor of 2.3 |
 | `ci_upper` | `0.04681628791857268` | See the note on aggregation units below |
 | `amp_floor` (pre-registered) | `0.02` | The floor `ci_lower` had to clear |
@@ -743,13 +827,13 @@ cannot be dropped silently.
 `0.049235973743896363`. Both are *larger* than the point estimate. This is consistent with the
 estimand being an amplitude rather than a statistic of temporal ordering: permuting the move
 history or the λ sequence preserves the within-cell spread that the amplitude reads. These variants
-therefore characterise the estimator's sensitivity; they are not controls that produce a null, and
+therefore characterize the estimator's sensitivity; they are not controls that produce a null, and
 we do not present them as such. The control that does produce a null is the zone-function positive
 control above.
 
 **A second completed preliminary study (ES-1, a structured-probe determinism measurement) measured
 the upstream determinism property of the same apparatus.** Its machine-readable
-verdict record was not retained as a shipped artefact and is therefore not included in this
+verdict record was not retained as a shipped artifact and is therefore not included in this
 repository. Because this manuscript quotes only numbers that the extraction script can produce from
 shipped data, no ES-1 quantity is quoted here. This is recorded as a provenance limitation
 (§I.4).
@@ -761,7 +845,7 @@ shipped data, no ES-1 quantity is quoted here. This is recorded as a provenance 
 Everything in this section is completed work. It is reported here because the protocol of §C-§E
 is unreadable without it: §2.2 is the measurement the prospective arms repeat, §B.1 is the power
 worksheet the sampling plan rests on, and §B.2 is the feasibility evidence that the second arm can
-be run at all. None of it is re-analysed as part of the prospective plan, and §F states, per
+be run at all. None of it is re-analyzed as part of the prospective plan, and §F states, per
 planned analysis, what that separation does and does not buy.
 
 The record of the completed run of §2.2, as the scorer wrote it:
@@ -787,10 +871,10 @@ in §C.4, which had already been frozen upstream before it ran; §G.2 gives the 
 scope of what that provenance establishes. The completed run is therefore not the origin of those
 values.
 
-It is reported in §2.2 and §4 to §6, and it is **not** re-analysed as part of the prospective plan. One
+It is reported in §2.2 and §4 to §6, and it is **not** re-analyzed as part of the prospective plan. One
 value of this record does enter §E, and we state it rather than leave it implicit: `tv_bar =
-0.038065` is the pre-declared centre of the R5 tolerance band. It enters as a fixed constant
-settled before any prospective draw exists, not as data to be re-analysed, and no other quantity
+0.038065` is the pre-declared center of the R5 tolerance band. It enters as a fixed constant
+settled before any prospective draw exists, not as data to be re-analyzed, and no other quantity
 of this record is read by any rule in §E.
 
 ### B.1 Power worksheet: for the surrogate, concentration is not what lowers the computed power
@@ -837,7 +921,7 @@ aggregation is restricted to pooled quantities.
 | Projected cost of the full two-arm design (9,600 draws) | ≈ 5.09 h (the sum of the two rows above) |
 | Plan parse rate | band `≥ 0.8` |
 | Zone-present rate | band `≥ 0.8` |
-| Disk | model 4.92 GB; projected artefacts ≈ 37 MB |
+| Disk | model 4.92 GB; projected artifacts ≈ 37 MB |
 
 Table: The feasibility pilot for the second model.
 
@@ -849,7 +933,7 @@ answers the feasibility question and no finer. This resolution is not reduced la
 rates are not restored anywhere in this manuscript.
 
 No parse or zone quantity was collected for the reference model in the pilot, because that model is
-the control arm of the prospective design and observing its parse behaviour would be observing a
+the control arm of the prospective design and observing its parse behavior would be observing a
 component of R5.
 
 ---
@@ -1026,7 +1110,7 @@ zones.
 | Arm | Model | Role | `think` regime |
 |---|---|---|---|
 | **control** | `qwen3:8b` (re-run) | Absorbs the backend upgrade from ollama 0.31.1 to 0.32.12, so that a change of model family is not read together with a change of platform version | disabled, as in §2.2 |
-| **primary** | `llama3.1:8b` | Cross-family replication in a natively non-thinking model | none natively; the harness's disabled-`think` request is accepted (the pilot established acceptance, not behavioural inertness) |
+| **primary** | `llama3.1:8b` | Cross-family replication in a natively non-thinking model | none natively; the harness's disabled-`think` request is accepted (the pilot established acceptance, not behavioral inertness) |
 
 Table: The two prospective arms.
 
@@ -1098,9 +1182,9 @@ single-model scope; R3 failing yields an inconclusive-underpowered result that c
 
 ### D.3 Role C — completed preliminary studies
 
-§A, §B and the completed run of §2.2 are completed work. They are reported, not re-analysed. The single point of contact with
-§E is the one named in §B: the completed run's `tv_bar` fixes the centre of the R5 tolerance band
-as a pre-declared constant. No rule in §E re-analyses any of this material.
+§A, §B and the completed run of §2.2 are completed work. They are reported, not re-analyzed. The single point of contact with
+§E is the one named in §B: the completed run's `tv_bar` fixes the center of the R5 tolerance band
+as a pre-declared constant. No rule in §E re-analyzes any of this material.
 
 ---
 
@@ -1147,7 +1231,8 @@ Before the block is read, one of its words needs a pointer. The estimand drops "
 meaning every draw whose recorded destination is `None`. §6.1 shows what those draws are: in the
 completed run the word is exact for all 330 of them, and in the prospective arms for all but
 two of the 418, the other two being a JSON `null` and an absent destination key, which the parser
-treats as an empty destination rather than an error.
+treats as an empty destination rather than an error. The block
+reproduces the sealed text exactly, spelling included.
 
 <!-- BEGIN GENERATED FROM seal/decision-rules.json -- DO NOT EDIT BY HAND -->
 
@@ -1209,14 +1294,14 @@ anything, and §I.1 records this limit.
 ## F. Eligibility: what is known at seal time, and what is not
 
 A protocol is pre-registered only for the outcomes its authors do not already know. That is a
-statement about **realised outcomes**, not about data: a completed measurement may be reported in
-full, at any length, without any realised outcome of a planned analysis being known. The audit
+statement about **realized outcomes**, not about data: a completed measurement may be reported in
+full, at any length, without any realized outcome of a planned analysis being known. The audit
 below is our answer to the question a reader is entitled to ask — *which of these did you already
 have?*
 
 Three things must be kept apart when reading the R5 row. The **baseline** — the completed run of
 §2.2 — is known, and is reported here in full. The **declared pass criterion** — the band in §E —
-is fixed in advance, which is what an outcome-neutral check requires. The **realised outcome** —
+is fixed in advance, which is what an outcome-neutral check requires. The **realized outcome** —
 whether the control re-run under ollama 0.32.12 actually lands inside that band — is not known at
 seal time, because R5 exists precisely to detect a version drift whose presence or absence has not
 been observed. The same three-way distinction applies to R4 and R3.
@@ -1227,11 +1312,11 @@ state**, and it does not stop being true when the run completes. The fourth says
 would contradict itself the moment the arms were executed; this one does not have to be rewritten
 to stay honest.
 
-| Planned analysis | Role | Realised outcome known at seal time? | Reported after the run |
+| Planned analysis | Role | Realized outcome known at seal time? | Reported after the run |
 |---|---|---|---|
 | `tv_bar` in `llama3.1:8b` | A — primary estimand | **No.** At the moment of sealing, not one draw had been collected from this model under the measurement | The estimate, and the branch of §E it selects |
 | Permutation test in `llama3.1:8b` | A — decision function | **No.** As above | `permutation_p_value` and `permutation_reject`, and their effect on the branch |
-| Control-arm concordance on five quantities (R5) | B — planned QC | **No** — baseline known, band declared, **realised unknown**: whether version drift has occurred has not been observed | All five quantities, and which of them fell outside the band if any did |
+| Control-arm concordance on five quantities (R5) | B — planned QC | **No** — baseline known, band declared, **realized unknown**: whether version drift has occurred has not been observed | All five quantities, and which of them fell outside the band if any did |
 | `rho_hat` and the per-cell maximum `none_rate` (R4) | B — planned QC | **No.** The Phase 0 pilot observed pooled parse and zone bands, which are adjacent information, not the R4 outcome (§B.2) | Both quantities, against the R4 condition |
 | Attained-power check (R3) | B — planned QC | **No.** No value of `power` exists for the primary family | The attained `power`, against `power_min` |
 | Re-analysis of the completed run | **Not performed** | (baseline known) | Nothing: it is excluded from the planned analyses and stays excluded |
@@ -1269,7 +1354,7 @@ and dated upstream.
 |---|---|---|
 | `…/integration/embodied/bank_power.py` (eight constants, including `delta_tv_min`) | `2efe407cf7afd60e43f0a525a11a1739a8ca8d24` — the only commit ever to touch this file | 2026-07-07T17:08:49Z |
 | `…/integration/embodied/bank_scorer.py` (`none_rate_max`) | `580b8aa8c884a35a761ed744b9f5a5f834a38137` | 2026-07-10T09:25:18Z |
-| run artefact `verdict.json` of the completed study | `6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1` — the only commit ever to add this file | 2026-07-10T12:25:06Z |
+| run artifact `verdict.json` of the completed study | `6cbffcb3191059d3c72bd4bd97670ea26d6cbaa1` — the only commit ever to add this file | 2026-07-10T12:25:06Z |
 
 Table: The upstream commits that froze the thresholds and added the completed run's record.
 
@@ -1336,7 +1421,7 @@ Before any prospective draw is collected, eleven files are sealed, in six groups
 Table: The eleven sealed files, in six groups.
 
 `seal/SEAL-MANIFEST.json` records the SHA-256 of each and a self-hash over itself under a stated
-canonicalisation, and step 12 of `repro.sh` fails if any of them has moved since (§J). What that
+canonicalization, and step 12 of `repro.sh` fails if any of them has moved since (§J). What that
 buys is narrow and worth naming exactly: the branch reported after the run can be re-derived, by
 anyone, from the rules as they stood before it. It does not establish that the seal is old, and no
 check that lives inside this repository could. That would take a copy held by somebody else. One
@@ -1360,7 +1445,7 @@ party here rules on deviations, and we do not put an assurance in the place of t
 rule is a forfeit: should any of the six become necessary, it is reported as a deviation with the
 results, and **that run is not presented as pre-registered.** Making the
 claim again would require a fresh seal and a fresh run. This is a condition under which the
-pre-registration lapses — not a licence to change the rules and carry on.
+pre-registration lapses — not a license to change the rules and carry on.
 
 ---
 
@@ -1448,7 +1533,7 @@ would have produced a line of output and no coverage.
 Those two are held a different way, and it is worth saying exactly how far it goes. Step 9
 re-derives each arm's `effective_k` and `rho_hat` from that arm's own per-context entropies against
 that arm's own `h_min_bits`, so "every context clears that floor" and "`effective_k` = 0 of 8" fail
-if the recorded summary stops following from the map it summarises. It evaluates R4's sealed
+if the recorded summary stops following from the map it summarizes. It evaluates R4's sealed
 predicates — read from `seal/decision-rules.json`, not restated in the checker — against all three
 records, so the reading above fails if any of them comes to stand differently. And it requires the
 zones of probability zero to be *named* in this manuscript, because `agora` and `chashitsu` are
@@ -1507,13 +1592,17 @@ Apart from the archival deposit of the sealed files described in §J, there is n
 supplementary archive: the data, the analysis scripts, the apparatus and the reproduction command
 are all in the repository named here.
 
-**The submission PDF is derived, not maintained.** The PDF is built from
-this manuscript by `analysis/scripts/make_pdf_source.py` with pandoc 3.5 and the official TMLR style
-(vendored in `manuscript/tmlr/` and pinned there by SHA-256); there is no second manuscript. Its
+**Only this manuscript is maintained; every other form of it is derived and read back.** The PDF
+is built from this manuscript by `analysis/scripts/make_pdf_source.py` with pandoc 3.5, typeset in
+the TMLR style (vendored in `manuscript/tmlr/` and pinned there by SHA-256), and is not edited by
+hand. Its reference list is read from the References section, which is itself rendered from
+`manuscript/refs.json` by `analysis/scripts/render_references.py`. Its
 three figures are drawn by `analysis/scripts/make_figures.py` from the shipped data, and
 `make_figures.py --check` requires every number a figure sets to match that data. The finished PDF
 is then read back: `check_pdf_text.py` requires the headings, the quantities, the characters at risk
-of silent loss, the page on which the references begin and each figure's numbers row by row,
+of silent loss, the references and the appendices to begin once each and in order with every figure
+before them (and, for the anonymous build, the references to begin within the page limit of the
+TMLR style), and each figure's numbers row by row,
 `check_claim_boundary.py` runs on its text, and for the anonymous build `check_pdf_identity.py`
 requires that nothing in the file identifies the author. The manual `submission-pdf` workflow
 performs all of it. The anonymous build takes its manuscript from a copy of this repository
@@ -1667,7 +1756,7 @@ not determine which those are.
 For quantities whose literals are too common for that -- small counts, zone counts, the rows of the
 tables in §4.1, §5, §6.2 and §B.1, and the counts and class breakdown of the held-out
 test -- the ninth step renders the expected row or phrase from its source (the per-draw
-annotations, the verdict records, the derived artefacts, and `analysis/heldout-stay/result.json`
+annotations, the verdict records, the derived artifacts, and `analysis/heldout-stay/result.json`
 and `freeze.json`) and requires that exact text to occur exactly once, so that for these the test is
 uniqueness and not only occurrence. On every run it also alters copies of those sources one at a time
 and requires each such check to fail for the reason named, so that a rendering that had stopped
@@ -1866,7 +1955,7 @@ statistic, not a high-dimensional one, but its base has empirically empty cells,
 implementation floors the denominators only at a small constant that avoids dividing by zero, which
 leaves that sensitivity in place (§4.1). Entropy and support are different summaries of a
 distribution: a distribution can clear an entropy floor while occupying few categories, or fall below
-it while occupying several. Dropping a category and renormalising over the rest removes from the
+it while occupying several. Dropping a category and renormalizing over the rest removes from the
 comparison any difference between conditions in how often that category occurs.
 
 **Total-variation estimation and equivalence.** Price, Tian, Xun and Zhu [29] give sample-complexity
@@ -1901,7 +1990,7 @@ whether a wired mechanism propagates rather than assuming that it does. Park and
 provide the generative-agent architecture this apparatus descends from. Singh [28] audits compressed
 language models with a statistical toolkit built around equivalence testing at a declared margin:
 the practice of fixing a bound in advance [36], applied to language-model evaluation, which this
-protocol follows. Otterson [27] separates instrument artefacts from real
+protocol follows. Otterson [27] separates instrument artifacts from real
 effects in a pre-registered causal setting; the separation logic is adjacent to ours, applied to a
 different object.
 
@@ -1911,7 +2000,7 @@ different object.
 with the other thresholds, before the completed run was executed; §G.2 gives the commits and what
 checking them establishes. Fixing such a bound before analysis is established practice [36], and has
 been applied to language-model evaluation [28]. No substantive justification for the value is
-supplied after the fact: one written with every result in hand would be a rationalisation of a sealed
+supplied after the fact: one written with every result in hand would be a rationalization of a sealed
 value rather than a reason for it. Each gate is read at whatever margin is registered, and no claim of
 this paper uses the value.
 

@@ -35,6 +35,7 @@ authors:
 # `license` mirrors the LICENSE files actually shipped in this repository.
 #   Code (analysis/)         = Apache-2.0 OR MIT -> LICENSE / LICENSE-MIT
 #   Manuscript (manuscript/) = CC-BY-4.0         -> LICENSE-CC-BY-4.0.txt
+#   Data (data/), seal/      = CC-BY-4.0         -> LICENSE-CC-BY-4.0.txt
 # CFF can only express a list of SPDX identifiers, not a per-part mapping.
 # The exact mapping is in README.md, under Licence.
 license:

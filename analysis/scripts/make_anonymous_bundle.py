@@ -160,6 +160,18 @@ CITED_DOIS: tuple[str, ...] = (
     "10.18653/v1/P18-1128",
     "10.1002/sim.8086",
     "10.1002/9781119482260",
+    # The 2026-10-04 revision of the introduction and the related work (references [54] to [64];
+    # [56] is a web page and has no DOI).
+    "10.1016/j.tins.2019.07.003",
+    "10.1177/25152459211007467",
+    "10.1098/rsos.211037",
+    "10.36850/e5ce-4cc5",
+    "10.1371/journal.pone.0236079",
+    "10.1525/collabra.33267",
+    "10.1177/2515245918770963",
+    "10.18053/jctres.03.2017s2.007",
+    "10.1037/pspa0000056",
+    "10.1136/bmj.e8668",
 )
 
 #: Identities of **other people** carried by third-party files shipped byte for byte: the official

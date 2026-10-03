@@ -143,6 +143,13 @@ COMMIT_ON_PAGE = re.compile(
     r"(?<![.\w])(?=[0-9a-fA-F]*[a-fA-F])(?=[0-9a-fA-F]*[0-9])[0-9a-fA-F]{7,40}(?![\w-])"
 )
 
+#: Article numbers of cited work that are commit-shaped. A PLOS ONE e-locator is "e" and seven
+#: digits, which :data:`COMMIT_ON_PAGE` reads as an abbreviated commit identifier; the first build
+#: after reference [59] was added failed on exactly that (2026-10-04). Declared by hand, as the
+#: cited DOIs are, and masked only where the reference list sets one -- after the word "article" --
+#: so that the same string anywhere else on the page is still reported.
+CITED_ARTICLE_NUMBERS: tuple[str, ...] = ("e0236079",)
+
 #: Keys of the document information dictionary that carry free text.
 INFO_KEYS: tuple[str, ...] = (
     "/Title",
@@ -204,6 +211,8 @@ def mask_page(text: str) -> str:
     """
     for doi in CITED_DOIS:
         text = re.sub(r"\s*".join(re.escape(ch) for ch in doi), "", text)
+    for number in CITED_ARTICLE_NUMBERS:
+        text = re.sub(r"\barticle\s+" + re.escape(number) + r"(?![\w-])", "article", text)
     return _SPLIT_DIGEST.sub(
         lambda m: "" if len(m.group(1)) + len(m.group(2)) == 64 else m.group(0), text
     )
@@ -291,6 +300,30 @@ def doi_split_self_test() -> tuple[int, list[str]]:
             failures.append(f"{name}: not caught (no problem returned)")
         elif len(found) != 1 or f": {expected}: " not in found[0]:
             failures.append(f"{name}: caught for another reason: got {found}")
+    return len(cases), failures
+
+
+def commit_page_self_test() -> tuple[int, list[str]]:
+    """Run the commit-identifier check of the page on synthetic text whose answer is known.
+
+    Each case is ``(name, page text, the identifiers that must be reported)``. The declared article
+    number is accepted where the reference list sets it and nowhere else, and an undeclared one is
+    reported, so the mask cannot be what hides a commit.
+    """
+    number = CITED_ARTICLE_NUMBERS[0]
+    undeclared = number[:-1] + ("0" if number[-1] != "0" else "1")
+    cases: tuple[tuple[str, str, list[str]], ...] = (
+        ("P1 the declared article number in its reference", f"PLOS ONE, 15(7), article {number}, 2020.", []),
+        ("P2 the same, broken across lines", f"PLOS ONE, 15(7), article\n{number}, 2020.", []),
+        ("P3 the same string outside a reference", f"the driver at commit {number} was run", [number]),
+        ("P4 an undeclared article number", f"PLOS ONE, 15(7), article {undeclared}, 2020.", [undeclared]),
+        ("P5 an abbreviated commit identifier", "upstream commit 4e45adb, which", ["4e45adb"]),
+    )  # fmt: skip
+    failures: list[str] = []
+    for name, text, expected in cases:
+        found = [m.group(0) for m in COMMIT_ON_PAGE.finditer(mask_page(text))]
+        if found != expected:
+            failures.append(f"{name}: expected {expected}, got {found}")
     return len(cases), failures
 
 
@@ -490,13 +523,17 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.self_test:
         ran, failures = doi_split_self_test()
-        if ran == 0 or failures:
+        ran_page, page_failures = commit_page_self_test()
+        failures += page_failures
+        if ran == 0 or ran_page == 0 or failures:
             print(f"[pdf-identity] FAIL: self-test, {len(failures)} of {ran} cases", file=sys.stderr)
             for failure in failures:
                 print(f"  - {failure}", file=sys.stderr)
             return 1
         print(
-            f"[pdf-identity] OK self-test: {ran} synthetic streams, a cited DOI broken across lines "
+            f"[pdf-identity] OK self-test: {ran} synthetic streams and {ran_page} page texts; the "
+            "declared article number is accepted in its reference and reported elsewhere; "
+            f"a cited DOI broken across lines "
             "or kerned is accepted, and a broken DOI that is not a declared citation is reported"
         )
         return 0

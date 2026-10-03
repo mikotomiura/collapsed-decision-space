@@ -296,6 +296,12 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
 SELF_CITATIONS: frozenset[int] = frozenset()
 WITHHELD_TITLE = "Title withheld for anonymous review"
 
+#: Authors that are organisations rather than people, named by hand for the same reason as the
+#: self-citations: a parser that accepted any author list without initials would also accept a
+#: person's name that had lost them, and the bibliography would carry it without a word. The one
+#: entry is the web page cited for what a Registered Report asks of a protocol.
+CORPORATE_AUTHORS: frozenset[str] = frozenset({"Center for Open Science"})
+
 CITATIONS_FIXTURE = Path("manuscript") / "tmlr" / "citations.tsv"
 TMLR_DIR = Path("manuscript") / "tmlr"
 TMLR_FILES: tuple[str, ...] = (
@@ -418,29 +424,44 @@ def parse_references(text: str, *, anonymous: bool = False) -> tuple[Reference, 
             # Replaced wholesale by render_bib; its author list is the redaction placeholder and
             # is not a list of surnames with initials.
             surnames, et_al, author_field = ("Anonymous",), False, "Anonymous"
+        elif author_text in CORPORATE_AUTHORS:
+            # Braced, so that BibTeX keeps the name whole instead of reading a surname out of it.
+            surnames, et_al, author_field = (author_text,), False, "{" + author_text + "}"
         else:
             if not author_text.endswith("."):
                 author_text += "."
             surnames, et_al, author_field = _split_authors(author_text)
         note = ""
         note_match = re.search(
-            r"\b(doi:\S+?|arXiv:\d{4}\.\d{4,5})(?=[,.]?\s|[,.]?$)", rest
+            r"\b(doi:\S+?|arXiv:\d{4}\.\d{4,5}|https?://\S+?)(?=[,.]?\s|[,.]?$)", rest
         )
         if note_match:
             note = note_match.group(1)
         venue = rest
-        if note.startswith("doi:"):
+        if note.startswith(("doi:", "http")):
             venue = venue.replace(note, "")
         remark = ""
         remark_match = re.search(r"\s*\((.*)\)\s*$", venue)
         if remark_match:
             remark = remark_match.group(1).strip()
             venue = venue[: remark_match.start()].strip()
-        years = re.findall(r"\b(?:19|20)\d{2}\b", venue)
-        if not years:
-            _die(f"reference [{number}] carries no year")
-        year = years[-1]
-        venue = re.sub(r",?\s*" + year + r"\.?\s*$", "", venue).strip().rstrip(",.")
+        undated = re.search(r",?\s*n\.d\.\s*$", venue)
+        if undated:
+            # A web page that shows no date is cited "n.d.", not under the year it was read in. Only
+            # that form is read this way: its URL and the date it was read must both be there.
+            if not (note.startswith("http") and re.fullmatch(r"retrieved \d{4}-\d{2}-\d{2}", remark)):
+                _die(
+                    f"reference [{number}] is undated but is not a web page with its URL and "
+                    "the date it was retrieved"
+                )
+            year = "n.d."
+            venue = venue[: undated.start()].strip().rstrip(",.")
+        else:
+            years = re.findall(r"\b(?:19|20)\d{2}\b", venue)
+            if not years:
+                _die(f"reference [{number}] carries no year")
+            year = years[-1]
+            venue = re.sub(r",?\s*" + year + r"\.?\s*$", "", venue).strip().rstrip(",.")
         if note.startswith("arXiv:") and venue == note:
             note = ""  # the venue already is the identifier
         references.append(

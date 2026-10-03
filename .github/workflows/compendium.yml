@@ -11,9 +11,15 @@ name: compendium
 #                                SKIPPED → PASS に変わり、**他の全項目の行が 2 回で同一**であることを要求
 #   recompute_verdict.py --self-test : 3 verdict の再計算 (repro.sh step 5) の入力側変異。
 #                                zone を 1 つ動かす / 1 行落とすと不一致になり、無変更の対照は一致する
-#   check_pdf_text.py --self-test : 頁の予算の判定 (page_budget_problems) を合成の頁列で試す。
-#                                PDF を作る submission-pdf.yml は手動実行だけなので、判定そのものは
-#                                ここで push・PR ごとに両 OS で固定する。例ごとに期待の診断文を照合する
+#   check_pdf_text.py --self-test : 頁の判定 (page_problems) を合成の頁列で試す。構造の検査
+#                                (References と最初の付録の見出しが 1 回ずつ・順序・本文の図が References
+#                                より前) は両 build、頁の上限は anonymous の build だけに掛かる
+#                                (2026-10-04)。例ごとに、どちらの build として読むかと期待の診断文を
+#                                照合する。PDF を作る submission-pdf.yml は手動実行だけなので、判定
+#                                そのものはここで push・PR ごとに両 OS で固定する
+#   render_references.py --check : main.md の References が manuscript/refs.json から描画したものと
+#                                一致することを要求する。年を動かす・著者を落とす・項目を消すの 3 変異が、
+#                                それぞれ触った項目の名で報告されることも毎回確かめる
 #
 # 前者の出力は両 OS で byte 一致を compare job で要求する。
 
@@ -62,13 +68,17 @@ jobs:
         shell: bash
         run: uv run --project env --no-sync python analysis/scripts/recompute_verdict.py --self-test
 
-      - name: PDF page budget, synthetic pages
+      - name: PDF page checks, synthetic pages, as each build reads them
         shell: bash
         run: uv run --project env --no-sync python analysis/scripts/check_pdf_text.py --self-test
 
       - name: PDF identity scan, cited DOIs broken by the layout
         shell: bash
         run: uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py --self-test
+
+      - name: References rendered from manuscript/refs.json
+        shell: bash
+        run: uv run --project env --no-sync python analysis/scripts/render_references.py --check
 
       - name: Upload the PC-records output
         uses: actions/upload-artifact@v4

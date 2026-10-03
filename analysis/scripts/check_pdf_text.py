@@ -37,7 +37,8 @@ document renders ``sample-complexity`` as ``samplecomplexity`` in the extracted 
 sixty-three hyphenated words are unaffected. That is an artefact of reading the PDF back, not of the
 PDF.
 
-Usage:  python analysis/scripts/check_pdf_text.py extracted.txt --raw raw.txt --aux paper.aux
+Usage:  python analysis/scripts/check_pdf_text.py extracted.txt --raw raw.txt --aux paper.aux [--anonymous]
+        python analysis/scripts/check_pdf_text.py extracted.txt --page-mutation [--anonymous]
         python analysis/scripts/check_pdf_text.py --self-test
 """
 
@@ -87,19 +88,27 @@ ANONYMOUS_PHRASES: tuple[str, ...] = ("Anonymous authors", "Paper under double-b
 #: opening words are what ``make_pdf_source.py`` moves there from the manuscript.
 FIRST_PAGE_PHRASES: tuple[str, ...] = ("Use of AI assistance.",)
 
-#: The page budget. A TMLR regular submission has at most 12 pages of "main content, before
+#: The page limit. A TMLR regular submission has at most 12 pages of "main content, before
 #: references" (TMLR FAQ, https://jmlr.org/tmlr/faq.html; the 2025 annual report calls 12 pages
 #: "the maximum number of pages for TMLR regular submissions"). The bibliography stands between the
 #: main text and the appendices, so the page on which "References" is set bounds the main text. The
 #: bound errs on the safe side: a main text of exactly twelve pages that pushes the heading to the
-#: top of page 13 fails here. The heading must also come before the first appendix, or the bound
-#: would measure nothing.
+#: top of page 13 fails here.
+#:
+#: **The limit is that venue's rule, so it applies to the anonymous build alone** -- the build set
+#: in that venue's anonymous format. The named build is the preprint line, has no page limit, and reports the
+#: page the References begin on instead (2026-10-04). This is the one check in this file that holds
+#: for one build and not the other, and the only one ever relaxed. Everything else about where the
+#: main text ends -- the References and the first appendix set once each, in that order, with every
+#: figure of the main text before them -- is checked on both builds (:func:`page_structure_problems`):
+#: a layout that breaks it is broken whatever the venue, and without it the limit would measure
+#: nothing.
 REFERENCES_LAST_PAGE = 12
 #: The first appendix's title. LaTeX numbers the appendices (TEMPLATE-DIFF.md), and pdftotext sets
 #: the letter on a line of its own before the title, so the title line is what is matched; a letter
 #: on the same line is allowed for an extractor that joins them.
 FIRST_APPENDIX_TITLE = "The apparatus and the channel (completed preliminary study)"
-#: The two headings the page budget is read from, as line patterns on the extracted page. A line
+#: The two headings the page checks are read from, as line patterns on the extracted page. A line
 #: carrying anything besides the heading -- a trailing space included -- does not match, so a
 #: heading that pdftotext set differently is reported missing rather than guessed at.
 REFERENCES_PATTERN = r"^References$"
@@ -134,26 +143,24 @@ def lines_matching(pages: list[str], pattern: str) -> list[tuple[int, int]]:
     ]
 
 
-def page_budget_problems(
+def page_structure_problems(
     pages: list[str],
-    last_page: int,
     first_appendix: str,
     figure_captions: list[str],
 ) -> list[str]:
-    """What is wrong with where the main text ends, read from the extracted pages.
+    """What is wrong with where the main text ends, read from the extracted pages, limit aside.
 
     ``first_appendix`` is the line pattern of the first appendix heading and ``figure_captions``
-    the labels the main text's figure captions begin with (``"Figure 1."``). The checks:
+    the labels the main text's figure captions begin with (``"Figure 1:"``). The checks:
 
     * the References heading and the first appendix heading are each on the page exactly once;
-    * the References begin no later than ``last_page``;
     * the first appendix comes after the References, compared by line when they share a page;
     * every figure caption of the main text stands before the References. A figure is a float,
-      and LaTeX may carry it past the bibliography, where it would be main-text content the page
-      budget does not see.
+      and LaTeX may carry it past the bibliography, where it would be main-text content that the
+      page limit, where one applies, does not see.
 
-    ``main`` and ``--self-test`` both call this one function, so the self-test exercises the check
-    that runs on the PDF rather than a copy of it.
+    Applied to both builds. ``main``, ``--self-test`` and ``--page-mutation`` all call this one
+    function, so the tests exercise the check that runs on the PDF rather than a copy of it.
     """
     problems: list[str] = []
     references = lines_matching(pages, REFERENCES_PATTERN)
@@ -174,11 +181,6 @@ def page_budget_problems(
     if len(references) != 1:
         return problems
     start = references[0]
-    if start[0] > last_page:
-        problems.append(
-            f"References begin on page {start[0]}; the main text is meant to end by page "
-            f"{last_page}"
-        )
     if len(appendix) == 1 and appendix[0] < start:
         problems.append(
             f"the first appendix comes before the References (page {appendix[0][0]} line "
@@ -199,6 +201,36 @@ def page_budget_problems(
     return problems
 
 
+def page_limit_problems(pages: list[str], last_page: int) -> list[str]:
+    """Whether the References begin by ``last_page``. Applied to the anonymous build only.
+
+    Says nothing when the References heading is missing or repeated: the page the references begin
+    on is then undefined, and :func:`page_structure_problems` reports why.
+    """
+    references = lines_matching(pages, REFERENCES_PATTERN)
+    if len(references) != 1 or references[0][0] <= last_page:
+        return []
+    return [
+        f"References begin on page {references[0][0]}; the main text is meant to end by page "
+        f"{last_page}"
+    ]
+
+
+def page_problems(
+    pages: list[str],
+    last_page: int,
+    first_appendix: str,
+    figure_captions: list[str],
+    *,
+    anonymous: bool,
+) -> list[str]:
+    """The page checks of one build: the structure on both, the limit on the anonymous build."""
+    problems = page_structure_problems(pages, first_appendix, figure_captions)
+    if anonymous:
+        problems += page_limit_problems(pages, last_page)
+    return problems
+
+
 def _pages(*placed: tuple[str, int, int]) -> list[str]:
     """Synthetic extracted pages: 20 pages of filler, with each ``(text, page, line)`` placed."""
     pages = [["body text"] * 6 for _ in range(20)]
@@ -207,57 +239,73 @@ def _pages(*placed: tuple[str, int, int]) -> list[str]:
     return ["\n".join(lines) for lines in pages]
 
 
-def page_budget_self_test() -> tuple[int, list[str]]:
-    """Run :func:`page_budget_problems` on synthetic pages whose answer is known.
+def page_self_test() -> tuple[int, list[str]]:
+    """Run :func:`page_problems` on synthetic pages whose answer is known, as each build reads them.
 
-    Returns the number of cases run and what went wrong. Each case names the diagnostic it must
-    produce, and a case is counted as caught only if exactly that one problem is returned: a case
-    that fails for another reason, or for that reason and others besides, has not shown that the
-    check sees what it is meant to see. The page numbers are placed relative to
-    ``REFERENCES_LAST_PAGE``, so the cases test the budget this file enforces.
+    Returns the number of cases run and what went wrong. Each case names the build it is read as
+    and the diagnostic it must produce, and a case is counted as caught only if exactly that one
+    problem is returned: a case that fails for another reason, or for that reason and others
+    besides, has not shown that the check sees what it is meant to see. The page numbers are placed
+    relative to ``REFERENCES_LAST_PAGE``, so the cases test the limit this file enforces. The S
+    cases are read as the anonymous build, which applies every check; the N cases as the named
+    build, which applies all but the limit.
     """
     last = REFERENCES_LAST_PAGE
     one, two = CAPTION_ON_PAGE.format(number=1), CAPTION_ON_PAGE.format(number=2)
     captions = [one, two]
     app = FIRST_APPENDIX_TITLE
     figures = ((f"{one} A caption", 3, 2), (f"{two} Another caption", 5, 4))
-    cases: tuple[tuple[str, list[str], str | None], ...] = (
-        ("S1 References on the last page allowed, the first appendix after it",
+    late = _pages(("References", last + 1, 3), (app, last + 3, 1), *figures)
+    cases: tuple[tuple[str, bool, list[str], str | None], ...] = (
+        ("S1 References on the last page allowed, the first appendix after it", True,
          _pages(("References", last, 3), ("A", last + 2, 1), (app, last + 2, 3), *figures), None),
-        ("S1b the appendix letter on the same line as its title",
+        ("S1b the appendix letter on the same line as its title", True,
          _pages(("References", last, 3), (f"A {app}", last + 2, 1), *figures), None),
-        ("S2 References one page too late",
-         _pages(("References", last + 1, 3), (app, last + 3, 1), *figures),
-         f"References begin on page {last + 1}"),
-        ("S3 the first appendix on an earlier page than the References",
+        ("S2 References one page too late", True, late, f"References begin on page {last + 1}"),
+        ("S3 the first appendix on an earlier page than the References", True,
          _pages(("References", last, 3), (app, last - 1, 1), *figures),
          "the first appendix comes before the References"),
-        ("S4 no References heading",
+        ("S4 no References heading", True,
          _pages((app, last + 2, 1), *figures), "the References heading is not in the PDF"),
-        ("S5 the References line carries a trailing space",
+        ("S5 the References line carries a trailing space", True,
          _pages(("References ", last, 3), (app, last + 2, 1), *figures),
          "the References heading is not in the PDF"),
-        ("S6 the same page, the first appendix on an earlier line",
+        ("S6 the same page, the first appendix on an earlier line", True,
          _pages(("References", last, 5), (app, last, 2), *figures),
          "the first appendix comes before the References"),
-        ("S7 no first appendix heading",
+        ("S7 no first appendix heading", True,
          _pages(("References", last, 3), *figures), "the first appendix heading"),
-        ("S8 the References heading twice",
+        ("S8 the References heading twice", True,
          _pages(("References", last - 3, 3), ("References", last, 3), (app, last + 2, 1), *figures),
          "the References heading occurs 2 times"),
-        ("S9 a figure caption after the References",
+        ("S9 a figure caption after the References", True,
          _pages(("References", last - 1, 3), (app, last + 2, 1), figures[0], (f"{two} Another caption", last, 1)),
          f"{two!r} is set on page"),
-        ("S10 a figure caption missing",
+        ("S10 a figure caption missing", True,
          _pages(("References", last, 3), (app, last + 2, 1), figures[0]),
          f"the caption {two!r} is not in the PDF"),
-        ("S11 a caption in main.md's form, not LaTeX's",
+        ("S11 a caption in main.md's form, not LaTeX's", True,
          _pages(("References", last, 3), (app, last + 2, 1), figures[0], ("Figure 2. Another caption", 5, 4)),
          f"the caption {two!r} is not in the PDF"),
+        ("N1 the named build: References one page past the limit is not a problem", False, late,
+         None),
+        ("N2 the named build: the first appendix on an earlier page than the References", False,
+         _pages(("References", last + 1, 3), (app, last, 1), *figures),
+         "the first appendix comes before the References"),
+        ("N3 the named build: the References heading twice", False,
+         _pages(("References", last - 3, 3), ("References", last + 2, 3), (app, last + 4, 1), *figures),
+         "the References heading occurs 2 times"),
+        ("N4 the named build: a figure caption after the References", False,
+         _pages(("References", last + 1, 3), (app, last + 3, 1), figures[0], (f"{two} Another caption", last + 2, 1)),
+         f"{two!r} is set on page"),
+        ("N5 the named build: no References heading", False,
+         _pages((app, last + 2, 1), *figures), "the References heading is not in the PDF"),
     )  # fmt: skip
     problems: list[str] = []
-    for name, pages, expected in cases:
-        found = page_budget_problems(pages, last, FIRST_APPENDIX_PATTERN, captions)
+    for name, anonymous, pages, expected in cases:
+        found = page_problems(
+            pages, last, FIRST_APPENDIX_PATTERN, captions, anonymous=anonymous
+        )
         if expected is None:
             if found:
                 problems.append(f"{name}: the control returned {found}")
@@ -268,48 +316,162 @@ def page_budget_self_test() -> tuple[int, list[str]]:
     return len(cases), problems
 
 
-def page_mutation(
-    pages: list[str], last_page: int, first_appendix: str, figure_captions: list[str]
-) -> tuple[list[str], list[str]]:
-    """Push the real References heading past the budget with blank pages, and require the S2 fail.
+def _references_on(pages: list[str], start: int, target: int) -> list[str]:
+    """A copy of ``pages`` with the page that carries the References heading moved to ``target``.
 
-    The self-test shows that :func:`page_budget_problems` reads synthetic pages correctly; this shows
-    that it reads the pages of the PDF actually built. ``k`` empty pages are inserted before the
-    page that carries the References heading, ``k`` chosen so that the heading lands on the first
-    page past the budget. The unmutated pages are the control (``k`` = 0) and must pass; the mutant
-    must return exactly the diagnostic of case S2 and nothing else. Returns what it did, as lines to
-    print, and what went wrong.
+    Blank pages are inserted before it to move it later. To move it earlier, the pages after the
+    first are folded into the first one, their lines kept in order, until the heading falls on
+    ``target``: no line is dropped, so a caption or heading on a folded page is still there and still
+    before the References (Codex review of 2026-10-04: deleting those pages instead made a sound
+    layout with a figure on page 2 fail). Only where page boundaries fall changes.
+    """
+    if target >= start:
+        return pages[: start - 1] + [""] * (target - start) + pages[start - 1 :]
+    fold = start - target
+    return ["\n".join(pages[: 1 + fold])] + pages[1 + fold :]
+
+
+def page_mutation_self_test() -> tuple[int, list[str]]:
+    """Run :func:`page_mutation` on synthetic pages whose answer is known.
+
+    Each case is ``(name, anonymous, pages, the failure it must report or None)``. The controls are
+    sound layouts placed where the mutation has to fold pages (a figure on page 2, the References
+    past the limit) or to insert them (the References within it); the last case is a layout that is
+    not sound, which must be reported as the control failing rather than mutated.
+    """
+    last = REFERENCES_LAST_PAGE
+    one, two = CAPTION_ON_PAGE.format(number=1), CAPTION_ON_PAGE.format(number=2)
+    captions = [one, two]
+    app = FIRST_APPENDIX_TITLE
+    early = ((f"{one} A caption", 2, 2), (f"{two} Another caption", 5, 4))
+    past = _pages(("References", last + 2, 3), (app, last + 4, 1), *early)
+    within = _pages(("References", last - 2, 3), (app, last, 1), *early)
+    broken = _pages(("References", last, 3), (app, last + 2, 1), early[0], (f"{two} Late", last + 1, 1))
+    cases: tuple[tuple[str, bool, list[str], str | None], ...] = (
+        ("M1 the named build, a figure on page 2 and the References past the limit", False, past, None),
+        ("M2 the anonymous build, the same layout", True, past, None),
+        ("M3 the anonymous build, the References within the limit", True, within, None),
+        ("M4 a figure set after the References", False, broken, "structure, the real pages (control)"),
+    )  # fmt: skip
+    problems: list[str] = []
+    for name, anonymous, pages, expected in cases:
+        _, failures = page_mutation(
+            pages, last, FIRST_APPENDIX_PATTERN, captions, anonymous=anonymous
+        )
+        if expected is None:
+            if failures:
+                problems.append(f"{name}: the control failed: {failures}")
+        elif not failures or not failures[0].startswith(expected):
+            problems.append(f"{name}: expected a failure starting {expected!r}, got {failures}")
+    return len(cases), problems
+
+
+def page_mutation(
+    pages: list[str],
+    last_page: int,
+    first_appendix: str,
+    figure_captions: list[str],
+    *,
+    anonymous: bool,
+) -> tuple[list[str], list[str]]:
+    """Alter copies of the real pages, and require each page check to read them as it should.
+
+    The self-test shows that the page checks read synthetic pages correctly; this shows that they
+    read the pages of the PDF actually built. Each copy is judged by exactly one diagnostic, or by
+    none for a control:
+
+    * **structure, both builds.** The real pages must have no structural problem. Three copies are
+      then altered one way each -- a second References heading on a page after the real one, the
+      first appendix heading moved to a page before the References, and the first figure caption
+      repeated on a page after them -- and each must return exactly its own diagnostic.
+    * **the limit, the anonymous build.** Two copies put the References heading on the last page
+      the limit allows and on the page after it. The first must pass the limit and the second must
+      fail it with exactly the limit's diagnostic, and the real pages must be read as the side they
+      fall on. When the real PDF is past the limit, the check of the PDF fails, correctly, and this
+      still shows that the limit reads these pages in both directions.
+    * **no limit, the named build.** The copy with the heading one page past the limit must pass
+      the named build's checks.
+
+    Returns what it did, as lines to print, and what went wrong.
     """
     report: list[str] = []
     failures: list[str] = []
-    control = page_budget_problems(pages, last_page, first_appendix, figure_captions)
+
+    def expect(name: str, found: list[str], expected: str | None) -> None:
+        report.append(f"{name}: {len(found)} problem(s)" + (f" {found}" if found else ""))
+        if expected is None:
+            if found:
+                failures.append(f"{name}: expected no problem, got {found}")
+        elif len(found) != 1 or expected not in found[0]:
+            failures.append(
+                f"{name}: expected exactly one problem containing {expected!r}, got {found}"
+            )
+
+    def structure(copy: list[str]) -> list[str]:
+        return page_structure_problems(copy, first_appendix, figure_captions)
+
+    expect("structure, the real pages (control)", structure(pages), None)
     references = lines_matching(pages, REFERENCES_PATTERN)
-    report.append(
-        f"k = 0 (control): References on page {references[0][0] if references else None}, "
-        f"{len(control)} problem(s)"
-    )
-    if control:
-        failures.append(f"the control (k = 0) returned {control}")
-    if len(references) != 1:
-        failures.append(f"the References heading occurs {len(references)} times, so no mutant is built")
+    appendix = lines_matching(pages, first_appendix)
+    if failures or len(references) != 1 or len(appendix) != 1 or not figure_captions:
+        failures.append("the real pages are not a sound base for the mutants, so none was built")
         return report, failures
     start = references[0][0]
-    k = last_page + 1 - start
-    if k <= 0:
-        failures.append(f"References already begin on page {start}, past the budget; k would be {k}")
-        return report, failures
-    mutant = pages[: start - 1] + [""] * k + pages[start - 1 :]
-    moved = lines_matching(mutant, REFERENCES_PATTERN)
-    found = page_budget_problems(mutant, last_page, first_appendix, figure_captions)
-    report.append(
-        f"k = {k}: References moved from page {start} to page {moved[0][0] if moved else None}, "
-        f"{len(found)} problem(s): {found}"
+
+    twice = pages[:start] + ["References"] + pages[start:]
+    expect(
+        "structure, a second References heading after the real one",
+        structure(twice),
+        "the References heading occurs 2 times",
     )
-    expected = f"References begin on page {last_page + 1}"
-    if not found:
-        failures.append(f"k = {k}: not caught (no problem returned)")
-    elif len(found) != 1 or expected not in found[0]:
-        failures.append(f"k = {k}: caught for another reason: expected {expected!r}, got {found}")
+    page_number, line_number = appendix[0]
+    title = pages[page_number - 1].split("\n")[line_number - 1]
+    without = [
+        "\n".join(
+            line
+            for index, line in enumerate(page.split("\n"), start=1)
+            if (number, index) != (page_number, line_number)
+        )
+        for number, page in enumerate(pages, start=1)
+    ]
+    moved = without[: start - 1] + [title] + without[start - 1 :]
+    expect(
+        "structure, the first appendix heading moved before the References",
+        structure(moved),
+        "the first appendix comes before the References",
+    )
+    label = figure_captions[0]
+    carried = pages[:start] + [f"{label} a caption carried past the bibliography"] + pages[start:]
+    expect(
+        f"structure, {label!r} repeated after the References",
+        structure(carried),
+        f"{label!r} is set on page",
+    )
+
+    # The limit is read through page_problems, the function main calls, so that what is tested is
+    # the build's whole set of page checks and not the limit on its own.
+    def build(copy: list[str]) -> list[str]:
+        return page_problems(
+            copy, last_page, first_appendix, figure_captions, anonymous=anonymous
+        )
+
+    within = _references_on(pages, start, last_page)
+    past = _references_on(pages, start, last_page + 1)
+    if anonymous:
+        expect(f"limit, the References moved to page {last_page}", build(within), None)
+        expect(
+            f"limit, the References moved to page {last_page + 1}",
+            build(past),
+            f"References begin on page {last_page + 1}",
+        )
+        side = "within" if start <= last_page else "past"
+        expect(
+            f"limit, the real pages (References on page {start}, {side} the limit)",
+            build(pages),
+            None if start <= last_page else f"References begin on page {start}",
+        )
+    else:
+        expect(f"named build, the References moved to page {last_page + 1}", build(past), None)
     return report, failures
 
 
@@ -488,7 +650,7 @@ def check_figures(repo_root: Path, pages: list[str]) -> list[str]:
 WIDEST_TABLE_COLUMNS: tuple[str, ...] = (
     "Planned analysis",
     "Role",
-    "Realised outcome known at seal time?",
+    "Realized outcome known at seal time?",
     "Reported after the run",
 )
 
@@ -587,31 +749,44 @@ def main(argv: list[str] | None = None) -> int:
             key=lambda label: int(label.split()[1][:-1]),
         )
         report, failures = page_mutation(
-            pages, REFERENCES_LAST_PAGE, FIRST_APPENDIX_PATTERN, captions
+            pages,
+            REFERENCES_LAST_PAGE,
+            FIRST_APPENDIX_PATTERN,
+            captions,
+            anonymous=args.anonymous,
         )
+        build = "anonymous" if args.anonymous else "named"
         for line in report:
-            print(f"[pdf-text] page mutation: {line}")
+            print(f"[pdf-text] page mutation ({build}): {line}")
         if failures:
-            print("[pdf-text] FAIL: page mutation", file=sys.stderr)
+            print(f"[pdf-text] FAIL: page mutation ({build} build)", file=sys.stderr)
             for failure in failures:
                 print(f"  - {failure}", file=sys.stderr)
             return 1
+        limit = (
+            f"the limit passes the References on page {REFERENCES_LAST_PAGE} and fails them on the "
+            "next, and reads the real pages on the side they fall"
+            if args.anonymous
+            else f"the References one page past {REFERENCES_LAST_PAGE} are not a problem, as no "
+            "limit applies to this build"
+        )
         print(
-            "[pdf-text] OK page mutation: the real pages pass, and with the References pushed one "
-            f"page past REFERENCES_LAST_PAGE = {REFERENCES_LAST_PAGE} they fail with exactly the "
-            "S2 diagnostic"
+            f"[pdf-text] OK page mutation ({build} build): the real pages have no structural "
+            "problem; a repeated References heading, the first appendix moved before them and a "
+            f"figure caption carried past them are each reported for that reason; and {limit}"
         )
         return 0
 
     if args.self_test:
-        ran_pages, failures = page_budget_self_test()
+        ran_pages, failures = page_self_test()
+        ran_mutation, mutation_failures = page_mutation_self_test()
         ran_aux, aux_failures = aux_self_test()
-        failures += aux_failures
-        ran = ran_pages + ran_aux
-        if ran_pages == 0 or ran_aux == 0:
+        failures += mutation_failures + aux_failures
+        ran = ran_pages + ran_mutation + ran_aux
+        if ran_pages == 0 or ran_mutation == 0 or ran_aux == 0:
             print(
-                f"[pdf-text] FAIL: the self-test ran {ran_pages} page-budget and {ran_aux} .aux "
-                "cases; neither may be zero",
+                f"[pdf-text] FAIL: the self-test ran {ran_pages} page, {ran_mutation} page-mutation "
+                f"and {ran_aux} .aux cases; none may be zero",
                 file=sys.stderr,
             )
             return 1
@@ -621,9 +796,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  - {failure}", file=sys.stderr)
             return 1
         print(
-            f"[pdf-text] OK self-test: {ran_pages} page-budget and {ran_aux} .aux cases run, each "
-            "returned exactly the expected diagnostic (or none, for the controls), at "
-            f"REFERENCES_LAST_PAGE = {REFERENCES_LAST_PAGE}"
+            f"[pdf-text] OK self-test: {ran_pages} page, {ran_mutation} page-mutation and "
+            f"{ran_aux} .aux cases run, each returned exactly the expected diagnostic (or none, for "
+            f"the controls), read as the anonymous build (with the limit of {REFERENCES_LAST_PAGE} "
+            "pages) or the named build (without it)"
         )
         return 0
     if args.extracted is None or args.raw is None or args.aux is None:
@@ -659,7 +835,9 @@ def main(argv: list[str] | None = None) -> int:
     captions = sorted(
         figure_numbers(args.repo_root).values(), key=lambda label: int(label.split()[1][:-1])
     )
-    problems += page_budget_problems(pages, REFERENCES_LAST_PAGE, FIRST_APPENDIX_PATTERN, captions)
+    problems += page_problems(
+        pages, REFERENCES_LAST_PAGE, FIRST_APPENDIX_PATTERN, captions, anonymous=args.anonymous
+    )
     references = page_of(pages, REFERENCES_PATTERN)
 
     if not args.raw.is_file():
@@ -723,8 +901,13 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  - {problem}", file=sys.stderr)
         return 1
 
+    limit = (
+        f"at most {REFERENCES_LAST_PAGE}"
+        if args.anonymous
+        else "the named build has no page limit"
+    )
     print(
-        f"[pdf-text] OK: References begin on page {references} (at most {REFERENCES_LAST_PAGE}), "
+        f"[pdf-text] OK: References begin on page {references} ({limit}), "
         f"every heading and figure carries the number main.md gives it in the .aux, "
         "the AI-use footnote is on the first page, every figure's numbers stand row by row on its "
         f"page, {len(REQUIRED_PHRASES) + len(title_phrases)} required phrases, "

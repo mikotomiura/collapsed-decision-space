@@ -330,3 +330,85 @@ Three sentences of the appendices had not followed earlier changes. None moves a
 - *What the record of the dropped draws does not show*: "(results section)" became "(§I.5)". The
   unnumbered results section it named became *What the sealed rules returned* on 2026-09-30, and the
   shipped records of the two arms are described in *What the checks reach on the prospective arms*.
+
+## 2026-10-04 — the references as data, and the introduction and related work placed in the literature on preregistration
+
+The introduction and the related work now place the three gates in the literature on
+preregistration, Registered Reports, power, equivalence and dropout. No claim widens: nothing new is
+said about the effect of the channel or beyond the two models and one prompt, and the title, the
+abstract, *Three diagnostics* and *Limitations* are unchanged. No analysis, test or rendered number
+moved.
+
+### Spelling
+
+The manuscript is spelled in American English: 36 words ("labelled", "judgement", "licence",
+"renormalised", "artefact", "behaviour", "centre", "realised", "re-analysed" and their forms)
+became their American forms. The rule text generated from the sealed file keeps the sealed
+spelling, and a sentence before it now says so; identifiers, file names, the titles of cited works
+and the column header the PDF check reads ("Realized outcome known at seal time?", changed in the
+same commit) are as they were or changed together.
+
+### The reference list
+
+- The entries are now held as data, in `manuscript/refs.json` (CSL-JSON), and the References
+  section is rendered from it by `analysis/scripts/render_references.py`, which also fails if the two
+  disagree. The rendered list was first shown to be the earlier hand-written list with only its line
+  breaks changed, entry by entry and field by field as the PDF build reads them.
+- Titles are in sentence case. Reference [50] holds its edition (third) as its own field, printed
+  "Wiley, 3rd edition, 2019", rather than inside its title.
+- Eleven references were added, [54] to [64]; `manuscript/refs.md` states what each carries and how
+  it was checked. [56] is an organisation's web page rather than a peer-reviewed source, cited "n.d."
+  with the date it was read.
+
+### The introduction
+
+| Earlier paragraph | Now |
+|---|---|
+| First: generative agents, the agent, the channel and the setting of the draws | Fourth, after "We designed and sealed one such evaluation ourselves, and examine it here.", word for word |
+| Second, first sentence: what a null will be worth [35, 36, 44] | First sentence of the first paragraph, word for word |
+| Second, the rest: the three gates and the rule | Fifth paragraph. "The one studied here does so through three gates" became "it settled in advance what a null would be worth through three gates", joined to the sentence on the margin; the rest word for word |
+| Third: designed and sealed by us, what it asked, what the rules did | "We designed and sealed this evaluation ourselves, and examine it here." became "We designed and sealed one such evaluation ourselves, and examine it here." (fourth paragraph); "It asked whether …" became "The evaluation asked whether …" (fifth); the last two sentences moved word for word to the end of the fifth |
+| The question, the gates and Table 1, the diagnostics, the claims and contributions | Unchanged |
+
+Added: how Registered Reports settle in advance what a null is worth [54, 55, 56]; the three
+conditions this paper takes up, with one known issue for each [54, 56, 59, 63, 64]; what
+meta-research on preregistration has asked [57, 58], and the different question this paper asks;
+and that the protocol uses "outcome-neutral" for checks whose pass criteria were fixed in advance
+(§G.1) and was not reviewed as a Registered Report.
+
+### Related work
+
+The one paragraph became three: preregistration and Registered Reports; reading a null; language-model
+evaluation. Added: what a Registered Report requires of outcome-neutral checks [56] and how this
+protocol's own use of the term differs; the literature on adherence to preregistrations, on how
+their power analyses are reported and on whether reviewers check them [57, 58, 59]; that the value of
+an equivalence test rests on how well its bounds are justified [61], beside the statement that the
+margin was frozen upstream and no rationale is added after the fact; that a non-significant result
+is not evidence of absence [62]; and how power computed at an observed effect [60] differs from the
+sealed power gate. Removed: "and it motivates asking whether a wired mechanism propagates" after the
+sentence on validating generative social simulations. "the order in which the template lists the
+zones" became "zone order".
+
+### Data, code and reproducibility
+
+- "The submission PDF is derived, not maintained … the official TMLR style …; there is no second
+  manuscript." became "Only this manuscript is maintained; every other form of it is derived and read
+  back", with the PDF typeset in the TMLR style, and its reference list read from the References
+  section, which is rendered from `refs.json`.
+- What `check_pdf_text.py` requires of where the main text ends is now stated per build (below).
+
+### Licenses
+
+Everything under `data/`, and the sealed files in `seal/`, are licensed CC BY 4.0. The repository
+README maps each part, `data/data.md` states it for the data, and the header table of this
+manuscript, which the PDF does not carry, now names data and the sealed protocol.
+
+### The page limit applies to the anonymous build only
+
+The check of the PDF had required the References to begin by page 12, the page limit of the TMLR
+style, on both builds. It now applies that limit to the anonymous build alone, the one made for that
+style, and the named build reports the page instead: the named build is the preprint line and has no
+page limit. Everything else about where the main text ends -- the References and the first appendix
+set once each and in that order, with every figure of the main text before them -- is still checked
+on both builds, and the self-test and the mutation of the real pages now exercise each check as each
+build applies it. This is the one check that was relaxed, and only for that build.

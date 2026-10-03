@@ -103,6 +103,7 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 | パス | 内容 |
 |---|---|
 | `manuscript/main.md` | protocol 本文 |
+| `manuscript/refs.json` | 書誌 (CSL-JSON)。`main.md` の References はここから描画する |
 | `manuscript/CLAIM-BOUNDARY.md` | claim ガードと検索パターン |
 | `manuscript/REPORTED-BRANCH.md` | 報告する決定分岐の書き方と、その照合が示すこと／示さないこと |
 | `seal/` | 封印済みの決定規則・アーム仕様・protocol 本文と、その manifest |
@@ -262,4 +263,10 @@ tag `stage1-submitted` は、2026 年 9 月に PCI Registered Reports へ投稿�
 |---|---|
 | コード (`analysis/`, `repro.sh`) | Apache-2.0 OR MIT — `LICENSE` / `LICENSE-MIT` |
 | 本文と図 (`manuscript/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
-| 凍結データ (`data/raw/`) | 著者が生成した研究データ。由来は `data/data.md` |
+| 封印した protocol・規則とその記録 (`seal/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
+| 凍結した入力 (`data/raw/`) | CC BY 4.0 — 著者が生成した研究データ。由来は `data/data.md` |
+| 完了済み run の draw ごとの記録 (`data/completed/`) | CC BY 4.0 |
+| 前向きの 2 アームの記録 (`data/prospective/`) | CC BY 4.0 |
+| 試行の記録 (`data/attempts/`) | CC BY 4.0 |
+| 事後 simulation の出力 (`data/posthoc/`) | CC BY 4.0 |
+| `repro.sh` が作り直す派生物 (`data/derived/`、追跡しない) | CC BY 4.0 |

@@ -1,0 +1,490 @@
+[
+  {
+    "id": "cds2",
+    "type": "article",
+    "author": [
+      {"family": "Park", "given": "J. S."},
+      {"family": "O'Brien", "given": "J. C."},
+      {"family": "Cai", "given": "C. J."},
+      {"family": "Morris", "given": "M. R."},
+      {"family": "Liang", "given": "P."},
+      {"family": "Bernstein", "given": "M. S."}
+    ],
+    "title": "Generative agents: Interactive simulacra of human behavior",
+    "publisher": "arXiv",
+    "number": "arXiv:2304.03442",
+    "URL": "https://arxiv.org/abs/2304.03442",
+    "issued": {"date-parts": [[2023]]},
+    "x-cds": {"n": 2, "et-al-after": 1}
+  },
+  {
+    "id": "cds27",
+    "type": "article",
+    "author": [
+      {"family": "Otterson", "given": "J."}
+    ],
+    "title": "Adversarial test-hardening for AI-written code: An instrument autopsy and a pre-registered causal estimate of the critic loop",
+    "publisher": "arXiv",
+    "number": "arXiv:2607.23002",
+    "URL": "https://arxiv.org/abs/2607.23002",
+    "issued": {"date-parts": [[2026]]},
+    "x-cds": {"n": 27}
+  },
+  {
+    "id": "cds28",
+    "type": "article",
+    "author": [
+      {"family": "Singh", "given": "A."}
+    ],
+    "title": "Certifying compressed language models: An audit and a statistical toolkit",
+    "publisher": "arXiv",
+    "number": "arXiv:2608.15046",
+    "URL": "https://arxiv.org/abs/2608.15046",
+    "issued": {"date-parts": [[2026]]},
+    "x-cds": {"n": 28}
+  },
+  {
+    "id": "cds29",
+    "type": "article",
+    "author": [
+      {"family": "Price", "given": "E."},
+      {"family": "Tian", "given": "K."},
+      {"family": "Xun", "given": "Z."},
+      {"family": "Zhu", "given": "Y."}
+    ],
+    "title": "Total variation distance estimation in autoregressive models",
+    "publisher": "arXiv",
+    "number": "arXiv:2607.19510",
+    "URL": "https://arxiv.org/abs/2607.19510",
+    "issued": {"date-parts": [[2026]]},
+    "x-cds": {"n": 29}
+  },
+  {
+    "id": "cds35",
+    "type": "paper-conference",
+    "author": [
+      {"family": "Card", "given": "D."},
+      {"family": "Henderson", "given": "P."},
+      {"family": "Khandelwal", "given": "U."},
+      {"family": "Jia", "given": "R."},
+      {"family": "Mahowald", "given": "K."},
+      {"family": "Jurafsky", "given": "D."}
+    ],
+    "title": "With little power comes great responsibility",
+    "container-title": "Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing (EMNLP)",
+    "page": "9263–9274",
+    "DOI": "10.18653/v1/2020.emnlp-main.745",
+    "issued": {"date-parts": [[2020]]},
+    "x-cds": {"n": 35, "page-prefix": "pp. "}
+  },
+  {
+    "id": "cds36",
+    "type": "article-journal",
+    "author": [
+      {"family": "Lakens", "given": "D."}
+    ],
+    "title": "Equivalence tests: A practical primer for t tests, correlations, and meta-analyses",
+    "container-title": "Social Psychological and Personality Science",
+    "volume": "8",
+    "issue": "4",
+    "page": "355–362",
+    "DOI": "10.1177/1948550617697177",
+    "issued": {"date-parts": [[2017]]},
+    "x-cds": {"n": 36}
+  },
+  {
+    "id": "cds37",
+    "type": "article",
+    "author": [
+      {"family": "Vaccaro", "given": "M."}
+    ],
+    "title": "Preregistration for experiments with AI agents",
+    "publisher": "arXiv",
+    "number": "arXiv:2606.11217",
+    "URL": "https://arxiv.org/abs/2606.11217",
+    "issued": {"date-parts": [[2026]]},
+    "x-cds": {"n": 37}
+  },
+  {
+    "id": "cds38",
+    "type": "article-journal",
+    "author": [
+      {"family": "Larooij", "given": "M."},
+      {"family": "Törnberg", "given": "P."}
+    ],
+    "title": "Validation is the central challenge for generative social simulation: A critical review of LLMs in agent-based modeling",
+    "container-title": "Artificial Intelligence Review",
+    "volume": "59",
+    "issue": "1",
+    "number": "15",
+    "DOI": "10.1007/s10462-025-11412-6",
+    "issued": {"date-parts": [[2025]]},
+    "x-cds": {"n": 38, "number-prefix": "article "}
+  },
+  {
+    "id": "cds39",
+    "type": "article-journal",
+    "author": [
+      {"family": "Tomašević", "given": "A."},
+      {"family": "Cvetković", "given": "D."},
+      {"family": "Major", "given": "S."},
+      {"family": "Maletić", "given": "S."},
+      {"family": "Anđelković", "given": "M."},
+      {"family": "Vranić", "given": "A."},
+      {"family": "Stupovski", "given": "B."},
+      {"family": "Vudragović", "given": "D."},
+      {"family": "Bogojević", "given": "A."},
+      {"family": "Mitrović Dankulov", "given": "M."}
+    ],
+    "title": "Towards operational validation of LLM-agent social simulations: A replicated study of a Reddit-like technology forum",
+    "container-title": "EPJ Data Science",
+    "volume": "15",
+    "issue": "1",
+    "number": "72",
+    "DOI": "10.1140/epjds/s13688-026-00674-x",
+    "issued": {"date-parts": [[2026]]},
+    "x-cds": {"n": 39, "number-prefix": "article "}
+  },
+  {
+    "id": "cds41",
+    "type": "article-journal",
+    "author": [
+      {"family": "Bastian", "given": "P."},
+      {"family": "Dette", "given": "H."},
+      {"family": "Koletzko", "given": "L."}
+    ],
+    "title": "Testing equivalence of multinomial distributions — A constrained bootstrap approach",
+    "container-title": "Statistics & Probability Letters",
+    "volume": "206",
+    "number": "109999",
+    "DOI": "10.1016/j.spl.2023.109999",
+    "issued": {"date-parts": [[2024]]},
+    "x-cds": {"n": 41, "number-prefix": "article "}
+  },
+  {
+    "id": "cds42",
+    "type": "article-journal",
+    "author": [
+      {"family": "Jiao", "given": "J."},
+      {"family": "Han", "given": "Y."},
+      {"family": "Weissman", "given": "T."}
+    ],
+    "title": "Minimax estimation of the L1 distance",
+    "container-title": "IEEE Transactions on Information Theory",
+    "volume": "64",
+    "issue": "10",
+    "page": "6672–6706",
+    "DOI": "10.1109/TIT.2018.2846245",
+    "issued": {"date-parts": [[2018]]},
+    "x-cds": {"n": 42}
+  },
+  {
+    "id": "cds43",
+    "type": "article-journal",
+    "author": [
+      {"family": "Balakrishnan", "given": "S."},
+      {"family": "Wasserman", "given": "L."}
+    ],
+    "title": "Hypothesis testing for high-dimensional multinomials: A selective review",
+    "container-title": "The Annals of Applied Statistics",
+    "volume": "12",
+    "issue": "2",
+    "page": "727–749",
+    "DOI": "10.1214/18-AOAS1155SF",
+    "issued": {"date-parts": [[2018]]},
+    "x-cds": {"n": 43}
+  },
+  {
+    "id": "cds44",
+    "type": "article-journal",
+    "author": [
+      {"family": "Hoenig", "given": "J. M."},
+      {"family": "Heisey", "given": "D. M."}
+    ],
+    "title": "The abuse of power: The pervasive fallacy of power calculations for data analysis",
+    "container-title": "The American Statistician",
+    "volume": "55",
+    "issue": "1",
+    "page": "19–24",
+    "DOI": "10.1198/000313001300339897",
+    "issued": {"date-parts": [[2001]]},
+    "x-cds": {"n": 44}
+  },
+  {
+    "id": "cds45",
+    "type": "article",
+    "author": [
+      {"family": "Sclar", "given": "M."},
+      {"family": "Choi", "given": "Y."},
+      {"family": "Tsvetkov", "given": "Y."},
+      {"family": "Suhr", "given": "A."}
+    ],
+    "title": "Quantifying language models' sensitivity to spurious features in prompt design or: How I learned to start worrying about prompt formatting",
+    "publisher": "arXiv",
+    "number": "arXiv:2310.11324",
+    "URL": "https://arxiv.org/abs/2310.11324",
+    "issued": {"date-parts": [[2023]]},
+    "x-cds": {"n": 45}
+  },
+  {
+    "id": "cds46",
+    "type": "article",
+    "author": [
+      {"family": "Zheng", "given": "C."},
+      {"family": "Zhou", "given": "H."},
+      {"family": "Meng", "given": "F."},
+      {"family": "Zhou", "given": "J."},
+      {"family": "Huang", "given": "M."}
+    ],
+    "title": "Large language models are not robust multiple choice selectors",
+    "publisher": "arXiv",
+    "number": "arXiv:2309.03882",
+    "URL": "https://arxiv.org/abs/2309.03882",
+    "issued": {"date-parts": [[2023]]},
+    "x-cds": {"n": 46}
+  },
+  {
+    "id": "cds47",
+    "type": "paper-conference",
+    "author": [
+      {"family": "Tam", "given": "Z. R."},
+      {"family": "Wu", "given": "C.-K."},
+      {"family": "Tsai", "given": "Y.-L."},
+      {"family": "Lin", "given": "C.-Y."},
+      {"family": "Lee", "given": "H.-y."},
+      {"family": "Chen", "given": "Y.-N."}
+    ],
+    "title": "Let me speak freely? A study on the impact of format restrictions on large language model performance",
+    "container-title": "Proceedings of the 2024 Conference on Empirical Methods in Natural Language Processing: Industry Track",
+    "page": "1218–1236",
+    "DOI": "10.18653/v1/2024.emnlp-industry.91",
+    "issued": {"date-parts": [[2024]]},
+    "x-cds": {"n": 47, "page-prefix": "pp. "}
+  },
+  {
+    "id": "cds48",
+    "type": "paper-conference",
+    "author": [
+      {"family": "Dror", "given": "R."},
+      {"family": "Baumer", "given": "G."},
+      {"family": "Shlomov", "given": "S."},
+      {"family": "Reichart", "given": "R."}
+    ],
+    "title": "The hitchhiker's guide to testing statistical significance in natural language processing",
+    "container-title": "Proceedings of the 56th Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)",
+    "page": "1383–1392",
+    "DOI": "10.18653/v1/P18-1128",
+    "issued": {"date-parts": [[2018]]},
+    "x-cds": {"n": 48, "page-prefix": "pp. "}
+  },
+  {
+    "id": "cds49",
+    "type": "article-journal",
+    "author": [
+      {"family": "Morris", "given": "T. P."},
+      {"family": "White", "given": "I. R."},
+      {"family": "Crowther", "given": "M. J."}
+    ],
+    "title": "Using simulation studies to evaluate statistical methods",
+    "container-title": "Statistics in Medicine",
+    "volume": "38",
+    "issue": "11",
+    "page": "2074–2102",
+    "DOI": "10.1002/sim.8086",
+    "issued": {"date-parts": [[2019]]},
+    "x-cds": {"n": 49}
+  },
+  {
+    "id": "cds50",
+    "type": "book",
+    "author": [
+      {"family": "Little", "given": "R."},
+      {"family": "Rubin", "given": "D."}
+    ],
+    "title": "Statistical analysis with missing data",
+    "edition": "3",
+    "publisher": "Wiley",
+    "DOI": "10.1002/9781119482260",
+    "issued": {"date-parts": [[2019]]},
+    "x-cds": {"n": 50}
+  },
+  {
+    "id": "cds54",
+    "type": "article-journal",
+    "author": [
+      {"family": "Kiyonaga", "given": "A."},
+      {"family": "Scimeca", "given": "J. M."}
+    ],
+    "title": "Practical considerations for navigating Registered Reports",
+    "container-title": "Trends in Neurosciences",
+    "volume": "42",
+    "issue": "9",
+    "page": "568–572",
+    "DOI": "10.1016/j.tins.2019.07.003",
+    "issued": {"date-parts": [[2019]]},
+    "x-cds": {"n": 54}
+  },
+  {
+    "id": "cds55",
+    "type": "article-journal",
+    "author": [
+      {"family": "Scheel", "given": "A. M."},
+      {"family": "Schijen", "given": "M. R. M. J."},
+      {"family": "Lakens", "given": "D."}
+    ],
+    "title": "An excess of positive results: Comparing the standard psychology literature with Registered Reports",
+    "container-title": "Advances in Methods and Practices in Psychological Science",
+    "volume": "4",
+    "issue": "2",
+    "number": "25152459211007467",
+    "DOI": "10.1177/25152459211007467",
+    "issued": {"date-parts": [[2021]]},
+    "x-cds": {"n": 55, "number-prefix": "article "}
+  },
+  {
+    "id": "cds56",
+    "type": "webpage",
+    "author": [
+      {"literal": "Center for Open Science"}
+    ],
+    "title": "Registered Reports",
+    "URL": "https://www.cos.io/initiatives/registered-reports",
+    "accessed": {"date-parts": [[2026, 10, 3]]},
+    "x-cds": {"n": 56}
+  },
+  {
+    "id": "cds57",
+    "type": "article-journal",
+    "author": [
+      {"family": "Claesen", "given": "A."},
+      {"family": "Gomes", "given": "S."},
+      {"family": "Tuerlinckx", "given": "F."},
+      {"family": "Vanpaemel", "given": "W."}
+    ],
+    "title": "Comparing dream to reality: An assessment of adherence of the first generation of preregistered studies",
+    "container-title": "Royal Society Open Science",
+    "volume": "8",
+    "issue": "10",
+    "number": "211037",
+    "DOI": "10.1098/rsos.211037",
+    "issued": {"date-parts": [[2021]]},
+    "x-cds": {"n": 57, "number-prefix": "article "}
+  },
+  {
+    "id": "cds58",
+    "type": "article-journal",
+    "author": [
+      {"family": "Syed", "given": "M."}
+    ],
+    "title": "Some data indicating that editors and reviewers do not check preregistrations during the review process",
+    "container-title": "Journal of Trial and Error",
+    "volume": "6",
+    "issue": "1",
+    "page": "8–19",
+    "DOI": "10.36850/e5ce-4cc5",
+    "issued": {"date-parts": [[2026]]},
+    "x-cds": {"n": 58}
+  },
+  {
+    "id": "cds59",
+    "type": "article-journal",
+    "author": [
+      {"family": "Bakker", "given": "M."},
+      {"family": "Veldkamp", "given": "C. L. S."},
+      {"family": "van den Akker", "given": "O. R."},
+      {"family": "van Assen", "given": "M. A. L. M."},
+      {"family": "Crompvoets", "given": "E."},
+      {"family": "Ong", "given": "H. H."},
+      {"family": "Wicherts", "given": "J. M."}
+    ],
+    "title": "Recommendations in pre-registrations and internal review board proposals promote formal power analyses but do not increase sample size",
+    "container-title": "PLOS ONE",
+    "volume": "15",
+    "issue": "7",
+    "number": "e0236079",
+    "DOI": "10.1371/journal.pone.0236079",
+    "issued": {"date-parts": [[2020]]},
+    "x-cds": {"n": 59, "number-prefix": "article "}
+  },
+  {
+    "id": "cds60",
+    "type": "article-journal",
+    "author": [
+      {"family": "Lakens", "given": "D."}
+    ],
+    "title": "Sample size justification",
+    "container-title": "Collabra: Psychology",
+    "volume": "8",
+    "issue": "1",
+    "number": "33267",
+    "DOI": "10.1525/collabra.33267",
+    "issued": {"date-parts": [[2022]]},
+    "x-cds": {"n": 60, "number-prefix": "article "}
+  },
+  {
+    "id": "cds61",
+    "type": "article-journal",
+    "author": [
+      {"family": "Lakens", "given": "D."},
+      {"family": "Scheel", "given": "A. M."},
+      {"family": "Isager", "given": "P. M."}
+    ],
+    "title": "Equivalence testing for psychological research: A tutorial",
+    "container-title": "Advances in Methods and Practices in Psychological Science",
+    "volume": "1",
+    "issue": "2",
+    "page": "259–269",
+    "DOI": "10.1177/2515245918770963",
+    "issued": {"date-parts": [[2018]]},
+    "x-cds": {"n": 61}
+  },
+  {
+    "id": "cds62",
+    "type": "article-journal",
+    "author": [
+      {"family": "Harms", "given": "C."},
+      {"family": "Lakens", "given": "D."}
+    ],
+    "title": "Making ‘null effects’ informative: Statistical techniques and inferential frameworks",
+    "container-title": "Journal of Clinical and Translational Research",
+    "volume": "3",
+    "issue": "2",
+    "page": "382",
+    "DOI": "10.18053/jctres.03.2017s2.007",
+    "issued": {"date-parts": [[2018]]},
+    "x-cds": {"n": 62}
+  },
+  {
+    "id": "cds63",
+    "type": "article-journal",
+    "author": [
+      {"family": "Zhou", "given": "H."},
+      {"family": "Fishbach", "given": "A."}
+    ],
+    "title": "The pitfall of experimenting on the web: How unattended selective attrition leads to surprising (yet false) research conclusions",
+    "container-title": "Journal of Personality and Social Psychology",
+    "volume": "111",
+    "issue": "4",
+    "page": "493–504",
+    "DOI": "10.1037/pspa0000056",
+    "issued": {"date-parts": [[2016]]},
+    "x-cds": {"n": 63}
+  },
+  {
+    "id": "cds64",
+    "type": "article-journal",
+    "author": [
+      {"family": "Bell", "given": "M. L."},
+      {"family": "Kenward", "given": "M. G."},
+      {"family": "Fairclough", "given": "D. L."},
+      {"family": "Horton", "given": "N. J."}
+    ],
+    "title": "Differential dropout and bias in randomised controlled trials: When it matters and when it may not",
+    "container-title": "BMJ",
+    "volume": "346",
+    "number": "e8668",
+    "DOI": "10.1136/bmj.e8668",
+    "issued": {"date-parts": [[2013]]},
+    "x-cds": {"n": 64, "number-prefix": "article "}
+  }
+]

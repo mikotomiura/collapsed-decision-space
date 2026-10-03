@@ -2,8 +2,10 @@
 
 Reference numbers such as `[28]` are **permanent identifiers** drawn from the author's central,
 append-only bibliography. They are not renumbered between manuscripts, which is why the numbers in
-`main.md` are not consecutive. The full bibliographic entries a reader needs are in the References
-section of `main.md`; this file records what each reference is doing in the argument.
+`main.md` are not consecutive. The full bibliographic entries are held as data in `refs.json`, a
+CSL-JSON array, and the References section of `main.md` is rendered from it by
+`analysis/scripts/render_references.py`, which also fails if the two disagree. This file records
+what each reference is doing in the argument.
 
 ## What each reference carries
 
@@ -27,6 +29,17 @@ section of `main.md`; this file records what each reference is doing in the argu
 | [48] | Which significance test suits an NLP comparison depends on its evaluation measure and setup. Supports the first diagnostic of §7.1: the power that matters is that of the test actually chosen | §7.1 |
 | [49] | Simulation studies, in which the data-generating mechanism sets the truth, are the standard way to evaluate a statistical method's properties. Places the simulation of §4.2 and the first diagnostic of §7.1 among standard practice. **The simulation here is a property of the design under assumed distributions**, as §4.2 says | §4.2, §7.1 |
 | [50] | Complete-case analysis, which confines an analysis to the units with no missing value, can be biased, and weighting is one way to adjust for it. Supports the third diagnostic of §7.1: dropping the draws with no recorded zone and renormalising is such an analysis. No adjustment is applied here | §7.1 |
+| [54] | A practical guide to Registered Reports in neuroscience: a design is meant to make a null result credible, and the sample size is to be calculated for the tests proposed. Cited as the guide's recommendation, not as a methodological source | §1 |
+| [55] | In a Registered Report, peer review and the decision to publish take place before the results are known. Only that sentence is cited; the paper's comparison of positive-result rates is not used | §1 |
+| [56] | What a Registered Report asks of a protocol at Stage 1: outcome-neutral conditions (positive controls, the absence of floor and ceiling effects), specified before the results are known and independent of the primary outcome measures. **An organisation's web page, not a peer-reviewed source.** **This protocol's own use of "outcome-neutral" (§G.1) is narrower** -- pass criteria fixed in advance -- and the manuscript says so; it does not claim that the gates meet the requirement, and states that the protocol was not reviewed as a Registered Report | §1, §7.2 |
+| [57] | An audit of adherence to plans and of the disclosure of deviations, in the 27 preregistered studies published in *Psychological Science* from February 2015 to November 2017 | §1, §7.2 |
+| [58] | In the public review histories of 201 PLOS articles, someone reported accessing the preregistration for 14%. The figure is per article (it is 5% per editor or reviewer, of 689), and "reported accessing" is the source's own wording, not a statement that the preregistration was checked | §1, §7.2 |
+| [59] | In a sample of preregistrations, 5 of the 13 completely reported power analyses addressed a test other than the main test of the hypothesis. **The denominator is 13**, and the manuscript gives it | §1, §7.2 |
+| [60] | Power computed at the effect estimated from the data adds no information beyond the *p* value; a sensitivity analysis over the smallest effect size of interest and a realistic range of expected effects is recommended instead. **The sealed R3 is computed at the registered margin, not at an observed effect**, so the manuscript says how it differs from that form, as §N.1 does with [44], and does not call it that error | §7.2 |
+| [61] | Equivalence bounds are fixed before the results are known, and the value of an equivalence test rests on how well its bounds are justified. **Not used to justify the margin of 0.10 after the fact** (§2.3, §N.2), and no equivalence test is run | §7.2 |
+| [62] | A non-significant result is not evidence that an effect is absent | §7.2 |
+| [63] | In online experiments, participants who drop out of conditions for different reasons can confound the comparison between them. **An analogy, stated as such**: the dropped draws here are outputs the parser could not read, not participants leaving, and the manuscript applies neither source to them | §1 |
+| [64] | In clinical trials, a difference in dropout rates does not by itself establish bias. **An analogy**, as for [63] | §1 |
 
 ## Verification caveats, stated rather than smoothed over
 
@@ -49,14 +62,29 @@ section of `main.md`; this file records what each reference is doing in the argu
   citation line and matched against an independent citation. Its content was checked against the
   full text of its arXiv version (1712.06120).
 - **[50]**: Crossref gives the authors' given names as "Roderick" and "Donald" only, so the entry
-  carries those initials and no middle initials; none were taken from elsewhere. The edition is in
-  the title, as Crossref records it (its edition-number field says 1, which the title contradicts).
-  The statement cited is from the abstract of the book's chapter 3, "Complete-Case and Available-Case
+  carries those initials and no middle initials; none were taken from elsewhere. Crossref writes the
+  edition into the title ("…, Third Edition") while its edition-number field says 1; the OpenLibrary
+  record of the same book (ISBN 9780470526798) gives the title without it. Since 2026-10-04 the
+  entry holds the title alone and the edition (3) as its own field. The statement cited is from the abstract of the book's chapter 3, "Complete-Case and Available-Case
   Analysis, Including Weighting Methods".
+- **[54] to [64]** were confirmed on 2026-10-03 in the same two steps: the bibliographic fields from
+  the raw Crossref records (read again on 2026-10-04, when the entries were added), and each citing
+  sentence beside the source's own words -- the full text for all but [55] (its abstract) and [56]
+  (the page itself). **[56]** is an organisation's web page, read on 2026-10-03; it shows no date and
+  is cited "n.d.". **[58]**: the year is that of the issue that carries the article (2026, volume 6,
+  issue 1); the article itself was first published on 2025-04-01. **[62]**: Crossref's title has a
+  non-breaking space before "frameworks", written here as an ordinary space, and straight quotation
+  marks around ‘null effects’, written here as typographic ones so that the PDF sets the opening one
+  the right way round. **[64]**: Crossref
+  holds the authors' initials only, and the entry carries no more.
 - Initials are copied as the source gives them: [41] is written with initials because that is all
   Crossref holds, and no fuller form was taken from elsewhere. [45] and [46] carry neither a DOI nor
   a journal reference and are cited as arXiv preprints; their records' comment fields name ICLR
   2024, which is the authors' own statement and is not written into the entry. The same holds for
   the comment field of [37].
+- **Titles are in sentence case** since 2026-10-04: the first word, the first word after a colon, a
+  question mark or a dash, proper nouns and acronyms keep their capitals, and nothing else in an
+  entry changed. **[2]**'s six authors, which the printed entry shortens to "et al.", are held in
+  `refs.json` as the arXiv API record lists them, reduced to initials.
 - Sources cited in the published files of this repository must be reachable by a reader of it.
   Working directories that are not shipped here are not citable sources.

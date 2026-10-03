@@ -1,7 +1,17 @@
 # context (last four words before the marker)	identifiers	mode
+null will be worth	35, 36, 44	citep
+the results are known	55	citep
+a null result credible	54	citep
+can test its hypotheses	56	citep
+that will be run	54	citep
+test of the hypothesis	59	citep
+check for floor effects	56	citep
+the comparison between them	63	citep
+do not establish bias	64	citep
+one disclosed every deviation	57	citep
+the preregistration for 14%	58	citep
 next action from it	2	citep
 validity of such simulations	38, 39	citep
-null will be worth	35, 36, 44	citep
 from the generative-agent architecture	2	citep
 runs no equivalence test	36, 41	citep
 result in any case	44	citep
@@ -15,11 +25,18 @@ measure such operating characteristics	49	citep
 sensitive to small cells	43	citep
 is a complete-case analysis	50	citep
 on required output formats	45, 47	citep
-analysis is standard practice	36	citep
+the primary outcome measures	56	citep
+the disclosure of deviations	57	citep
+in preregistrations are reported	59	citep
+whether reviewers check preregistrations	58	citep
+experiments with AI agents	37	citep
+analysis is standard practice	36, 61	citep
 applied to language-model evaluation	28	citep
+its bounds are justified	61	citep
+an effect is absent	62	citep
+range of expected effects	60	citep
 two multinomial distributions exist	41	citep
 in its own right	29, 42	citep
-experiments with AI agents	37	citep
 is an open problem	38, 39	citep
 on a different object	27	citep
 formatting of the prompt	45	citep
