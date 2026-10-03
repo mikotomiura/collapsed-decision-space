@@ -709,6 +709,12 @@ def _blocks(
             content = child.find(w("sdtContent")) if child.tag == w("sdt") else child
             if content is not None:
                 pending = _blocks(content, at, names, out, problems, pending)
+        elif child.tag == w("altChunk"):
+            # Another document imported where it stands when the file is opened: its text is not
+            # in this part at all.
+            problems.append(
+                Problem("structure", "unread content", "an imported chunk (w:altChunk)")
+            )
         elif child.tag not in _INERT and any((t.text or "").strip() for t in child.iter(w("t"))):
             problems.append(
                 Problem(
@@ -720,13 +726,30 @@ def _blocks(
     return pending
 
 
+def _within(element: ET.Element, tag: str) -> list[ET.Element]:
+    """The ``tag`` children of a table or a row, read through content controls and custom XML.
+
+    A row or a cell may sit inside a content control; read with ``findall`` alone, it would not be
+    read at all (a second review of 2026-10-04 set a duplicated row inside one, and nothing saw it).
+    """
+    found: list[ET.Element] = []
+    for child in element:
+        if child.tag == w(tag):
+            found.append(child)
+        elif child.tag in (w("sdt"), w("customXml")):
+            content = child.find(w("sdtContent")) if child.tag == w("sdt") else child
+            if content is not None:
+                found.extend(_within(content, tag))
+    return found
+
+
 def _table_rows(
     table: ET.Element, index: int, names: dict[str, str], problems: list[Problem]
 ) -> list[list[DPara]]:
     rows = []
-    for row in table.findall(w("tr")):
+    for row in _within(table, "tr"):
         cells = []
-        for cell in row.findall(w("tc")):
+        for cell in _within(row, "tc"):
             inner: list[DPara | DTable] = []
             _blocks(cell, index, names, inner, problems, [])
             if any(isinstance(b, DTable) for b in inner):
@@ -776,6 +799,14 @@ def read_docx(data: bytes) -> Docx:
     # Text that shows on the page but is in no paragraph or table read above.
     if any(True for _ in document.iter(w("txbxContent"))):
         problems.append(Problem("structure", "unread content", "a text box"))
+    # The page breaks of the .docx are paragraphs in the style Page Break and the breaks the title
+    # and abstract styles carry; one set any other way is not where the check looks for it.
+    if any(b.get(w("type")) == "page" for b in document.iter(w("br"))) or any(
+        True for _ in document.iter(w("pageBreakBefore"))
+    ):
+        problems.append(
+            Problem("structure", "page breaks", "a page break set inside or on a paragraph")
+        )
     for name, part in parts.items():
         if re.fullmatch(r"word/(header|footer)\d*\.xml", name) and _part_text(part).strip() not in (
             "",
@@ -786,6 +817,15 @@ def read_docx(data: bytes) -> Docx:
             True for _ in ET.fromstring(part).iter(w("comment"))
         ):
             problems.append(Problem("structure", "unread content", "comments"))
+        if name == "word/endnotes.xml":
+            notes = [
+                n
+                for n in ET.fromstring(part).iter(w("endnote"))
+                if n.get(w("type"))
+                not in ("separator", "continuationSeparator", "continuationNotice")
+            ]
+            if any(_part_text(ET.tostring(n)).strip() for n in notes):
+                problems.append(Problem("structure", "unread content", "endnotes"))
     for block in blocks:
         cells = [block] if isinstance(block, DPara) else [c for row in block.rows for c in row]
         if any(c.hidden for c in cells):
@@ -1975,7 +2015,10 @@ def _rewrite(
     parts = {name: archive.read(name) for name in archive.namelist()}
     source = parts[part].decode("utf-8")
     for prefix, uri in re.findall(r'xmlns:(\w+)="([^"]+)"', source):
-        ET.register_namespace(prefix, uri)
+        # ElementTree names the namespaces it writes ns0, ns1, ... and refuses those as names to
+        # register; a part it wrote before keeps them as they are.
+        if not re.fullmatch(r"ns\d+", prefix):
+            ET.register_namespace(prefix, uri)
     root = ET.fromstring(parts[part])
     edit(root)
     parts[part] = ET.tostring(root, encoding="utf-8", xml_declaration=True)
@@ -2520,6 +2563,52 @@ def m_hidden(data, contract, state):
     return _rewrite(data, edit), contract, {("structure", "hidden text")}
 
 
+# Found by the second review of 2026-10-04, or next to what it was trying.
+
+
+def m_row_in_content_control(data, contract, state):
+    """A table row set a second time, inside a content control around the row."""
+    view = state["view"]
+    number = min(view.tables)
+    table = view.tables[number]["body"]
+    if table is None or len(table.rows) < 2:
+        raise NoTarget("no table with a body row")
+
+    def edit(root):
+        element = list(_body(root))[table.index]
+        rows = element.findall(w("tr"))
+        sdt = ET.Element(w("sdt"))
+        ET.SubElement(sdt, w("sdtPr"))
+        content = ET.SubElement(sdt, w("sdtContent"))
+        content.append(copy.deepcopy(rows[1]))
+        element.insert(list(element).index(rows[1]) + 1, sdt)
+
+    return _rewrite(data, edit), contract, {("table", f"Table {number}")}
+
+
+def m_inline_page_break(data, contract, state):
+    """A page break set inside a paragraph, as a run, rather than as a page-break paragraph."""
+    index, _ = _target(state)
+
+    def edit(root):
+        run = ET.SubElement(list(_body(root))[index], w("r"))
+        ET.SubElement(run, w("br")).set(w("type"), "page")
+
+    return _rewrite(data, edit), contract, {("structure", "page breaks")}
+
+
+def m_alt_chunk(data, contract, state):
+    """Another document imported into the body (w:altChunk), whose text is in no part read here."""
+    index, _ = _target(state)
+
+    def edit(root):
+        chunk = ET.Element(w("altChunk"))
+        chunk.set(f"{{{R}}}id", "rIdImportedChunk")
+        _body(root).insert(index + 1, chunk)
+
+    return _rewrite(data, edit), contract, {("structure", "unread content")}
+
+
 def m_contract(data, contract, state):
     changed = copy.deepcopy(contract)
     narrative = next((c for c in changed.get("citations", []) if c["kind"] == "narrative"), None)
@@ -2559,6 +2648,9 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("a reference moved into the text", m_move_reference),
     ("a paragraph set again inside a content control", m_content_control),
     ("a run of a paragraph hidden", m_hidden),
+    ("a table row set again inside a content control", m_row_in_content_control),
+    ("a page break set inside a paragraph", m_inline_page_break),
+    ("another document imported into the body", m_alt_chunk),
 )
 
 
