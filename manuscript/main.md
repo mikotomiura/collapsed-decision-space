@@ -760,7 +760,7 @@ doi:10.1525/collabra.33267
 tutorial.* Advances in Methods and Practices in Psychological Science, 1(2), 259–269, 2018.
 doi:10.1177/2515245918770963
 
-[62] Harms, C. and Lakens, D. *Making 'null effects' informative: Statistical techniques and
+[62] Harms, C. and Lakens, D. *Making ‘null effects’ informative: Statistical techniques and
 inferential frameworks.* Journal of Clinical and Translational Research, 3(2), 382, 2018.
 doi:10.18053/jctres.03.2017s2.007
 

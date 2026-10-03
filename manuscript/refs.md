@@ -73,7 +73,9 @@ what each reference is doing in the argument.
   (the page itself). **[56]** is an organisation's web page, read on 2026-10-03; it shows no date and
   is cited "n.d.". **[58]**: the year is that of the issue that carries the article (2026, volume 6,
   issue 1); the article itself was first published on 2025-04-01. **[62]**: Crossref's title has a
-  non-breaking space before "frameworks", written here as an ordinary space. **[64]**: Crossref
+  non-breaking space before "frameworks", written here as an ordinary space, and straight quotation
+  marks around ‘null effects’, written here as typographic ones so that the PDF sets the opening one
+  the right way round. **[64]**: Crossref
   holds the authors' initials only, and the entry carries no more.
 - Initials are copied as the source gives them: [41] is written with initials because that is all
   Crossref holds, and no fuller form was taken from elsewhere. [45] and [46] carry neither a DOI nor
