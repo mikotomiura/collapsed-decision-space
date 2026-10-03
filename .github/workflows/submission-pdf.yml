@@ -115,6 +115,7 @@ jobs:
           ls -l paper.pdf
 
       - name: Read the PDF back
+        id: read
         working-directory: build/pdf
         run: |
           set -eux
@@ -123,22 +124,37 @@ jobs:
           wc -c paper.txt paper-raw.txt
           pdfinfo paper.pdf | sed -n '1,14p'
 
+      # The checks below each run once the PDF has been read back, whether or not an earlier check
+      # failed (`!cancelled()` rather than the default `success()`), and the job fails if any of
+      # them does. The anonymous build is the one that applies the page limit of the TMLR style, and
+      # since the 2026-10-04 revision of the introduction its References begin past it: that check
+      # fails, correctly, and must not stop the identity check and the claim-boundary check from
+      # reporting on the same PDF.
       - name: Check what the PDF actually contains
-        # Required phrases, the page budget, the first-page footnote, every figure's numbers row by
-        # row on its own page, the section and figure numbers LaTeX recorded in the .aux against
-        # main.md's, the column headers of the widest tables, the characters at risk of silent loss,
-        # and the quantities read from the frozen inputs by key.
+        # Required phrases, where the main text ends (the References and the first appendix set once
+        # each, in order, with every figure before them, on both builds; and on the anonymous build
+        # alone, the page limit), the first-page footnote, every figure's numbers row by row on its
+        # own page, the section and figure numbers LaTeX recorded in the .aux against main.md's, the
+        # column headers of the widest tables, the characters at risk of silent loss, and the
+        # quantities read from the frozen inputs by key.
+        if: ${{ !cancelled() && steps.read.outcome == 'success' }}
         run: |
           python3 analysis/scripts/check_pdf_text.py build/pdf/paper.txt \
             --raw build/pdf/paper-raw.txt --aux build/pdf/paper.aux \
             ${{ inputs.anonymous && '--anonymous' || '' }}
 
-      - name: Push the real References past the page budget, and require the check to fail
-        # The self-test in the compendium workflow shows the page-budget check reads synthetic pages
-        # correctly; this shows it reads these pages. Blank pages are inserted before the page that
-        # carries the References until they fall one page past the budget, and the check must return
-        # exactly the diagnostic for that; the unmutated pages must pass.
-        run: python3 analysis/scripts/check_pdf_text.py build/pdf/paper.txt --page-mutation
+      - name: Alter copies of the real pages, and require the page checks to read each one correctly
+        # The self-test in the compendium workflow shows the page checks read synthetic pages
+        # correctly; this shows they read these pages. Copies of the real pages are altered one way
+        # each -- a second References heading, the first appendix moved before them, a figure
+        # caption carried past them -- and each must return exactly its own diagnostic. On the
+        # anonymous build, two more copies put the References on the last page the limit allows and
+        # on the next, and the limit must pass the first and fail the second, whichever side the
+        # real pages fall on; on the named build, the second must pass, as no limit applies there.
+        if: ${{ !cancelled() && steps.read.outcome == 'success' }}
+        run: |
+          python3 analysis/scripts/check_pdf_text.py build/pdf/paper.txt --page-mutation \
+            ${{ inputs.anonymous && '--anonymous' || '' }}
 
       - name: Check that nothing in the anonymous PDF identifies the author
         # Reads the information dictionary, any XMP packet, every link annotation and every
@@ -147,7 +163,7 @@ jobs:
         # bundle has to keep, a supplement, which is not submitted, and the rest of PDF_WITHHELD.
         # Then each withheld word is put back into copies of the page text and of the source, one
         # at a time, and must be reported under its own label.
-        if: inputs.anonymous
+        if: ${{ !cancelled() && steps.read.outcome == 'success' && inputs.anonymous }}
         run: |
           uv run --project env --no-sync python analysis/scripts/check_pdf_identity.py \
             build/pdf/paper.pdf --text build/pdf/paper.txt --source build/pdf/paper-source.md \
@@ -160,6 +176,7 @@ jobs:
         # the locked environment is not synced here (it would install torch), so PyYAML is
         # supplied at the version `env/uv.lock` pins. The first run of this workflow used
         # `--no-sync` alone and failed on the import.
+        if: ${{ !cancelled() && steps.read.outcome == 'success' }}
         run: |
           uv run --no-project --with "pyyaml==6.0.3" python analysis/scripts/check_claim_boundary.py \
             --extra-target build/pdf/paper.txt

@@ -1600,7 +1600,9 @@ hand. Its reference list is read from the References section, which is itself re
 three figures are drawn by `analysis/scripts/make_figures.py` from the shipped data, and
 `make_figures.py --check` requires every number a figure sets to match that data. The finished PDF
 is then read back: `check_pdf_text.py` requires the headings, the quantities, the characters at risk
-of silent loss, the page on which the references begin and each figure's numbers row by row,
+of silent loss, the references and the appendices to begin once each and in order with every figure
+before them (and, for the anonymous build, the references to begin within the page limit of the
+TMLR style), and each figure's numbers row by row,
 `check_claim_boundary.py` runs on its text, and for the anonymous build `check_pdf_identity.py`
 requires that nothing in the file identifies the author. The manual `submission-pdf` workflow
 performs all of it. The anonymous build takes its manuscript from a copy of this repository
