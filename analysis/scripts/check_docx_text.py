@@ -150,6 +150,10 @@ HEAD_STYLES = (
     "Title Repeat",
 )
 CITATION_STYLE = "Citation"
+#: The character style a list's label is read in (it is drawn by numbering, not set in a run).
+LABEL_STYLE = "List Label"
+#: The style of the space a cell's paragraphs are joined with when the cell is read as one text.
+JOIN_STYLE = "Paragraph Join"
 CODE_STYLE = "Verbatim Char"
 
 #: British spellings, as a closed list of word forms rather than suffix patterns, which would catch
@@ -761,6 +765,10 @@ def validate_body(body: ET.Element) -> list[Problem]:
         odd = set(element.attrib) - BODY_ATTRIBUTES.get(name, frozenset())
         if odd or element.get(XML_SPACE, "preserve") != "preserve":
             attributed.append(f"{name} {sorted(_local(k) for k in element.attrib)}")
+        # A list's number as pandoc writes it: "00" is the number 0 to a reader, and removes the
+        # list's numbering, but not to a lookup by name (Codex review of 2026-10-04).
+        if name in ("numId", "ilvl") and not CANONICAL.fullmatch(element.get(w("val"), "")):
+            attributed.append(f"{name} {element.get(w('val'))!r}")
 
     def props(element: ET.Element, kind: str) -> None:
         for child in element:
@@ -870,11 +878,17 @@ def _on_attr(value: str | None) -> bool:
     return value is not None and value not in ("0", "false", "off")
 
 
+#: A number as pandoc writes one: no sign, no leading zero, nothing around it.
+CANONICAL = re.compile(r"0|[1-9][0-9]*")
+
+
 def _int(value: str | None) -> int:
-    try:
-        return int(value or "")
-    except ValueError:
-        return 0
+    """An XML integer as a reader takes it (a sign and white space around it allowed), or 0.
+
+    Python's ``int`` would also take "1_0" as ten; a reader would not.
+    """
+    text = (value or "").strip()
+    return int(text) if re.fullmatch(r"[+-]?[0-9]+", text) else 0
 
 
 def _name(style: ET.Element) -> str:
@@ -1023,6 +1037,27 @@ SMALLEST, LEAST_LINE = 16, 240
 #: and lines set no closer than single: a style can otherwise push text off the page, open pages
 #: of nothing between paragraphs, or lay its lines over one another.
 DEEPEST_INDENT, WIDEST_GAP = 1440, 2880
+#: The widest line, in 240ths of a line for "auto" (double spacing, as the defaults set) and in
+#: twentieths of a point for an exact or least line (36 pt); the largest size, in half-points
+#: (24 pt; the styles the body uses set at most 12); and the widest table indent and cell margin
+#: (a fifth of an inch). Codex review of 2026-10-04: a gap of a thousand lines (beforeLines) and
+#: a line of 417 lines each passed, as no upper bound held them.
+WIDEST_LINE, TALLEST_LINE, LARGEST, WIDEST_MARGIN = 480, 720, 48, 288
+
+
+def _spacing_odd(spacing: dict[str, str]) -> bool:
+    """A paragraph style's spacing a readable page does not have: an attribute other than the gap
+    before and after and the line (``beforeLines`` and the rest are not read here), a gap over
+    :data:`WIDEST_GAP`, or a line outside single to double spacing, or over :data:`TALLEST_LINE`."""
+    rule = spacing.get("lineRule", "auto")
+    line = _int(spacing["line"]) if "line" in spacing else None
+    return bool(
+        set(spacing) - {"before", "after", "line", "lineRule"}
+        or rule not in ("auto", "exact", "atLeast")
+        or any(not 0 <= _int(spacing.get(k)) <= WIDEST_GAP for k in ("before", "after"))
+        or (line is not None and rule == "auto" and not LEAST_LINE <= line <= WIDEST_LINE)
+        or (line is not None and rule != "auto" and line > TALLEST_LINE)
+    )
 
 
 def _style_properties(sheet: Sheet, body: ET.Element) -> list[Problem]:
@@ -1070,19 +1105,16 @@ def _style_properties(sheet: Sheet, body: ET.Element) -> list[Problem]:
                 for k, v in attributes
             ):
                 odd.append(f"the indent {dict(attributes)}")
-            elif (
-                name == "spacing"
-                and kind == "pPr"
-                and (
-                    any(_int(v) > WIDEST_GAP for k, v in attributes if k in ("before", "after"))
-                    or (
-                        dict(attributes).get("lineRule", "auto") == "auto"
-                        and "line" in dict(attributes)
-                        and _int(dict(attributes)["line"]) < LEAST_LINE
-                    )
-                )
-            ):
+            elif name == "spacing" and kind == "pPr" and _spacing_odd(dict(attributes)):
                 odd.append(f"the spacing {dict(attributes)}")
+            elif name in ("sz", "szCs") and _int(child.get(w("val"))) > LARGEST:
+                odd.append(f"the size {dict(attributes)}")
+            elif (kind == "tblCellMar" or name == "tblInd") and (
+                set(dict(attributes)) != {"w", "type"}
+                or dict(attributes)["type"] != "dxa"
+                or not 0 <= _int(dict(attributes)["w"]) <= WIDEST_MARGIN
+            ):
+                odd.append(f"the table's {name} {dict(attributes)}")
 
     for style in closure.values():
         walk(style, "style")
@@ -1104,13 +1136,14 @@ def _style_properties(sheet: Sheet, body: ET.Element) -> list[Problem]:
         chain += [table_of[id(paragraph)]] if id(paragraph) in table_of else []
         line = sheet.nearest(chain, f"{w('pPr')}/{w('spacing')}", "line")
         exact = (
-            line is not None
-            and line.get(w("lineRule")) == "exact"
-            and _int(line.get(w("line"))) < LEAST_LINE
+            _int(line.get(w("line")))
+            if line is not None and line.get(w("lineRule")) == "exact"
+            else None
         )
         for run in paragraph.iter(w("r")):
             shown = "".join(t.text or "" for t in run.iter(w("t"))).strip()
-            if not shown and run.find(w("drawing")) is None:
+            picture = run.find(w("drawing")) is not None
+            if not shown and not picture:
                 continue
             character = run.find(f"{w('rPr')}/{w('rStyle')}")
             size = sheet.nearest(
@@ -1118,7 +1151,11 @@ def _style_properties(sheet: Sheet, body: ET.Element) -> list[Problem]:
                 f"{w('rPr')}/{w('sz')}",
                 "val",
             )
-            if exact or (size is not None and _int(size.get(w("val"))) < SMALLEST):
+            points = _int(size.get(w("val"))) if size is not None else 20  # Word's own default
+            # An exact line clips what is taller than it: a picture in any exact line (Codex review
+            # of 2026-10-04: a figure in a 12-point exact line passed), text in one under its size.
+            clipped = exact is not None and (picture or exact < max(LEAST_LINE, points * 10))
+            if clipped or points < SMALLEST:
                 odd.append(f"text or a picture set too small to read: {shown[:40]!r}")
     if odd:
         return [
@@ -1198,8 +1235,18 @@ NUMBERING_ATTRIBUTES: dict[str, frozenset[str]] = {
     "lvlOverride": frozenset({"ilvl"}),
     "startOverride": frozenset({"val"}),
 }
-#: The deepest indent a list level may set, in twentieths of a point: pandoc's ninth level's.
-DEEPEST = 6480
+#: The attributes that hold a number, which must be written as pandoc writes one (:data:`CANONICAL`).
+NUMBERED = frozenset(
+    {
+        ("abstractNum", "abstractNumId"),
+        ("num", "numId"),
+        ("abstractNumId", "val"),
+        ("lvl", "ilvl"),
+        ("lvlOverride", "ilvl"),
+        ("start", "val"),
+        ("startOverride", "val"),
+    }
+)
 
 
 def _value(element: ET.Element | None, tag: str) -> str:
@@ -1253,19 +1300,31 @@ def list_labels(body: ET.Element, numbering: bytes | None) -> tuple[dict[int, st
             name = _local(child.tag)
             if {_local(k) for k in child.attrib} - NUMBERING_ATTRIBUTES.get(name, frozenset()):
                 odd.append(f"the attributes of {name} {sorted(_local(k) for k in child.attrib)}")
+            odd.extend(
+                f"the number {value!r} of {name}"
+                for key, value in child.attrib.items()
+                if (name, _local(key)) in NUMBERED and not CANONICAL.fullmatch(value)
+            )
             if name not in NUMBERING[kind]:
                 odd.append(f"{name} in {kind}")
             elif name in NUMBERING:
                 walk(child, name)
             elif len(child):
                 odd.append(f"children of {name}")
-            elif name == "ind" and any(
-                _local(k) not in ("left", "hanging", "firstLine") or not 0 <= _int(v) <= DEEPEST
-                for k, v in child.attrib.items()
-            ):
-                odd.append(f"the indent {dict(child.attrib)}")
 
     walk(root, "numbering")
+    # Each level's label stands where pandoc sets it: its indent, the hanging part, and the alignment
+    # (Codex review of 2026-10-04: left 0 with a hanging indent of 4.5 inches, which sets the label
+    # off the page, passed, each value being within its own bound).
+    for definition in root.findall(w("abstractNum")):
+        for lvl in definition.findall(w("lvl")):
+            level = _int(lvl.get(w("ilvl")))
+            indent = lvl.find(f"{w('pPr')}/{w('ind')}")
+            place = {_local(k): v for k, v in indent.attrib.items()} if indent is not None else {}
+            if place != {"left": str(720 * (level + 1)), "hanging": "360"} or (
+                _value(lvl, "lvlJc") != "left"
+            ):
+                odd.append(f"the place of level {level}'s label {place}")
     levels: dict[str, dict[int, ET.Element]] = {
         a.get(w("abstractNumId"), ""): {
             _int(lvl.get(w("ilvl"))): lvl for lvl in a.findall(w("lvl"))
@@ -1643,7 +1702,7 @@ def _para(
     links: list[tuple[str, str]] = []
     # The label numbering draws is the first text of the paragraph, as the page shows it.
     if labels.get(id(element)):
-        runs.append((labels[id(element)] + "\t", ""))
+        runs.append((labels[id(element)] + "\t", LABEL_STYLE))
     _runs(element, names, runs, images, links)
     return DPara(index, style, runs, images, bookmarks, links)
 
@@ -1656,7 +1715,7 @@ def _table_rows(
         cells = []
         for cell in row.findall(w("tc")):
             paragraphs = [_para(p, index, names, [], labels) for p in cell.findall(w("p"))]
-            runs = [r for p in paragraphs for r in [*p.runs, (" ", "")]]
+            runs = [r for p in paragraphs for r in [*p.runs, (" ", JOIN_STYLE)]]
             cells.append(
                 DPara(
                     index,
@@ -2697,14 +2756,25 @@ def _all_paragraphs(doc: Docx) -> list[DPara]:
 def check_line_breaks(
     view: DocView, doc: Docx, main_items: list[Item], pairs: list[tuple[int, int]]
 ) -> list[Problem]:
-    """A line break only where a code block of main.md breaks its lines, and as many as it has.
+    """A line break only in the paragraph a code block of main.md became, and its lines are main.md's.
 
     A break shows as a new line, and a hundred of them as a page, while the words compared stay the
-    same (Codex review of 2026-10-04: 150 line breaks after the title passed).
+    same (Codex reviews of 2026-10-04: 150 line breaks after the title passed; then a paragraph set
+    in the code style with 150 breaks, and a code block whose breaks were moved to its end, passed
+    a check that went by the style and counted the breaks). So the breaks are allowed by the
+    manuscript, not by the style, and a code block is compared line by line, spaces and all.
     """
     problems: list[Problem] = []
+    code = [
+        (view.items[di].block, main_items[mi].block)
+        for mi, di in pairs
+        if isinstance(main_items[mi].block, MBlock)
+        and main_items[mi].block.kind == "code"
+        and isinstance(view.items[di].block, DPara)
+    ]
+    allowed = {id(para) for para, _ in code}
     broken = sorted(
-        {p.index for p in _all_paragraphs(doc) if "\n" in p.text and p.style != "Source Code"}
+        {p.index for p in _all_paragraphs(doc) if "\n" in p.text and id(p) not in allowed}
     )
     if broken:
         problems.append(
@@ -2712,23 +2782,53 @@ def check_line_breaks(
                 "structure", "line breaks", f"line breaks outside code, in docx blocks {broken[:4]}"
             )
         )
-    for mi, di in pairs:
-        mine, theirs = main_items[mi].block, view.items[di].block
-        if (
-            isinstance(mine, MBlock)
-            and mine.kind == "code"
-            and isinstance(theirs, DPara)
-            and theirs.text.count("\n") != mine.raw.count("\n")
-        ):
+    for para, block in code:
+        if para.text.split("\n") != block.raw.split("\n"):
             problems.append(
                 Problem(
                     "structure",
                     "line breaks",
-                    f"main.md:{mine.line}: {theirs.text.count(chr(10))} line breaks for "
-                    f"{mine.raw.count(chr(10))}",
+                    f"main.md:{block.line}: the code's lines are not main.md's",
                 )
             )
     return problems
+
+
+def check_whitespace(inp: Inputs, doc: Docx) -> list[Problem]:
+    """White space as main.md has it, outside the code blocks (compared line by line above).
+
+    The comparison of words collapses white space on both sides, so twenty thousand spaces, or an
+    em space, where main.md has one space passed it (Codex review of 2026-10-04). Here no run of
+    white space may be longer than the longest in a code span of main.md (one space, for this
+    manuscript, which sets prose with single spaces), and no space character may be one main.md
+    does not use. A line break is the business of check_line_breaks; a list's label, of the labels.
+    """
+    text = inp.manuscript.text
+    spans = re.findall(r"`([^`\n]*)`", re.sub(r"```.*?```", "", text, flags=re.S))
+    longest = max([1, *(len(m) for span in spans for m in re.findall(r"\s+", span))])
+    spaces = {c for c in text if _is_space(c) and c not in " \n"}
+    odd: list[int] = []
+    for para in _all_paragraphs(doc):
+        if para.style == "Source Code":
+            continue
+        shown = "".join(t for t, style in para.runs if style not in (LABEL_STYLE, JOIN_STYLE))
+        if any(_is_space(c) and c not in " \n" and c not in spaces for c in shown) or any(
+            len(m) > longest for m in re.findall(r"[^\S\n]+", shown)
+        ):
+            odd.append(para.index)
+    if odd:
+        return [
+            Problem(
+                "structure",
+                "whitespace",
+                f"white space main.md does not have, in docx blocks {sorted(set(odd))[:4]}",
+            )
+        ]
+    return []
+
+
+def _is_space(c: str) -> bool:
+    return c.isspace() or unicodedata.category(c) == "Zs"
 
 
 def check_figures(inp: Inputs, view: DocView, doc: Docx) -> list[Problem]:
@@ -3061,6 +3161,7 @@ def run_checks(inp: Inputs, data: bytes) -> tuple[list[Problem], dict[str, Any]]
     problems += check_figures(inp, view, doc)
     problems += check_tables(inp, view)
     problems += check_line_breaks(view, doc, main_items, pairs)
+    problems += check_whitespace(inp, doc)
     problems += check_drops(inp, doc)
     problems += check_text(inp, view, doc, main_items, pairs)
     state = {"doc": doc, "view": view, "main_items": main_items, "pairs": pairs}
@@ -4669,6 +4770,16 @@ def m_columns_wide(data, contract, state):
     return _rewrite(data, edit), contract, {("structure", "table layout")}
 
 
+def m_column_underscore(data, contract, state):
+    """The first table's first column set "2_000" wide: a number to Python, not to a reader."""
+    table = _first_table(state)
+
+    def edit(root):
+        list(_body(root))[table].find(f"{w('tblGrid')}/{w('gridCol')}").set(w("w"), "2_000")
+
+    return _rewrite(data, edit), contract, {("structure", "table layout")}
+
+
 def m_page_colour(data, contract, state):
     """A black page colour set beside the body."""
 
@@ -4927,6 +5038,197 @@ def m_code_breaks(data, contract, state):
     return _rewrite(data, edit), contract, {("structure", "line breaks")}
 
 
+# Found by the seventh review of 2026-10-04.
+
+
+def m_list_zero_padded(data, contract, state):
+    """The first list renumbered "00", which a reader takes for 0, with its items."""
+    num_id, _, _, _ = _first_list(data)
+
+    def renumber(root):
+        for num in root.findall(w("num")):
+            if num.get(w("numId")) == num_id:
+                num.set(w("numId"), "00")
+
+    def refer(root):
+        for element in root.iter(w("numId")):
+            if element.get(w("val")) == num_id:
+                element.set(w("val"), "00")
+
+    return (
+        _rewrite(_rewrite(data, renumber, "word/numbering.xml"), refer),
+        contract,
+        {("structure", "numbering"), ("structure", "attributes")},
+    )
+
+
+def _first_level(data: bytes) -> Callable[[ET.Element], ET.Element]:
+    _, abstract, level, _ = _first_list(data)
+
+    def find(root: ET.Element) -> ET.Element:
+        definition = next(
+            d for d in root.findall(w("abstractNum")) if d.get(w("abstractNumId")) == abstract
+        )
+        return next(lvl for lvl in definition.findall(w("lvl")) if lvl.get(w("ilvl")) == level)
+
+    return find
+
+
+def m_label_offset(data, contract, state):
+    """The first list's label set four and a half inches left of the text, off the page."""
+    find = _first_level(data)
+
+    def edit(root):
+        indent = find(root).find(f"{w('pPr')}/{w('ind')}")
+        indent.set(w("left"), "0")
+        indent.set(w("hanging"), "6480")
+
+    return _rewrite(data, edit, "word/numbering.xml"), contract, {("structure", "numbering")}
+
+
+def m_label_right(data, contract, state):
+    """The first list's label aligned right, into the margin."""
+    find = _first_level(data)
+
+    def edit(root):
+        find(root).find(w("lvlJc")).set(w("val"), "right")
+
+    return _rewrite(data, edit, "word/numbering.xml"), contract, {("structure", "numbering")}
+
+
+def m_prose_as_code(data, contract, state):
+    """A paragraph of prose set in the code style, with a hundred and fifty line breaks."""
+    index, _ = _target(state)
+
+    def edit(root):
+        paragraph = list(_body(root))[index]
+        paragraph.find(f"{w('pPr')}/{w('pStyle')}").set(w("val"), "SourceCode")
+        run = list(paragraph.iter(w("r")))[-1]
+        for _ in range(150):
+            ET.SubElement(run, w("br"))
+
+    return _rewrite(data, edit), contract, {("structure", "line breaks")}
+
+
+def m_code_lines_moved(data, contract, state):
+    """A code block's line breaks turned into spaces and set again at its end: its lines run on."""
+    index = _block_of_style(state, "Source Code")
+
+    def edit(root):
+        paragraph = list(_body(root))[index]
+        moved = 0
+        for run in paragraph.iter(w("r")):
+            for position, node in enumerate(list(run)):
+                if node.tag == w("br"):
+                    run.remove(node)
+                    space = ET.Element(w("t"))
+                    space.set(XML_SPACE, "preserve")
+                    space.text = " "
+                    run.insert(position, space)
+                    moved += 1
+        if not moved:
+            raise NoTarget("a code block of one line")
+        last = list(paragraph.iter(w("r")))[-1]
+        for _ in range(moved):
+            ET.SubElement(last, w("br"))
+
+    return _rewrite(data, edit), contract, {("structure", "line breaks")}
+
+
+def m_spaces_run(data, contract, state):
+    """The title's first space made twenty thousand."""
+    index = _block_of_style(state, "Title")
+
+    def edit(root):
+        node = next(t for t in list(_body(root))[index].iter(w("t")) if " " in (t.text or ""))
+        node.text = node.text.replace(" ", " " * 20000, 1)
+
+    return _rewrite(data, edit), contract, {("structure", "whitespace")}
+
+
+def m_em_space(data, contract, state):
+    """A space of a body paragraph set as an em space."""
+    index, _ = _target(state)
+
+    def edit(root):
+        node = next(t for t in list(_body(root))[index].iter(w("t")) if " " in (t.text or ""))
+        node.text = node.text.replace(" ", chr(0x2003), 1)
+
+    return _rewrite(data, edit), contract, {("structure", "whitespace")}
+
+
+def _add_to_style(
+    style_id: str, path: tuple[str, ...], tag: str, **attributes: str
+) -> Callable[[ET.Element], None]:
+    """Add ``tag`` with ``attributes`` to the style, under ``path`` (made where it is missing)."""
+
+    def edit(root: ET.Element) -> None:
+        parent = _style(root, style_id)
+        for step in path:
+            found = parent.find(w(step))
+            parent = found if found is not None else ET.SubElement(parent, w(step))
+        element = ET.SubElement(parent, w(tag))
+        for key, value in attributes.items():
+            element.set(w(key), value)
+
+    return edit
+
+
+STYLES_SEEN = {("package", "word/styles.xml"), ("structure", "styles")}
+
+
+def m_style_lines_gap(data, contract, state):
+    """The Body Text style set a thousand lines below the paragraph before it, by beforeLines."""
+    edit = _add_to_style("BodyText", ("pPr",), "spacing", beforeLines="100000")
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
+def m_style_line_wide(data, contract, state):
+    """The Body Text style's lines set four hundred lines apart."""
+    edit = _add_to_style("BodyText", ("pPr",), "spacing", line="100000", lineRule="auto")
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
+def m_style_line_tall(data, contract, state):
+    """The Body Text style set in an exact line of a thousand points."""
+    edit = _add_to_style("BodyText", ("pPr",), "spacing", line="20000", lineRule="exact")
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
+def m_figure_exact(data, contract, state):
+    """The Figure Image style set in an exact line of twelve points, which clips the picture."""
+    edit = _add_to_style("FigureImage", ("pPr",), "spacing", line="240", lineRule="exact")
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
+def m_style_exact_short(data, contract, state):
+    """The Body Text style set at 20 points in an exact line of 15, which clips its text."""
+
+    def edit(root):
+        _add_to_style("BodyText", ("pPr",), "spacing", line="300", lineRule="exact")(root)
+        _add_to_style("BodyText", ("rPr",), "sz", val="40")(root)
+
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
+def m_style_huge(data, contract, state):
+    """The Body Text style set at a thousand points."""
+    edit = _add_to_style("BodyText", ("rPr",), "sz", val="2000")
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
+def m_cell_margin(data, contract, state):
+    """The table style's left cell margin set nine thousand twips wide, squeezing out its text."""
+    edit = _add_to_style("Table", ("tblPr", "tblCellMar"), "left", w="9000", type="dxa")
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
+def m_table_indent(data, contract, state):
+    """The table style indented nine thousand twips, off the page."""
+    edit = _add_to_style("Table", ("tblPr",), "tblInd", w="9000", type="dxa")
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
 def m_contract(data, contract, state):
     changed = copy.deepcopy(contract)
     narrative = next((c for c in changed.get("citations", []) if c["kind"] == "narrative"), None)
@@ -5035,6 +5337,22 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("the Body Text style's lines set over one another", m_style_compressed),
     ("the Body Text style indented off the page", m_style_indent),
     ("the Body Text style set a page below the paragraph before", m_style_gap),
+    ("a list renumbered 00", m_list_zero_padded),
+    ("a list's label set off the page", m_label_offset),
+    ("a list's label aligned right", m_label_right),
+    ("a paragraph of prose set as code with 150 line breaks", m_prose_as_code),
+    ("a code block's line breaks moved to its end", m_code_lines_moved),
+    ("the title's first space made 20,000", m_spaces_run),
+    ("a space set as an em space", m_em_space),
+    ("the Body Text style a thousand lines below by beforeLines", m_style_lines_gap),
+    ("the Body Text style's lines 400 lines apart", m_style_line_wide),
+    ("the Body Text style in an exact line of 1,000 points", m_style_line_tall),
+    ("the Figure Image style in an exact line of 12 points", m_figure_exact),
+    ("the Body Text style at 20 points in an exact line of 15", m_style_exact_short),
+    ("the Body Text style at 1,000 points", m_style_huge),
+    ("the table style's cell margin 9,000 twips", m_cell_margin),
+    ("the table style indented 9,000 twips", m_table_indent),
+    ("a table column set 2_000 wide", m_column_underscore),
 )
 
 
@@ -5203,6 +5521,7 @@ The estimate does not bear on the completed run (§2.3, and [3] on why a power f
 
 ```
 alpha = 0.05
+beta  = 0.20
 ```
 
 ## References
@@ -5498,7 +5817,11 @@ def _xml_runs(
         if style:
             styles[style] = "character"
         props = f'<w:rPr><w:rStyle w:val="{_style_id(style)}"/></w:rPr>' if style else ""
-        xml = f'<w:r>{props}<w:t xml:space="preserve">{escape(text)}</w:t></w:r>'
+        # A line of a code block ends in a line break, as pandoc sets one.
+        lines = "<w:br/>".join(
+            f'<w:t xml:space="preserve">{escape(line)}</w:t>' for line in text.split("\n")
+        )
+        xml = f"<w:r>{props}{lines}</w:r>"
         if style == "Hyperlink":
             rid = f"rIdLink{len(rels)}"
             target = run[2] if len(run) > 2 else text
@@ -5660,7 +5983,7 @@ SYNTHETIC_DOCX: list[tuple[Any, ...]] = [
         None,
         [],
     ),
-    ("p", "Source Code", [("alpha = 0.05", "")], None, []),
+    ("p", "Source Code", [("alpha = 0.05\nbeta  = 0.20", _V)], None, []),
     ("p", "Page Break", [], None, []),
     ("p", "heading 1", [("References", "")], None, ["references"]),
     (
