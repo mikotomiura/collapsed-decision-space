@@ -45,11 +45,14 @@ What it changes, and why each change is necessary:
    both above. The figure's title is its caption in ``main.md`` without the label "**Figure N.**";
    the table's is the text of its ``Table:`` line. Tables are numbered in order of appearance. A
    figure is the PNG of the figure ``make_figures.py`` draws from the shipped data, set as a
-   standalone PDF and rasterised at 600 dpi.
+   standalone PDF and rasterised at 600 dpi, and shown at the width of the text, or narrower where
+   its number and title would not fit on one page with it (the figures of the PDF keep their own
+   sizes).
 7. **The references and each appendix begin on a new page**, and the markers in HTML comments and
    the horizontal rules are left out. Each table is followed by an empty line, and its columns get
    widths for the face and size the ``.docx`` sets it in (:func:`weight_docx_columns`); neither
-   changes a word.
+   changes a word. (pandoc then sets the cells in the paragraph styles Table Heading and Table Text,
+   through ``manuscript/docx/table-cells.lua``.)
 
 Everything else is passed through byte for byte, including the section numbers, which the
 repository cites.
@@ -121,6 +124,15 @@ PAGE_BREAK = '```{=openxml}\n<w:p><w:pPr><w:pStyle w:val="PageBreak"/></w:pPr></
 #: An empty single-spaced line after each table, in the style ``After Table``, so that the text or
 #: the heading that follows does not run into the table's bottom rule. It carries no text.
 AFTER_TABLE = '```{=openxml}\n<w:p><w:pPr><w:pStyle w:val="AfterTable"/></w:pPr></w:p>\n```'
+#: The width a figure is set at: the width of the text (Letter less two one-inch margins), at the
+#: figure's own proportions. The PNGs hold the size the PDF sets them at, which left the narrowest
+#: at 4.7 inches.
+FIGURE_WIDTH = "6.5in"
+#: Narrower where the figure's number, its title and the picture would not fit on one page at the
+#: width of the text. The power figure has a nine-line title; at 6.5 inches its picture is 5.0
+#: inches high and goes to the page after its title, which LibreOffice showed. At 5.5 inches it is
+#: 4.23 inches high, and the three fit on one page with about 0.3 inches to spare.
+FIGURE_WIDTHS = {"power": "5.5in"}
 
 CITATION_STYLE = "Citation"
 
@@ -796,7 +808,9 @@ def build(repo_root: Path, *, no_preprint: bool) -> tuple[str, dict[str, Any]]:
             body = CAPTION_LABEL.sub("", body, count=1)
             out.append(_div("Figure Number", f"Figure {figure_number}"))
             out.append(_div("Figure Title", body))
-            out.append(_div("Figure Image", f"![](figs/fig-{block.name}.png)"))
+            width = FIGURE_WIDTHS.get(block.name, FIGURE_WIDTH)
+            image = f"![](figs/fig-{block.name}.png){{width={width}}}"
+            out.append(_div("Figure Image", image))
             record["figures"].append({"number": figure_number, "name": block.name, "lines": span})
         elif block.kind == "table":
             table_number += 1
@@ -879,6 +893,7 @@ BOLD = "<w:b/><w:bCs/>"
 ITALIC = "<w:i/><w:iCs/>"
 KEEP = "<w:keepNext/>"
 SINGLE = '<w:spacing w:line="240" w:lineRule="auto"/>'
+SMALL = '<w:sz w:val="20"/><w:szCs w:val="20"/>'
 
 #: The styles the reference document defines, replacing pandoc's defaults of the same identifier.
 STYLES: tuple[str, ...] = (
@@ -938,6 +953,13 @@ STYLES: tuple[str, ...] = (
     _pstyle("FigureImage", "Figure Image", CENTER),
     _pstyle("TableNumber", "Table Number", KEEP + '<w:spacing w:before="240"/>', BOLD),
     _pstyle("TableTitle", "Table Title", KEEP, ITALIC),
+    # The cells of a table (manuscript/docx/table-cells.lua sets them in these): single-spaced in 10
+    # point (APA 7, 7.21), the heading row in bold. Each keeps with the next paragraph, so a table
+    # that fits on a page is not broken across two; a longer one still breaks between rows, with its
+    # heading row repeated. The cells carry this themselves: Word did not apply the table style's
+    # size, spacing and bold to the paragraphs pandoc writes in a cell (Compact).
+    _pstyle("TableText", "Table Text", KEEP + SINGLE + NO_INDENT, SMALL),
+    _pstyle("TableHeading", "Table Heading", "", BOLD, based="TableText"),
     _pstyle(
         "SourceCode",
         "Source Code",
@@ -964,7 +986,8 @@ STYLES: tuple[str, ...] = (
     _cstyle("Citation", CITATION_STYLE, ""),
     # APA tables: rules above and below the table and under the heading row, none between cells;
     # set single-spaced in 10 point (APA 7, 7.21). Set on the table style, which paragraph styles that
-    # set neither size nor line spacing leave in force.
+    # set neither size nor line spacing leave in force -- in LibreOffice; Word left them out, and
+    # the cells' own styles above (Table Text, Table Heading) carry the same.
     '<w:style w:type="table" w:default="1" w:styleId="Table"><w:name w:val="Table"/>'
     '<w:basedOn w:val="TableNormal"/><w:qFormat/>'
     '<w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>'
@@ -1173,6 +1196,11 @@ def main(argv: list[str] | None = None) -> int:
     vendored = verify_vendored(args.repo_root)
     print(f"[docx-source] the {vendored} vendored citation style file matches VENDORED.json")
     source, record = build(args.repo_root, no_preprint=args.no_preprint)
+    # A width given to a figure the manuscript does not have would be dropped silently. Checked
+    # here, on the manuscript, not in build(), which the check's self-test runs on a synthetic one.
+    unknown = set(FIGURE_WIDTHS) - {f["name"] for f in record["figures"]}
+    if unknown:
+        _die(f"FIGURE_WIDTHS names no figure of main.md: {sorted(unknown)}")
     args.out_dir.mkdir(parents=True, exist_ok=True)
     (args.out_dir / "paper-source.md").write_text(source, encoding="utf-8", newline="\n")
     (args.out_dir / "contract.json").write_text(
