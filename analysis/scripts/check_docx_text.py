@@ -90,6 +90,7 @@ import re
 import sys
 import tempfile
 import unicodedata
+import warnings
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -685,6 +686,19 @@ PICTURE = ET.fromstring(
 )
 
 
+#: A table's properties as pandoc writes them: the full width of the text, laid out by its grid, the
+#: first row the heading. And the grid within the text: no column narrower than a fifth of an inch,
+#: and all of them within the 6.5 inches between the margins: a table wider than the page, or a
+#: column too narrow to read, changes what a reader sees while the text stays the same (found while
+#: closing the fifth Codex review of 2026-10-04).
+TABLE = ET.fromstring(
+    f'<w:tblPr xmlns:w="{W}"><w:tblStyle w:val="Table"/><w:tblW w:type="pct" w:w="5000"/>'
+    '<w:tblLayout w:type="fixed"/><w:tblLook w:firstRow="1" w:lastRow="0" w:firstColumn="0" '
+    'w:lastColumn="0" w:noHBand="0" w:noVBand="0" w:val="0020"/></w:tblPr>'
+)
+NARROWEST, TEXT_WIDTH = 288, 9360  # twentieths of a point
+
+
 def _matches(element: ET.Element, template: ET.Element, bound: dict[str, str]) -> bool:
     """``element`` has ``template``'s form: the same elements, attributes and values, and no text."""
     if (
@@ -760,6 +774,22 @@ def validate_body(body: ET.Element) -> list[Problem]:
                     problems.append(
                         Problem(
                             "structure", "table grid", "a table whose rows do not fill its grid"
+                        )
+                    )
+                widths = [_int(g.get(w("w"))) for g in child.iter(w("gridCol"))]
+                table_props = child.find(w("tblPr"))
+                if (
+                    table_props is None
+                    or not _matches(table_props, TABLE, {})
+                    or not widths
+                    or min(widths) < NARROWEST
+                    or sum(widths) > TEXT_WIDTH
+                ):
+                    problems.append(
+                        Problem(
+                            "structure",
+                            "table layout",
+                            f"a table not laid out as pandoc lays one out: columns {widths}",
                         )
                     )
             if name in _CONTAINERS:
@@ -1562,6 +1592,15 @@ def read_docx(data: bytes, reference: dict[str, bytes]) -> Docx:
     body = document.find(w("body"))
     if body is None:
         raise ValueError("word/document.xml has no body")
+    early: list[Problem] = []
+    # A name the archive holds twice is read here as its last copy, and may be read elsewhere as its
+    # first; and the document holds its body and nothing else (a page colour, say, set beside it).
+    if len(set(archive.namelist())) != len(archive.namelist()):
+        early.append(Problem("package", "parts", "a part the archive holds twice"))
+    if [child.tag for child in document] != [w("body")]:
+        early.append(
+            Problem("structure", "document", "the document holds something beside its body")
+        )
     media: dict[str, str] = {}
     sizes: dict[str, tuple[int, int] | None] = {}
     links: dict[str, str] = {}
@@ -1583,7 +1622,7 @@ def read_docx(data: bytes, reference: dict[str, bytes]) -> Docx:
             sizes[rid] = _png_size(parts["word/" + target])
         if rel.get("Type") == f"{R}/hyperlink" and rel.get("TargetMode") == "External":
             links[rid] = target
-    problems = validate_body(body)
+    problems = early + validate_body(body)
     problems += validate_package(parts, reference, body)
     sheet = Sheet(parts.get("word/styles.xml"))
     style_problems, breaking = validate_styles(sheet, body)
@@ -3926,7 +3965,8 @@ def m_grid_span(data, contract, state):
     return (
         _rewrite(data, edit),
         contract,
-        {("structure", "properties"), ("structure", "table grid")},
+        # The added grid column has no width: the layout is reported as well.
+        {("structure", "properties"), ("structure", "table grid"), ("structure", "table layout")},
     )
 
 
@@ -4440,6 +4480,67 @@ def m_package_relationship(data, contract, state):
     return _rewrite(data, edit, "_rels/.rels"), contract, {("package", "_rels/.rels")}
 
 
+def m_table_wide(data, contract, state):
+    """The first table set fifty thousand twips wide, past the edge of the page."""
+    table = _first_table(state)
+
+    def edit(root):
+        size = list(_body(root))[table].find(f"{w('tblPr')}/{w('tblW')}")
+        size.set(w("type"), "dxa")
+        size.set(w("w"), "50000")
+
+    return _rewrite(data, edit), contract, {("structure", "table layout")}
+
+
+def m_column_narrow(data, contract, state):
+    """The first table's first column set one point wide."""
+    table = _first_table(state)
+
+    def edit(root):
+        list(_body(root))[table].find(f"{w('tblGrid')}/{w('gridCol')}").set(w("w"), "20")
+
+    return _rewrite(data, edit), contract, {("structure", "table layout")}
+
+
+def m_columns_wide(data, contract, state):
+    """The first table's first column set wider than the text, so the grid runs past the margin."""
+    table = _first_table(state)
+
+    def edit(root):
+        list(_body(root))[table].find(f"{w('tblGrid')}/{w('gridCol')}").set(w("w"), "9000")
+
+    return _rewrite(data, edit), contract, {("structure", "table layout")}
+
+
+def m_page_colour(data, contract, state):
+    """A black page colour set beside the body."""
+
+    def edit(root):
+        colour = ET.Element(w("background"))
+        colour.set(w("color"), "000000")
+        root.insert(0, colour)
+
+    return _rewrite(data, edit), contract, {("structure", "document")}
+
+
+def m_twin_entry(data, contract, state):
+    """A second word/document.xml in the archive, before the real one, with a paragraph dropped: a
+    reader that takes the first copy reads a different document from one that takes the last."""
+    index, _ = _target(state)
+    dropped = _rewrite(data, lambda root: _body(root).remove(list(_body(root))[index]))
+    archive = zipfile.ZipFile(io.BytesIO(data))
+    buffer = io.BytesIO()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # zipfile warns of the duplicate name it is asked to write
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as out:
+            out.writestr(
+                "word/document.xml", zipfile.ZipFile(io.BytesIO(dropped)).read("word/document.xml")
+            )
+            for name in archive.namelist():
+                out.writestr(name, archive.read(name))
+    return buffer.getvalue(), contract, {("package", "parts")}
+
+
 def m_contract(data, contract, state):
     changed = copy.deepcopy(contract)
     narrative = next((c for c in changed.get("citations", []) if c["kind"] == "narrative"), None)
@@ -4530,6 +4631,11 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("a sentence set in the footnote separator", m_separator_text),
     ("a footnote relationship that is not a link", m_footnote_relationship),
     ("a package relationship the reference does not have", m_package_relationship),
+    ("a table set wider than the page", m_table_wide),
+    ("a table column set one point wide", m_column_narrow),
+    ("a table column set wider than the text", m_columns_wide),
+    ("a black page colour set beside the body", m_page_colour),
+    ("a second document.xml in the archive", m_twin_entry),
 )
 
 
@@ -4796,10 +4902,15 @@ def write_docx(paragraphs: list[tuple[Any, ...]], media: dict[str, bytes]) -> by
                 )
                 rows.append(f"<w:tr>{cells}</w:tr>")
             styles["Compact"] = "paragraph"
-            grid = "".join("<w:gridCol/>" for _ in entry[1][0])
+            # As pandoc lays a table out: the text's full width, by its grid, the first row the
+            # heading.
+            width = 7920 // len(entry[1][0])
+            grid = "".join(f'<w:gridCol w:w="{width}"/>' for _ in entry[1][0])
             body.append(
-                '<w:tbl><w:tblPr><w:tblStyle w:val="Table"/></w:tblPr>'
-                f"<w:tblGrid>{grid}</w:tblGrid>" + "".join(rows) + "</w:tbl>"
+                '<w:tbl><w:tblPr><w:tblStyle w:val="Table"/><w:tblW w:type="pct" w:w="5000"/>'
+                '<w:tblLayout w:type="fixed"/><w:tblLook w:firstRow="1" w:lastRow="0" '
+                'w:firstColumn="0" w:lastColumn="0" w:noHBand="0" w:noVBand="0" w:val="0020"/>'
+                f"</w:tblPr><w:tblGrid>{grid}</w:tblGrid>" + "".join(rows) + "</w:tbl>"
             )
             styles["Table"] = "table"
             continue
