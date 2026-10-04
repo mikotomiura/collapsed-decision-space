@@ -1,0 +1,191 @@
+name: APA docx
+
+# Build the .docx in APA 7 style from `manuscript/main.md`, and read it back.
+#
+# **Manual only**, for the reason `submission-pdf.yml` gives: producing a document is not part of
+# reproducing the study, and `repro.sh` needs nothing but `uv`.
+#
+# **There is no second manuscript.** The .docx is the second form derived from `manuscript/main.md`,
+# beside the PDF. `make_docx_source.py` performs a mechanical transformation and records every change
+# it makes (`contract.json`); pandoc 3.5 sets it, with the citations and the reference list set by
+# citeproc from `manuscript/refs.json` in the APA style of the Citation Style Language project
+# (`manuscript/docx/apa.csl`, vendored byte for byte); and the figures are the TikZ that
+# `make_figures.py` draws from the shipped data, each typeset on its own and read back for its
+# numbers before it becomes a picture.
+#
+# The build is not trusted. `check_docx_text.py` reads the .docx back from its XML: it enumerates the
+# changes from the inputs on its own, requires the record to agree, checks every change against the
+# file -- citation by citation, reference by reference, figure by figure (by the SHA-256 of its
+# picture), table by table, cell by cell -- and compares the rest of the text with main.md word for
+# word; and what the body does not carry -- the styles, the header, the theme, the parts and their
+# relationships -- it compares with the reference document generated above, which pandoc copied them
+# from. Then it breaks copies of this .docx one way at a time and requires each to be reported with
+# exactly its diagnostics. What the XML cannot show -- how the pages look -- is what the PDF that
+# LibreOffice makes of the .docx is for: it is uploaded to be read, page by page, before the .docx is
+# used. CI has no Times New Roman, so that PDF is set in its metric-compatible substitute.
+
+on:
+  workflow_dispatch:
+    inputs:
+      no-preprint:
+        description: >-
+          No preprint of this work is public, so the Author Note declares none. Set this only when
+          that is the fact; when CITATION.cff names a preprint, the build declares it and refuses
+          this option.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  docx:
+    name: build and check the APA 7 .docx
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      PYTHONUTF8: "1"
+      # The same pandoc as the PDF, pinned by version and by the digest of its release package.
+      PANDOC_VERSION: "3.5"
+      PANDOC_DEB_SHA256: "4f41d817d262ef3d17953a3e6e0fefddb971aa4f2f121544a9a86db449d945e1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install pandoc, TeX Live, poppler and LibreOffice
+        run: |
+          set -eux
+          curl -sSL -o /tmp/pandoc.deb \
+            "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-amd64.deb"
+          echo "${PANDOC_DEB_SHA256}  /tmp/pandoc.deb" | sha256sum -c -
+          sudo dpkg -i /tmp/pandoc.deb
+          pandoc --version | head -1 | grep -qx "pandoc ${PANDOC_VERSION}"
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-fonts-recommended texlive-pictures lmodern poppler-utils \
+            libreoffice-writer-nogui fonts-liberation
+          # What the standalone figures load, asserted where it is installed.
+          for file in standalone.cls tikz.sty amsmath.sty amssymb.sty lmodern.sty glyphtounicode.tex; do
+            kpsewhich "$file"
+          done
+          mkdir -p build/docx
+          {
+            pandoc --version | head -1
+            pdflatex --version | head -1
+            pdftoppm -v 2>&1 | head -1
+            soffice --version
+            echo "Times New Roman is set as: $(fc-match 'Times New Roman')"
+          } | tee build/docx/versions.txt
+
+      - name: The reference list of main.md is what refs.json renders to
+        run: python3 analysis/scripts/render_references.py --check
+
+      - name: Draw the figures, typeset each on its own, read its numbers back, and rasterise it
+        # The PDF build reads each figure's numbers back from the page; here each figure is typeset as
+        # a standalone PDF and read back the same way, row by row, before it becomes a 600 dpi PNG.
+        # The SHA-256 of each PNG is recorded, and the read-back of the .docx requires each figure's
+        # picture to be its own.
+        working-directory: build/docx
+        run: |
+          set -eux
+          python3 ../../analysis/scripts/make_figures.py --out-dir figs
+          python3 ../../analysis/scripts/make_figures.py --out-dir figs --check
+          python3 ../../analysis/scripts/make_docx_source.py --standalone-figures figs
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          export FORCE_SOURCE_DATE=1
+          cd figs
+          for source in fig-*-standalone.tex; do
+            name="${source%-standalone.tex}"
+            pdflatex -interaction=nonstopmode -halt-on-error "$source"
+            pdftotext -enc UTF-8 -raw "${name}-standalone.pdf" "${name}.txt"
+            pdftoppm -r 600 -png -singlefile "${name}-standalone.pdf" "${name}"
+          done
+          cd ..
+          python3 ../../analysis/scripts/check_docx_text.py --figure-text figs
+          python3 ../../analysis/scripts/make_docx_source.py --figure-manifest figs
+
+      - name: Generate the reference document twice, in two directories, and compare the bytes
+        # pandoc's default reference document carries the time it was printed; the one generated from
+        # it must not.
+        run: |
+          set -eux
+          for run in a b; do
+            mkdir -p "build/reference-$run"
+            (
+              cd "build/reference-$run"
+              pandoc -o default.docx --print-default-data-file reference.docx
+              python3 ../../analysis/scripts/make_docx_source.py --reference-docx default.docx --out reference.docx
+            )
+            sleep 2
+          done
+          sha256sum build/reference-*/default.docx build/reference-*/reference.docx
+          cmp build/reference-a/reference.docx build/reference-b/reference.docx
+          cp build/reference-a/reference.docx build/docx/reference.docx
+
+      - name: Generate the pandoc source and the record of the conversion
+        run: |
+          python3 analysis/scripts/make_docx_source.py --out-dir build/docx \
+            ${{ inputs.no-preprint && '--no-preprint' || '' }}
+
+      - name: Build the .docx twice and compare the bytes
+        # The date the .docx records is the date of the commit, not of the build. A citation citeproc
+        # cannot resolve is a warning, and `fail-if-warnings` in pandoc.yaml makes it a failure.
+        working-directory: build/docx
+        run: |
+          set -eux
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          pandoc -d ../../manuscript/docx/pandoc.yaml paper-source.md -o paper.docx
+          pandoc -d ../../manuscript/docx/pandoc.yaml paper-source.md -o paper-again.docx
+          cmp paper.docx paper-again.docx
+          rm paper-again.docx
+          ls -l paper.docx
+
+      - name: Read the .docx back against main.md, and break copies of it
+        id: read
+        run: |
+          uv run --no-project --with "pyyaml==6.0.3" python analysis/scripts/check_docx_text.py \
+            build/docx/paper.docx --contract build/docx/contract.json \
+            --figures build/docx/figs/figures.json --reference build/docx/reference.docx \
+            --write-text build/docx/paper-docx.txt --mutation-test
+
+      - name: Check the .docx against the claim boundary
+        # The .docx is a claim surface too; the patterns come from `manuscript/CLAIM-BOUNDARY.md`.
+        if: ${{ !cancelled() && hashFiles('build/docx/paper-docx.txt') != '' }}
+        run: |
+          uv run --no-project --with "pyyaml==6.0.3" python analysis/scripts/check_claim_boundary.py \
+            --extra-target build/docx/paper-docx.txt
+
+      - name: Set the .docx as a PDF with LibreOffice, to be read page by page
+        if: ${{ !cancelled() && hashFiles('build/docx/paper.docx') != '' }}
+        working-directory: build/docx
+        run: |
+          set -eux
+          soffice --headless --convert-to pdf paper.docx --outdir .
+          mv paper.pdf paper-docx.pdf
+          pdfinfo paper-docx.pdf | sed -n '1,14p'
+          sha256sum paper.docx paper-docx.pdf reference.docx figs/*.png | tee SHA256SUMS
+
+      - name: Upload the .docx, its PDF and what it was built from
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apa-docx-${{ github.sha }}
+          path: |
+            build/docx/paper.docx
+            build/docx/paper-docx.pdf
+            build/docx/paper-docx.txt
+            build/docx/paper-source.md
+            build/docx/contract.json
+            build/docx/reference.docx
+            build/docx/versions.txt
+            build/docx/SHA256SUMS
+            build/docx/figs/figures.json
+            build/docx/figs/*.png
+            build/docx/figs/*-standalone.pdf
+            manuscript/refs.json
+          if-no-files-found: warn
+          retention-days: 90

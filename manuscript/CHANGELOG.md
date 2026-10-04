@@ -412,3 +412,40 @@ page limit. Everything else about where the main text ends -- the References and
 set once each and in that order, with every figure of the main text before them -- is still checked
 on both builds, and the self-test and the mutation of the real pages now exercise each check as each
 build applies it. This is the one check that was relaxed, and only for that build.
+
+## 2026-10-04 — a second derived form: a .docx in APA 7 style
+
+Nothing left the manuscript, and no claim, analysis, test or rendered number moved.
+
+### Data, code and reproducibility
+
+A paragraph was added after the one on the PDF: the manuscript has two derived forms, the PDF and a
+`.docx` set in APA 7 style, and neither is maintained by hand. It says how the `.docx` is built
+(`analysis/scripts/make_docx_source.py`, pandoc 3.5, the citations and the reference list set by
+citeproc from `manuscript/refs.json` in the APA style of the Citation Style Language project, the
+same three figures) and read back (`analysis/scripts/check_docx_text.py`, every change the
+conversion makes checked as recorded, the rest of the text compared word for word, the picture of
+each figure required to be its own), and that the manual `apa-docx` workflow performs all of it.
+
+### What the .docx changes, and nothing else
+
+- The title page takes the title, and the author and affiliation rows of the author table; the
+  Author Note takes the table's ORCID, Protocol status, Code and data, License and Correspondence
+  rows, verbatim, and the AI-use disclosure, which moves there from §K as it moves to the first-page
+  footnote of the PDF. The lead paragraph of that table is left out, as in the PDF.
+- The abstract has its own page, with the keywords of `CITATION.cff`, and the title is repeated
+  above the introduction.
+- Citations are set in APA author-date form; where the prose names the authors before a citation,
+  the names are set by the citation instead ("Hoenig and Heisey (2001)"), and the one citation inside
+  a parenthesis becomes that parenthesis. The reference list is set in APA 7 style and prints no
+  reference numbers, so the note on them after the list is left out.
+- Figures and tables carry an APA label and title above them, tables numbered in order of
+  appearance; the references and each appendix begin on a new page.
+
+### A table cell the PDF set with a stray backslash
+
+In the record of the completed run in the appendix on completed preliminary studies, the row
+"per-context entropy H(zone | c)" had its label set as code, and pandoc keeps the escape of a pipe
+inside code in a table cell: the PDF printed "H(zone \| c)". The label is no longer set as code, so
+both the PDF and the `.docx` print "H(zone | c)". The comparison of the `.docx` with this manuscript
+found it.

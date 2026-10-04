@@ -181,6 +181,18 @@ bash repro.sh
 ERRE_SANDBOX_REPO=/path/to/ERRE-Sandbox bash repro.sh
 ```
 
+### PDF と .docx
+
+原稿から派生させる形は 2 つで、どちらも `repro.sh` の外です。TMLR の様式で組む PDF は手動の
+`submission-pdf` workflow が、APA 7 の `.docx` は手動の `apa-docx` workflow が作ります。どちらの
+workflow も、作ったファイルを `manuscript/main.md` と突き合わせて読み戻し、説明できない差があれば
+落ちます (何を検査するかは原稿の §J)。2 つの読み戻しの検査の self-test は、`compendium` workflow
+が push ごとに両 OS で走らせます。
+
+`.docx` を手元で作るには、pandoc 3.5、TikZ と `standalone` class のある TeX (図のため)、poppler、
+LibreOffice が要ります。手順は `.github/workflows/apa-docx.yml` の段のとおりです。
+`analysis/scripts/check_docx_text.py --self-test` はどれも要りません。
+
 ## 検査が示すこと / 示さないこと
 
 緑のバッジより、この区別のほうが重要です。
@@ -263,6 +275,7 @@ tag `stage1-submitted` は、2026 年 9 月に PCI Registered Reports へ投稿�
 |---|---|
 | コード (`analysis/`, `repro.sh`) | Apache-2.0 OR MIT — `LICENSE` / `LICENSE-MIT` |
 | 本文と図 (`manuscript/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
+| `.docx` のために同梱した Citation Style Language project の APA 7 の引用様式 (`manuscript/docx/apa.csl`) | CC BY-SA 3.0 — ファイルの中に記載。由来は `manuscript/docx/VENDORED.json` |
 | 封印した protocol・規則とその記録 (`seal/`) | CC BY 4.0 — `LICENSE-CC-BY-4.0.txt` |
 | 凍結した入力 (`data/raw/`) | CC BY 4.0 — 著者が生成した研究データ。由来は `data/data.md` |
 | 完了済み run の draw ごとの記録 (`data/completed/`) | CC BY 4.0 |
