@@ -42,12 +42,12 @@ What it changes, and why each change is necessary:
    ``manuscript/refs.json``, where the rendered block stands. The note after it, on the permanent
    reference numbers, is left out: the ``.docx`` prints no numbers, so it would say nothing.
 6. **Figures and tables get APA labels**: a line "Figure N" or "Table N" and a line with the title,
-   both above. The figure's title is its caption in ``main.md`` without the label "**Figure N.**";
-   the table's is the text of its ``Table:`` line. Tables are numbered in order of appearance. A
-   figure is the PNG of the figure ``make_figures.py`` draws from the shipped data, set as a
-   standalone PDF and rasterised at 600 dpi, and shown at the width of the text, or narrower where
-   its number and title would not fit on one page with it (the figures of the PDF keep their own
-   sizes).
+   both above. The figure's title is the first sentence of its caption in ``main.md`` (without the
+   label "**Figure N.**"), and the rest of the caption is set below the figure as a note opening
+   with "*Note.*" (:func:`split_caption`); the table's title is the text of its ``Table:`` line.
+   Tables are numbered in order of appearance. A figure is the PNG of the figure ``make_figures.py``
+   draws from the shipped data, set as a standalone PDF and rasterised at 600 dpi, and shown at the
+   width of the text (the figures of the PDF keep their own sizes).
 7. **The references and each appendix begin on a new page**, and the markers in HTML comments and
    the horizontal rules are left out. Each table is followed by an empty line, and its columns get
    widths for the face and size the ``.docx`` sets it in (:func:`weight_docx_columns`); neither
@@ -74,6 +74,7 @@ import argparse
 import hashlib
 import io
 import json
+import math
 import re
 import sys
 import zipfile
@@ -105,6 +106,12 @@ PLAIN_MARKERS = re.compile(
     r"END GENERATED FROM \S+) -->$"
 )
 CAPTION_LABEL = re.compile(r"^\*\*Figure (\d+)\.\*\*\s+")
+#: Where a figure caption's first sentence ends: a full stop, a space, and a capital letter, an
+#: opening bracket or a backtick. APA sets a short title above a figure and the rest of what it says
+#: below it as a note; the first sentence is the title, the rest the note.
+FIRST_SENTENCE_END = re.compile(r"\.\s+(?=[A-Z\[`])")
+#: A title longer than this is a paragraph, not a title: the caption needs a short first sentence.
+TITLE_LONGEST = 200
 
 #: The rows of the author table and where each goes. Every row must be one of these: a row this
 #: script does not place would otherwise be dropped without a word.
@@ -124,15 +131,12 @@ PAGE_BREAK = '```{=openxml}\n<w:p><w:pPr><w:pStyle w:val="PageBreak"/></w:pPr></
 #: An empty single-spaced line after each table, in the style ``After Table``, so that the text or
 #: the heading that follows does not run into the table's bottom rule. It carries no text.
 AFTER_TABLE = '```{=openxml}\n<w:p><w:pPr><w:pStyle w:val="AfterTable"/></w:pPr></w:p>\n```'
-#: The width a figure is set at: the width of the text (Letter less two one-inch margins), at the
-#: figure's own proportions. The PNGs hold the size the PDF sets them at, which left the narrowest
-#: at 4.7 inches.
+#: The width every figure is set at: the width of the text (Letter less two one-inch margins), at
+#: the figure's own proportions. The PNGs hold the size the PDF sets them at, which left the
+#: narrowest at 4.7 inches. The power figure's note runs to ten lines, and at this width its last
+#: two go to the next page; the picture would have to be 5.5 inches wide for the note to fit under
+#: it, and the larger picture was preferred.
 FIGURE_WIDTH = "6.5in"
-#: Narrower where the figure's number, its title and the picture would not fit on one page at the
-#: width of the text. The power figure has a nine-line title; at 6.5 inches its picture is 5.0
-#: inches high and goes to the page after its title, which LibreOffice showed. At 5.5 inches it is
-#: 4.23 inches high, and the three fit on one page with about 0.3 inches to spare.
-FIGURE_WIDTHS = {"power": "5.5in"}
 
 CITATION_STYLE = "Citation"
 
@@ -146,6 +150,11 @@ DOCX_LINE_PT = 6.5 * 72
 DOCX_PADDING_PT = 2 * 5.4 + 4.0
 DOCX_CODE_CHAR_PT = 6.0
 DOCX_TEXT_CHAR_PT = 5.6
+#: The average width of a character of running text in Times New Roman at 10 point, and of a
+#: space, used only to estimate how many lines a cell takes when the columns are shared out (the
+#: floor above keeps the wider allowance, which no unbreakable token may exceed).
+DOCX_TEXT_AVERAGE_PT = 4.5
+DOCX_SPACE_PT = 2.5
 
 
 def _die(message: str) -> None:
@@ -513,6 +522,19 @@ def _div(style: str, text: str) -> str:
     return f'::: {{custom-style="{style}"}}\n{text}\n:::'
 
 
+def split_caption(caption: str, where: str) -> tuple[str, str]:
+    """A figure caption as its APA title (the first sentence) and note (the rest, or nothing).
+
+    The caption's line breaks become spaces; nothing else changes.
+    """
+    flat = " ".join(caption.split())
+    end = FIRST_SENTENCE_END.search(flat)
+    title, note = (flat, "") if end is None else (flat[: end.start() + 1], flat[end.end() :])
+    if len(title) > TITLE_LONGEST:
+        _die(f"{where}: the first sentence of the caption is too long for a title ({len(title)})")
+    return title, note
+
+
 def _table_rows(lines: list[str]) -> list[list[str]]:
     rows = []
     for line in lines:
@@ -536,13 +558,70 @@ def _widest_token_pt(cell: str) -> float:
     return widest
 
 
+def _cell_lines(cell: str, width_pt: float) -> int:
+    """About how many lines a cell takes in a column ``width_pt`` wide, its padding included."""
+    room = max(1.0, width_pt - DOCX_PADDING_PT)
+    words: list[float] = []
+    position = 0
+    for match in re.finditer(r"`([^`]*)`", cell):
+        plain = cell[position : match.start()].replace("*", "").split()
+        words += [len(token) * DOCX_TEXT_AVERAGE_PT for token in plain]
+        words += [len(token) * DOCX_CODE_CHAR_PT for token in match.group(1).split()]
+        position = match.end()
+    rest = cell[position:].replace("*", "").split()
+    words += [len(token) * DOCX_TEXT_AVERAGE_PT for token in rest]
+    lines, used = 1, 0.0
+    for word in words:
+        if used and used + DOCX_SPACE_PT + word > room:
+            lines, used = lines + 1, word
+        else:
+            used += (DOCX_SPACE_PT if used else 0.0) + word
+    return lines
+
+
+def _table_height(cells: list[list[str]], weights: list[int]) -> tuple[int, int]:
+    """The estimated height of a table in lines (each row as tall as its tallest cell), and the
+    lines of all its cells, which tells apart two layouts of the same height."""
+    widths = [weight / sum(weights) * DOCX_LINE_PT for weight in weights]
+    per_cell = [[_cell_lines(c, width) for c, width in zip(row, widths)] for row in cells]
+    return sum(max(row) for row in per_cell), sum(sum(row) for row in per_cell)
+
+
+def _shorten_table(cells: list[list[str]], weights: list[int], floors: list[int]) -> list[int]:
+    """Move width between columns while that makes the table shorter, never below a floor.
+
+    A local search from the given widths, in a fixed order and in steps of 30, 15, 6 and 3 parts of
+    the 300 the widths are counted in; a move is kept only if the estimated height falls, so the
+    result is never taller than where it started, and the same table always gets the same widths.
+    """
+    best = _table_height(cells, weights)
+    for step in (30, 15, 6, 3):
+        moved = True
+        while moved:
+            moved = False
+            for a in range(len(weights)):
+                for b in range(len(weights)):
+                    if a == b or weights[a] - step < floors[a]:
+                        continue
+                    trial = weights[:]
+                    trial[a] -= step
+                    trial[b] += step
+                    height = _table_height(cells, trial)
+                    if height < best:
+                        weights, best, moved = trial, height, True
+    return weights
+
+
 def weight_docx_columns(table: str) -> str:
     """Give a pipe table's columns widths for the ``.docx``, by the dash counts of its separator row.
 
-    The rule is that of ``make_pdf_source.weight_table_columns``: each column's share follows its
-    longest cell, and a column is raised to the width its longest unbreakable token needs, the others
-    giving way. The floors are computed for the ``.docx``'s face and size (``DOCX_*``), and where they
-    cannot all be met the columns are set in proportion to them. Only the separator row changes.
+    The rule starts from that of ``make_pdf_source.weight_table_columns``: each column's share
+    follows its longest cell, and a column is raised to the width its longest unbreakable token
+    needs, the others giving way. The floors are computed for the ``.docx``'s face and size
+    (``DOCX_*``), and where they cannot all be met the columns are set in proportion to them. The
+    widths are then moved between columns while that shortens the table (:func:`_shorten_table`):
+    with every long column capped alike, a column of sentences got no more room than a column of
+    phrases, and a table of four rows ran to some fifty lines. Only the separator row changes.
     """
     lines = table.split("\n")
     rows = _table_rows(lines)
@@ -574,6 +653,9 @@ def weight_docx_columns(table: str) -> str:
                 fixed[k] if k in fixed else fractions[k] * room / total for k in range(columns)
             ]
     weights = [max(3, round(f * 300)) for f in fractions]
+    if sum(floors) < 1:
+        least = [min(w, max(3, math.ceil(f * 300))) for w, f in zip(weights, floors)]
+        weights = _shorten_table(cells, weights, least)
     lines[1] = "|" + "|".join("-" * w for w in weights) + "|"
     return "\n".join(lines)
 
@@ -806,12 +888,16 @@ def build(repo_root: Path, *, no_preprint: bool) -> tuple[str, dict[str, Any]]:
             body = with_citations(block)
             body = body[body.index("**Figure") :].replace(FIGURE_END, "").strip()
             body = CAPTION_LABEL.sub("", body, count=1)
+            title, note = split_caption(body, f"figure {block.name}")
             out.append(_div("Figure Number", f"Figure {figure_number}"))
-            out.append(_div("Figure Title", body))
-            width = FIGURE_WIDTHS.get(block.name, FIGURE_WIDTH)
-            image = f"![](figs/fig-{block.name}.png){{width={width}}}"
+            out.append(_div("Figure Title", title))
+            image = f"![](figs/fig-{block.name}.png){{width={FIGURE_WIDTH}}}"
             out.append(_div("Figure Image", image))
-            record["figures"].append({"number": figure_number, "name": block.name, "lines": span})
+            if note:
+                out.append(_div("Figure Note", f"*Note.* {note}"))
+            record["figures"].append(
+                {"number": figure_number, "name": block.name, "lines": span, "title": title}
+            )
         elif block.kind == "table":
             table_number += 1
             source = with_citations(block)
@@ -950,7 +1036,9 @@ STYLES: tuple[str, ...] = (
     _pstyle("Bibliography", "Bibliography", '<w:ind w:left="720" w:hanging="720"/>', custom=False),
     _pstyle("FigureNumber", "Figure Number", KEEP + '<w:spacing w:before="240"/>', BOLD),
     _pstyle("FigureTitle", "Figure Title", KEEP, ITALIC),
-    _pstyle("FigureImage", "Figure Image", CENTER),
+    # The picture keeps with its note, and the note is set flush left below it (APA 7, 7.28).
+    _pstyle("FigureImage", "Figure Image", CENTER + KEEP),
+    _pstyle("FigureNote", "Figure Note", NO_INDENT),
     _pstyle("TableNumber", "Table Number", KEEP + '<w:spacing w:before="240"/>', BOLD),
     _pstyle("TableTitle", "Table Title", KEEP, ITALIC),
     # The cells of a table (manuscript/docx/table-cells.lua sets them in these): single-spaced in 10
@@ -1196,11 +1284,6 @@ def main(argv: list[str] | None = None) -> int:
     vendored = verify_vendored(args.repo_root)
     print(f"[docx-source] the {vendored} vendored citation style file matches VENDORED.json")
     source, record = build(args.repo_root, no_preprint=args.no_preprint)
-    # A width given to a figure the manuscript does not have would be dropped silently. Checked
-    # here, on the manuscript, not in build(), which the check's self-test runs on a synthetic one.
-    unknown = set(FIGURE_WIDTHS) - {f["name"] for f in record["figures"]}
-    if unknown:
-        _die(f"FIGURE_WIDTHS names no figure of main.md: {sorted(unknown)}")
     args.out_dir.mkdir(parents=True, exist_ok=True)
     (args.out_dir / "paper-source.md").write_text(source, encoding="utf-8", newline="\n")
     (args.out_dir / "contract.json").write_text(
