@@ -68,6 +68,12 @@ AI disclosure changed or left behind, and more -- each of which must be reported
 diagnostics it should produce, by check and by place. ``--mutation-test`` does the same to the real
 ``.docx``.
 
+**What it guards against is the conversion.** The forms above close the ``.docx`` to what pandoc
+writes from this manuscript and this reference document, so that an error of the conversion shows
+wherever it falls. They are not a proof that no ``.docx`` edited by hand could show a reader
+something ``main.md`` does not say: the format has more ways to change a page than a reading can
+close, and a document altered after the build is outside what this check is for.
+
 Usage:
     python analysis/scripts/check_docx_text.py build/docx/paper.docx \\
         --contract build/docx/contract.json --figures build/docx/figs/figures.json \\
