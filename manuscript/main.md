@@ -221,12 +221,12 @@ The analyses of this paper were fixed at four different times, and what each may
 on when. From here on, a paragraph that reports an analysis outside the sealed rules opens with the
 tag of its layer.
 
-| Layer | Computes, on which data | Fixed when | Licenses | Where |
-|---|---|---|---|---|
-| **[Registered]** | The mean distance over five zones, with draws with no recorded zone dropped; the permutation test; rules R5 → R4 → R3 → R1 → R2. Scorer run on each prospective arm; rules applied to the two verdicts | Sealed before any prospective draw (§H, §J) | The reported branch, R4. Nothing about the channel's effect in the primary arm | §3; §C–§E |
-| **[Prospective, descriptive]** | Quantities no rule reads, from the same two arms: per-context entropy, zones per cell, channel-off support | After the runs. No test | Descriptions of these two runs. No change to the branch | §3, §5 |
-| **[Post hoc]** | On the completed run: channel-off support, the surrogate's sensitivity, what the dropped draws contain, the permutation-null mean. On the records of all three runs: the prompt and sampling of every draw. A seed-fixed simulation of the sealed pipeline and its permutation test, under channel-off bases taken from the runs and shifts put in by the simulation | After the completed run was seen: the re-analysis the sealed plan leaves unregistered (§F). The simulation's grid, seeds and reading rules were pushed before its first full run | Descriptions of that run, of the records and of the gates; operating characteristics of the design under assumed distributions. It generated the held-out hypothesis and is not evidence for it; the simulation says nothing about the channel | §2.2, §4, §5, §6.1, §M.3 |
-| **[Held-out]** | One-sided stratified test that recorded None is more frequent in channel-on blocks; per arm, control first, α = 1/40; class breakdown and qualifiers. On both arms' per-draw annotation and records | Frozen before the condition-wise counts were tabulated (declared); run once (declared) | Row A of its frozen table, always quoted with its qualifiers and class breakdown. Not separable from block order; no reading as intention; nothing beyond two models and one prompt | §6.2 |
+| Layer (sections) | Computes, on which data | Fixed when | Licenses |
+|---|---|---|---|
+| **[Registered]** (§3; §C–§E) | The mean distance over five zones, with draws with no recorded zone dropped; the permutation test; rules R5 → R4 → R3 → R1 → R2. Scorer run on each prospective arm; rules applied to the two verdicts | Sealed before any prospective draw (§H, §J) | The reported branch, R4. Nothing about the channel's effect in the primary arm |
+| **[Prospective, descriptive]** (§3, §5) | Quantities no rule reads, from the same two arms: per-context entropy, zones per cell, channel-off support | After the runs. No test | Descriptions of these two runs. No change to the branch |
+| **[Post hoc]** (§2.2, §4, §5, §6.1, §M.3) | On the completed run: channel-off support, the surrogate's sensitivity, what the dropped draws contain, the permutation-null mean. On the records of all three runs: the prompt and sampling of every draw. A seed-fixed simulation of the sealed pipeline and its permutation test, under channel-off bases taken from the runs and shifts put in by the simulation | After the completed run was seen: the re-analysis the sealed plan leaves unregistered (§F). The simulation's grid, seeds and reading rules were pushed before its first full run | Descriptions of that run, of the records and of the gates; operating characteristics of the design under assumed distributions. It generated the held-out hypothesis and is not evidence for it; the simulation says nothing about the channel |
+| **[Held-out]** (§6.2) | One-sided stratified test that recorded None is more frequent in channel-on blocks; per arm, control first, α = 1/40; class breakdown and qualifiers. On both arms' per-draw annotation and records | Frozen before the condition-wise counts were tabulated (declared); run once (declared) | Row A of its frozen table, always quoted with its qualifiers and class breakdown. Not separable from block order; no reading as intention; nothing beyond two models and one prompt |
 
 Table: The four layers of analysis, when each was fixed, and what each licenses.
 
@@ -284,16 +284,24 @@ entropy floor defines, and not on the paraphrase: what stopped is the registered
 condition's zone distribution can still be described (§5). The generated rule text stands as sealed,
 and neither the firing nor the branch is affected.
 
-**[Registered, post hoc and held-out]** The table sets out what the three runs show at each gate;
-each entry belongs to the layer of the analysis it comes from (§2.4).
+**[Registered, prospective descriptive, post hoc and held-out]** The table sets out what the three
+runs show at each gate; each entry belongs to the layer of the analysis it comes from (§2.4). The
+completed run, which preceded the seal (§2.2), is reported from its own record; in the two arms'
+columns, an entry without a tag is registered.
 
-| Gate | What the runs show |
-|---|---|
-| Power gate (R3) | Power 1.0 in the completed run and the control arm; none in the primary arm. At the margin the surrogate returns `1.0000` for both bases checked, near-uniform and degenerate, so a pass does not tell them apart; against the completed run's channel-off base it returns `0.921` at one hundredth of the margin (§4.1). Simulated post hoc on that base, the test's rejection rate equals the surrogate's 1.0 from `delta_tv` = 0.05 upward along the surrogate's direction and is below it at smaller shifts (§4.2) |
-| Entropy floor (R4) | Completed run and control arm: all contexts admitted, while `agora` and `chashitsu` never appear in either channel-off base. Primary arm: the rule fired with no context admitted, although each of its 16 (context, condition) cells produced between two and four zones (§5) |
-| Cap on draws with no recorded zone (R4) | All three runs pass (`0.123333`, `0.086667`, `0.066667`). The channel-on blocks hold more such draws: 206 against 124 in the completed run, where the observation arose; under the held-out test (row A of the held-out test's frozen interpretation table; §6.2), 156 against 94 in the control arm and 107 against 61 in the primary arm |
+| Gate | Completed run (`qwen3:8b`), before the seal | Control arm (`qwen3:8b`) | Primary arm (`llama3.1:8b`) |
+|---|---|---|---|
+| Power gate (R3) | Power 1.0 | Power 1.0 | None: no estimate formed |
+| Entropy floor (R4) | All contexts admitted. [Post hoc] `agora` and `chashitsu` never appear in its channel-off base | All contexts admitted. [Prospective, descriptive] `agora` and `chashitsu` never appear in its channel-off base | Fired with no context admitted. [Prospective, descriptive] Yet each of its 16 (context, condition) cells produced between two and four zones (§5) |
+| Cap on draws with no recorded zone (R4) | Passes (`0.123333`). [Post hoc] The channel-on blocks hold more such draws: 206 against 124 in the completed run, where the observation arose (§6.1) | Passes (`0.086667`). [Held-out] More such draws in the channel-on blocks under the held-out test (row A of the held-out test's frozen interpretation table; §6.2): 156 against 94 in the control arm | Passes (`0.066667`). [Held-out] Under the same test: 107 against 61 in the primary arm |
 
 Table: What the three runs show at each gate.
+
+**[Post hoc]** At the margin the surrogate returns `1.0000` for both bases checked, near-uniform and
+degenerate, so a pass of the power gate does not tell them apart; against the completed run's
+channel-off base it returns `0.921` at one hundredth of the margin (§4.1). Simulated post hoc on that
+base, the test's rejection rate equals the surrogate's 1.0 from `delta_tv` = 0.05 upward along the
+surrogate's direction and is below it at smaller shifts (§4.2).
 
 ---
 
@@ -338,8 +346,9 @@ alone says almost nothing about whether the test that decides could detect a shi
 size; §4.2 evaluates that test by simulation.
 
 <!-- TMLR:FIGURE power -->
-**Figure 2.** [Post hoc] Top: how often the sealed permutation test alone rejects (test) and how
-often the sealed pipeline reaches R2 (pipeline), along the surrogate's direction D1 on the completed
+**Figure 2.** [Post hoc] Simulated operating characteristics of the sealed pipeline. Top: how often
+the sealed permutation test alone rejects (test) and how often the sealed pipeline reaches R2
+(pipeline), along the surrogate's direction D1 on the completed
 run's channel-off base `C` and on the degenerate base `G`, beside the R3 surrogate at the same shift;
 the plotted values are printed beneath. A marker's shape shows the quantity and its size the base, so
 that curves which coincide, as the test and the pipeline on `C` nearly do, can both be seen. Bottom:
@@ -1617,7 +1626,8 @@ project (vendored in `manuscript/docx/` and pinned there by SHA-256), and its fi
 three drawings, each typeset on its own and read back for its numbers before it is converted to an
 image. The conversion records every change it makes: the title page and the Author Note, which take
 the author table and the AI-use disclosure of §K, the citations, the reference list, the labels of
-the figures and tables, and what it leaves out. `analysis/scripts/check_docx_text.py` then reads
+the figures and tables, each figure's caption set as a title above the figure and a note below it,
+and what it leaves out. `analysis/scripts/check_docx_text.py` then reads
 the `.docx` back. It enumerates the same changes from the inputs on its own and checks each against
 the file, compares the rest of the text with this manuscript word for word, and requires each
 figure's picture to be the image recorded for that figure; copies of the file broken one way at a

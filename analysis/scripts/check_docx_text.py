@@ -131,6 +131,18 @@ FOOTNOTE_END = "<!-- /TMLR:FOOTNOTE -->"
 APPENDIX = "<!-- TMLR:APPENDIX -->"
 FIGURE_BEGIN = re.compile(r"^<!-- TMLR:FIGURE ([a-z0-9-]+) -->$")
 FIGURE_END = "<!-- /TMLR:FIGURE -->"
+#: The .docx sets a figure's caption as APA does: its first sentence as the title above the figure,
+#: the rest as a note below it that opens with "Note.". This check finds the first sentence on its
+#: own -- the first full stop followed by a space and a capital, an opening bracket or a backtick --
+#: and requires make_docx_source.py's record of the title to agree.
+CAPTION_SENTENCE_END = re.compile(r"\.\s+(?=[A-Z\[`])")
+
+
+def caption_parts(caption: str) -> tuple[str, str]:
+    """A figure caption's title (its first sentence) and note (the rest, or nothing)."""
+    flat = " ".join(caption.split())
+    end = CAPTION_SENTENCE_END.search(flat)
+    return (flat, "") if end is None else (flat[: end.start() + 1], flat[end.end() :])
 REFS_BEGIN = "<!-- BEGIN RENDERED FROM manuscript/refs.json -- DO NOT EDIT BY HAND -->"
 REFS_END = "<!-- END RENDERED FROM manuscript/refs.json -->"
 GENERATED_BEGIN = re.compile(r"^<!-- BEGIN GENERATED FROM \S+ -- DO NOT EDIT BY HAND -->$")
@@ -2264,7 +2276,7 @@ def docx_view(doc: Docx) -> DocView:
                 i += 1
                 continue
             number = int(label.group(1))
-            group: dict[str, Any] = {"label": block, "title": None, "body": None}
+            group: dict[str, Any] = {"label": block, "title": None, "body": None, "note": None}
             j = i + 1
             if (
                 j < len(blocks)
@@ -2280,6 +2292,14 @@ def docx_view(doc: Docx) -> DocView:
                 and blocks[j].style == "Figure Image"
             ):
                 group["body"] = blocks[j]
+                j += 1
+            if (
+                kind == "Figure"
+                and j < len(blocks)
+                and isinstance(blocks[j], DPara)
+                and blocks[j].style == "Figure Note"
+            ):
+                group["note"] = blocks[j]
                 j += 1
             if kind == "Table" and j < len(blocks) and isinstance(blocks[j], DTable):
                 group["body"] = blocks[j]
@@ -2948,10 +2968,31 @@ def check_figures(inp: Inputs, view: DocView, doc: Docx) -> list[Problem]:
         if group is None:
             problems.append(Problem("figure", where, "no 'Figure N' label in the .docx"))
             continue
+        # The caption is split in two, the title above the picture and the note below it; each half
+        # is compared with its part of main.md's caption, so that words moved across the split, or a
+        # note dropped, are reported.
+        title_md, note_md = caption_parts(block.caption)
         title = group["title"]
-        if title is None or norm(title.text) != norm(inline(block.caption)):
+        if title is None or norm(title.text) != norm(inline(title_md)):
             problems.append(
-                Problem("figure", where, f"the title is not main.md:{block.line}'s caption")
+                Problem(
+                    "figure",
+                    where,
+                    f"the title is not the first sentence of main.md:{block.line}'s caption",
+                )
+            )
+        note = group["note"]
+        if note_md and (note is None or norm(note.text) != norm(inline(f"*Note.* {note_md}"))):
+            problems.append(
+                Problem(
+                    "figure",
+                    where,
+                    f"the note below the figure is not the rest of main.md:{block.line}'s caption",
+                )
+            )
+        if not note_md and note is not None:
+            problems.append(
+                Problem("figure", where, "a note below a figure whose caption is one sentence")
             )
         body = group["body"]
         if body is None or len(body.images) != 1:
@@ -3185,8 +3226,11 @@ def check_contract(inp: Inputs) -> list[Problem]:
     figures = [b for b in m.blocks if b.kind == "figure"]
     differ(
         "figures",
-        [[b.number, b.name, [b.line - 1, b.last + 1]] for b in figures],
-        [[x["number"], x["name"], x["lines"]] for x in c.get("figures", [])],
+        [
+            [b.number, b.name, [b.line - 1, b.last + 1], caption_parts(b.caption)[0]]
+            for b in figures
+        ],
+        [[x["number"], x["name"], x["lines"], x.get("title")] for x in c.get("figures", [])],
     )
     tables = [b for b in m.blocks if b.kind == "table"]
     differ(
@@ -3830,6 +3874,48 @@ def m_text_beside_figure(data, contract, state):
         para = list(_body(root))[index]
         run = ET.SubElement(para, w("r"))
         ET.SubElement(run, w("t")).text = "The primary effect was 99.9 percent."
+
+    return _rewrite(data, edit), contract, {("figure", "Figure 1")}
+
+
+def _figure_parts(state: dict[str, Any], number: int) -> tuple[int, int]:
+    """The body indices of a figure's title and of its note."""
+    group = state["view"].figures.get(number)
+    if not group or group["title"] is None or group["note"] is None:
+        raise NoTarget(f"no Figure {number} with a title and a note")
+    return group["title"].index, group["note"].index
+
+
+def m_drop_figure_note(data, contract, state):
+    """The note below Figure 1 left out: the rest of its caption is lost."""
+    _, note = _figure_parts(state, 1)
+    return (
+        _rewrite(data, lambda r: _body(r).remove(list(_body(r))[note])),
+        contract,
+        {("figure", "Figure 1")},
+    )
+
+
+def m_figure_note_word(data, contract, state):
+    """A word added to the note below Figure 1."""
+    _, note = _figure_parts(state, 1)
+
+    def edit(root):
+        texts = [t for t in list(_body(root))[note].iter(w("t")) if (t.text or "").strip()]
+        texts[-1].text = (texts[-1].text or "") + " never"
+
+    return _rewrite(data, edit), contract, {("figure", "Figure 1")}
+
+
+def m_figure_note_into_title(data, contract, state):
+    """The note below Figure 1 run into its title: the caption whole, split in the wrong place."""
+    title, note = _figure_parts(state, 1)
+
+    def edit(root):
+        body = list(_body(root))
+        for run in list(body[note].findall(w("r"))):
+            body[title].append(run)
+        _body(root).remove(body[note])
 
     return _rewrite(data, edit), contract, {("figure", "Figure 1")}
 
@@ -5676,6 +5762,9 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("the page break before References dropped", m_drop_break),
     ("text set in a page-break paragraph", m_text_in_break),
     ("text set beside a figure's picture", m_text_beside_figure),
+    ("a figure's note left out", m_drop_figure_note),
+    ("a word added to a figure's note", m_figure_note_word),
+    ("a figure's note run into its title", m_figure_note_into_title),
     ("a table set on the title pages", m_table_on_title_page),
     ("a reference moved into the text", m_move_reference),
     ("a paragraph set again inside a content control", m_content_control),
@@ -5934,7 +6023,8 @@ second sign, ≥, stands here as well so that one of them can be turned.
 <!-- REPORTED-BRANCH: R4 -->
 
 <!-- TMLR:FIGURE first -->
-**Figure 1.** The first figure, drawn from the shipped data.
+**Figure 1.** The first figure, drawn from the shipped data. Each bar counts the draws of one
+context.
 <!-- /TMLR:FIGURE -->
 
 <!-- TMLR:FIGURE second -->
@@ -6390,6 +6480,13 @@ SYNTHETIC_DOCX: list[tuple[Any, ...]] = [
     ("p", "Figure Number", [("Figure 1", "")], None, []),
     ("p", "Figure Title", [("The first figure, drawn from the shipped data.", "")], None, []),
     ("p", "Figure Image", [], "fig-first.png", []),
+    (
+        "p",
+        "Figure Note",
+        [("Note.", ""), (" Each bar counts the draws of one context.", "")],
+        None,
+        [],
+    ),
     ("p", "Figure Number", [("Figure 2", "")], None, []),
     (
         "p",

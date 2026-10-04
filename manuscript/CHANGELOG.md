@@ -449,3 +449,45 @@ In the record of the completed run in the appendix on completed preliminary stud
 inside code in a table cell: the PDF printed "H(zone \| c)". The label is no longer set as code, so
 both the PDF and the `.docx` print "H(zone | c)". The comparison of the `.docx` with this manuscript
 found it.
+
+## 2026-10-04 — two tables and a figure caption made easier to read
+
+Nothing left the manuscript, and no claim, analysis, test or rendered number changed. Two tables
+were laid out again and one figure caption was given a short title; what moved is listed below.
+
+### What the three runs show at each gate (the table of *What the sealed rules returned*)
+
+- The table had one column of prose per gate, which held the three runs, and the layers of the
+  analysis, together. It now has one column per run: the completed run, the control arm and the
+  primary arm. The entries keep their numbers, quoted values and section references, and their
+  sentences were divided between the columns with only the joining words changed: "All three runs
+  pass (…)" became "Passes (…)" in each column, "the rule fired …, although each of its 16 …" became
+  "Fired …. Yet each of its 16 …", and the held-out counts are introduced in each arm's column. The
+  completed run's count of dropped draws now also points to *Gate 3* (§6.1).
+- Entries outside the registered analysis now carry the tag of their layer, as the paragraphs they
+  come from do: the channel-off support of the completed run and the excess of dropped draws in it
+  are tagged post hoc (*Gate 2*, *Gate 3*); the control arm's channel-off support and the zones per
+  cell of the primary arm, prospective and descriptive (*Gate 2*, *What the sealed rules returned*);
+  the two arms' counts of dropped draws, held-out (*Gate 3*). The sentence before the table says that
+  the completed run, which preceded the seal, is reported from its own record, and that an untagged
+  entry in the two arms' columns is registered; its tag now also names the prospective, descriptive
+  layer, which the table held before as well.
+- "none in the primary arm" became "None: no estimate formed", as the appendix table of the scorer's
+  exit label puts it.
+- What the power row said about the surrogate (its value at the margin for both bases checked, at one
+  hundredth of the margin, and the simulated test's agreement with it from half the margin upward)
+  moved to a paragraph tagged post hoc after the table. Its words are those of the row, except that
+  "so a pass does not tell them apart" became "so a pass of the power gate does not tell them apart",
+  since the sentence no longer stands in the power row.
+
+### The analysis map
+
+The column "Where" was folded into the first column, now "Layer (sections)": "**[Post hoc]** (§2.2,
+§4, §5, §6.1, §M.3)". The other columns are unchanged.
+
+### Figure 2
+
+The caption opens with a title, "Simulated operating characteristics of the sealed pipeline", which
+is also the heading of the subsection that reports the simulation. The `.docx` sets each figure's
+first sentence as its title above the figure and the rest as a note below it; the paragraph on the
+`.docx` in *Data, code and reproducibility* now says so.

@@ -1487,7 +1487,7 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         )
         fragments.append(
             (
-                "agreement phrase, in the table of §3",
+                "agreement phrase, after the table of §3",
                 f"equals the surrogate's {surrogate[('C', agree_from)]!r} from `delta_tv` = "
                 f"{agree_from} upward along the surrogate's direction",
             )
@@ -1857,9 +1857,12 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             f"({c_none['on']} against {c_none['off']}; {p_none['on']} against {p_none['off']})",
         ),
         (
-            "held-out counts, in the table of §3",
-            f"{c_none['on']} against {c_none['off']} in the control arm and {p_none['on']} against "
-            f"{p_none['off']} in the primary arm",
+            "held-out counts of the control arm, in the table of §3",
+            f"{c_none['on']} against {c_none['off']} in the control arm",
+        ),
+        (
+            "held-out counts of the primary arm, in the table of §3",
+            f"{p_none['on']} against {p_none['off']} in the primary arm",
         ),
         (
             "held-out rate difference, in the abstract",
