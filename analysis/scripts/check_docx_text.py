@@ -1193,12 +1193,16 @@ def _style_properties(sheet: Sheet, body: ET.Element) -> list[Problem]:
                 picture = run.find(w("drawing")) is not None
                 if not shown and not picture:
                     continue
+                # A run without a character style of its own takes the document's default one,
+                # over the paragraph's (Codex review of 2026-10-04: Default Paragraph Font set at
+                # one point, with the styles runs name kept at twelve, passed).
                 character = run.find(f"{w('rPr')}/{w('rStyle')}")
-                size = sheet.nearest(
-                    ([character.get(w("val"), "")] if character is not None else []) + chain,
-                    f"{w('rPr')}/{w('sz')}",
-                    "val",
+                own_character = (
+                    character.get(w("val"), "")
+                    if character is not None
+                    else sheet.default.get("character", "")
                 )
+                size = sheet.nearest([own_character, *chain], f"{w('rPr')}/{w('sz')}", "val")
                 points = _int(size) if size is not None else 20  # Word's own default
                 # An exact line clips what is taller than it: a picture in any exact line (Codex
                 # review of 2026-10-04: a figure in a 12-point exact line passed), text in one
@@ -5579,6 +5583,49 @@ def m_style_size_twice(data, contract, state):
     return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
 
 
+# Found by the ninth review of 2026-10-04.
+
+
+def _character_sizes(root: ET.Element, default: str) -> None:
+    """The default character style (made where it is missing) set at ``default`` half-points, and
+    every other character style at twelve points, so that only the runs that name no style change."""
+    styles = [s for s in root.findall(w("style")) if s.get(w("type")) == "character"]
+    chosen = next((s for s in styles if s.get(w("default")) == "1"), None)
+    if chosen is None:
+        chosen = ET.SubElement(root, w("style"))
+        chosen.set(w("type"), "character")
+        chosen.set(w("default"), "1")
+        chosen.set(w("styleId"), "DefaultParagraphFont")
+        ET.SubElement(chosen, w("name")).set(w("val"), "Default Paragraph Font")
+        styles.append(chosen)
+    for style in styles:
+        properties = _child(style, "rPr")
+        for size in properties.findall(w("sz")) + properties.findall(w("szCs")):
+            properties.remove(size)
+        for tag in ("sz", "szCs"):
+            value = default if style is chosen else "24"
+            ET.SubElement(properties, w(tag)).set(w("val"), value)
+
+
+def m_default_character_tiny(data, contract, state):
+    """The default character style set at one point: every run that names no style of its own."""
+
+    def edit(root):
+        _character_sizes(root, "2")
+
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
+def m_default_character_clipped(data, contract, state):
+    """The default character style set at 24 points, Body Text in an exact line of 12."""
+
+    def edit(root):
+        _character_sizes(root, "48")
+        _add_to_style("BodyText", ("pPr",), "spacing", line="240", lineRule="exact")(root)
+
+    return _rewrite(data, edit, "word/styles.xml"), contract, set(STYLES_SEEN)
+
+
 def m_contract(data, contract, state):
     changed = copy.deepcopy(contract)
     narrative = next((c for c in changed.get("citations", []) if c["kind"] == "narrative"), None)
@@ -5721,6 +5768,11 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("the Body Text style in a least line of minus 12 points", m_style_line_negative),
     ("the table style at one point under a Compact of 12", m_table_size_reversed),
     ("the Body Text style given its size twice", m_style_size_twice),
+    ("the default character style at one point", m_default_character_tiny),
+    (
+        "the default character style at 24 points in an exact line of 12",
+        m_default_character_clipped,
+    ),
 )
 
 
