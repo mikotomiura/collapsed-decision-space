@@ -1018,12 +1018,19 @@ COLOURS = frozenset(
 FONTS = frozenset({"Times New Roman", "Courier New"})
 #: The smallest size text may be set at, in half-points (8 pt), and the least exact line (12 pt).
 SMALLEST, LEAST_LINE = 16, 240
+#: The deepest indent and the widest gap before or after a paragraph a style may set, in twentieths
+#: of a point (one inch and two inches; reference.docx sets at most half an inch and two inches),
+#: and lines set no closer than single: a style can otherwise push text off the page, open pages
+#: of nothing between paragraphs, or lay its lines over one another.
+DEEPEST_INDENT, WIDEST_GAP = 1440, 2880
 
 
 def _style_properties(sheet: Sheet, body: ET.Element) -> list[Problem]:
     """The styles the body uses carry only :data:`STYLE_PROPERTIES`, in :data:`COLOURS` and
-    :data:`FONTS`; and no text or picture is set below :data:`SMALLEST` or in an exact line under
-    :data:`LEAST_LINE` (the spacer styles, Page Break and After Table, are both, and hold nothing)."""
+    :data:`FONTS`, with indents and gaps within :data:`DEEPEST_INDENT` and :data:`WIDEST_GAP` and no
+    line closer than single; and no text or picture is set below :data:`SMALLEST` or in an exact
+    line under :data:`LEAST_LINE` (the spacer styles, Page Break and After Table, are both, and hold
+    nothing)."""
     odd: list[str] = []
     used = {
         e.get(w("val"), "") for tag in ("pStyle", "rStyle", "tblStyle") for e in body.iter(w(tag))
@@ -1057,6 +1064,25 @@ def _style_properties(sheet: Sheet, body: ET.Element) -> list[Problem]:
                 for k, v in attributes
             ):
                 odd.append(f"the face {dict(attributes)}")
+            elif name == "ind" and any(
+                k not in ("left", "right", "hanging", "firstLine")
+                or not 0 <= _int(v) <= DEEPEST_INDENT
+                for k, v in attributes
+            ):
+                odd.append(f"the indent {dict(attributes)}")
+            elif (
+                name == "spacing"
+                and kind == "pPr"
+                and (
+                    any(_int(v) > WIDEST_GAP for k, v in attributes if k in ("before", "after"))
+                    or (
+                        dict(attributes).get("lineRule", "auto") == "auto"
+                        and "line" in dict(attributes)
+                        and _int(dict(attributes)["line"]) < LEAST_LINE
+                    )
+                )
+            ):
+                odd.append(f"the spacing {dict(attributes)}")
 
     for style in closure.values():
         walk(style, "style")
@@ -4675,6 +4701,50 @@ def m_twin_entry(data, contract, state):
 # Found by the sixth review of 2026-10-04.
 
 
+def _body_text_paragraph_property(tag: str, **attributes: str) -> Callable[[ET.Element], None]:
+    def edit(root: ET.Element) -> None:
+        style = _style(root, "BodyText")
+        props = style.find(w("pPr"))
+        if props is None:
+            props = ET.Element(w("pPr"))
+            style.insert(list(style).index(style.find(w("name"))) + 1, props)
+        element = ET.SubElement(props, w(tag))
+        for key, value in attributes.items():
+            element.set(w(key), value)
+
+    return edit
+
+
+def m_style_compressed(data, contract, state):
+    """The Body Text style's lines set a tenth of single spacing apart, over one another."""
+    edit = _body_text_paragraph_property("spacing", line="24", lineRule="auto")
+    return (
+        _rewrite(data, edit, "word/styles.xml"),
+        contract,
+        {("package", "word/styles.xml"), ("structure", "styles")},
+    )
+
+
+def m_style_indent(data, contract, state):
+    """The Body Text style indented twenty thousand twips, off the page."""
+    edit = _body_text_paragraph_property("ind", left="20000")
+    return (
+        _rewrite(data, edit, "word/styles.xml"),
+        contract,
+        {("package", "word/styles.xml"), ("structure", "styles")},
+    )
+
+
+def m_style_gap(data, contract, state):
+    """The Body Text style set twenty thousand twips below the paragraph before it: a blank page."""
+    edit = _body_text_paragraph_property("spacing", before="20000")
+    return (
+        _rewrite(data, edit, "word/styles.xml"),
+        contract,
+        {("package", "word/styles.xml"), ("structure", "styles")},
+    )
+
+
 def m_label_suppressed(data, contract, state):
     """The first list's level made to draw no label, by w:null on its text."""
     _, abstract, level, _ = _first_list(data)
@@ -4962,6 +5032,9 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("the spacer after a table set 150 times", m_after_table_repeated),
     ("150 line breaks in the title", m_line_breaks),
     ("three line breaks added to a code block", m_code_breaks),
+    ("the Body Text style's lines set over one another", m_style_compressed),
+    ("the Body Text style indented off the page", m_style_indent),
+    ("the Body Text style set a page below the paragraph before", m_style_gap),
 )
 
 
