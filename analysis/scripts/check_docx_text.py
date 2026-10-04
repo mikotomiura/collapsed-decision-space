@@ -642,7 +642,7 @@ ALLOWED: dict[str, frozenset[str]] = {
     "body": frozenset({"p", "tbl", "bookmarkStart", "bookmarkEnd", "sectPr"}),
     "p": frozenset({"pPr", "r", "hyperlink", "bookmarkStart", "bookmarkEnd"}),
     "hyperlink": frozenset({"r"}),
-    "r": frozenset({"rPr", "t", "drawing", "br", "tab"}),
+    "r": frozenset({"rPr", "t", "drawing", "br"}),
     "tbl": frozenset({"tblPr", "tblGrid", "tr"}),
     "tr": frozenset({"trPr", "tc"}),
     "tc": frozenset({"tcPr", "p"}),
@@ -664,6 +664,25 @@ PROPERTIES: dict[str, frozenset[str]] = {
     "sectPr": frozenset({"headerReference", "footerReference", "pgSz", "pgMar"}),
 }
 _HIDING = ("vanish", "specVanish", "webHidden")
+XML_SPACE = "{http://www.w3.org/XML/1998/namespace}space"
+#: The attributes the body's elements may carry, as pandoc writes them, by element; an element not
+#: listed carries none. The table's properties and the picture are matched as wholes, and the section
+#: with the reference document's. A text node's spaces are kept only by ``xml:space="preserve"``,
+#: and no other value is allowed (Codex review of 2026-10-04: "default" passed, letting a reader drop
+#: the spaces between words).
+BODY_ATTRIBUTES: dict[str, frozenset[str]] = {
+    "bookmarkStart": frozenset({w("id"), w("name")}),
+    "bookmarkEnd": frozenset({w("id")}),
+    "gridCol": frozenset({w("w")}),
+    "hyperlink": frozenset({f"{{{R}}}id"}),
+    "ilvl": frozenset({w("val")}),
+    "numId": frozenset({w("val")}),
+    "pStyle": frozenset({w("val")}),
+    "rStyle": frozenset({w("val")}),
+    "tblHeader": frozenset({w("val")}),
+    "t": frozenset({XML_SPACE}),
+    "br": frozenset({w("type")}),
+}
 WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
 PIC = "http://schemas.openxmlformats.org/drawingml/2006/picture"
 #: A picture as pandoc writes one, element by element and attribute by attribute: a rectangle,
@@ -697,6 +716,9 @@ TABLE = ET.fromstring(
     'w:lastColumn="0" w:noHBand="0" w:noVBand="0" w:val="0020"/></w:tblPr>'
 )
 NARROWEST, TEXT_WIDTH = 288, 9360  # twentieths of a point
+#: The height of the text area (the reference document's letter page less its margins), and the
+#: drawing unit (EMU) in twentieths of a point.
+TEXT_HEIGHT, EMU_PER_TWIP = 12960, 635
 
 
 def _matches(element: ET.Element, template: ET.Element, bound: dict[str, str]) -> bool:
@@ -733,10 +755,18 @@ def validate_body(body: ET.Element) -> list[Problem]:
     problems: list[Problem] = []
     unread: list[str] = []
     properties: list[str] = []
+    attributed: list[str] = []
+
+    def attributes(element: ET.Element, name: str) -> None:
+        odd = set(element.attrib) - BODY_ATTRIBUTES.get(name, frozenset())
+        if odd or element.get(XML_SPACE, "preserve") != "preserve":
+            attributed.append(f"{name} {sorted(_local(k) for k in element.attrib)}")
 
     def props(element: ET.Element, kind: str) -> None:
         for child in element:
             name = _local(child.tag)
+            if kind not in ("tblPr", "sectPr") and name in PROPERTIES[kind]:
+                attributes(child, name)
             if name in _HIDING or name == "pageBreakBefore":
                 continue  # reported as hidden text and as a page break, below
             if kind == "pPr" and name == "sectPr":
@@ -757,6 +787,8 @@ def validate_body(body: ET.Element) -> list[Problem]:
             if name not in ALLOWED[kind]:
                 unread.append(f"{name} in {kind}")
                 continue
+            if name not in ("drawing", "sectPr", "tblPr"):
+                attributes(child, name)
             if name in PROPERTIES:
                 props(child, name)
                 continue
@@ -811,6 +843,15 @@ def validate_body(body: ET.Element) -> list[Problem]:
                 "properties",
                 "properties outside what the .docx may carry: "
                 + ", ".join(sorted(set(properties))[:6]),
+            )
+        )
+    if attributed:
+        problems.append(
+            Problem(
+                "structure",
+                "attributes",
+                "attributes outside what the .docx may carry: "
+                + ", ".join(sorted(set(attributed))[:6]),
             )
         )
     if any(_local(e.tag) in _HIDING and _on(e) for e in body.iter()):
@@ -1113,6 +1154,24 @@ NUMBERING: dict[str, frozenset[str]] = {
     "num": frozenset({"abstractNumId", "lvlOverride"}),
     "lvlOverride": frozenset({"startOverride"}),
 }
+#: The attributes each of them may carry, as pandoc writes them (Codex review of 2026-10-04:
+#: ``w:null="1"`` on a level's text, which suppresses its label, passed).
+NUMBERING_ATTRIBUTES: dict[str, frozenset[str]] = {
+    "abstractNum": frozenset({"abstractNumId"}),
+    "nsid": frozenset({"val"}),
+    "multiLevelType": frozenset({"val"}),
+    "lvl": frozenset({"ilvl"}),
+    "start": frozenset({"val"}),
+    "numFmt": frozenset({"val"}),
+    "lvlText": frozenset({"val"}),
+    "lvlJc": frozenset({"val"}),
+    "ind": frozenset({"left", "hanging", "firstLine"}),
+    "rFonts": frozenset({"ascii", "hAnsi", "cs", "eastAsia", "hint"}),
+    "num": frozenset({"numId"}),
+    "abstractNumId": frozenset({"val"}),
+    "lvlOverride": frozenset({"ilvl"}),
+    "startOverride": frozenset({"val"}),
+}
 #: The deepest indent a list level may set, in twentieths of a point: pandoc's ninth level's.
 DEEPEST = 6480
 
@@ -1166,6 +1225,8 @@ def list_labels(body: ET.Element, numbering: bytes | None) -> tuple[dict[int, st
     def walk(element: ET.Element, kind: str) -> None:
         for child in element:
             name = _local(child.tag)
+            if {_local(k) for k in child.attrib} - NUMBERING_ATTRIBUTES.get(name, frozenset()):
+                odd.append(f"the attributes of {name} {sorted(_local(k) for k in child.attrib)}")
             if name not in NUMBERING[kind]:
                 odd.append(f"{name} in {kind}")
             elif name in NUMBERING:
@@ -1202,8 +1263,8 @@ def list_labels(body: ET.Element, numbering: bytes | None) -> tuple[dict[int, st
             continue
         list_id = _value(numbered, "numId")
         level = _int(_value(numbered, "ilvl"))
-        if list_id not in lists or level not in levels.get(lists[list_id][0], {}):
-            continue  # numbering that is not defined (numId 0 among it) draws no label
+        if list_id == "0" or list_id not in lists or level not in levels.get(lists[list_id][0], {}):
+            continue  # numId 0 removes numbering, and numbering that is not defined draws nothing
         abstract, restart = lists[list_id]
         definition, count = levels[abstract], counts.setdefault(abstract, {})
         if (list_id, level) not in begun and level in restart:
@@ -1519,7 +1580,11 @@ def _runs(
             parts: list[str] = []
             for node in child:
                 if node.tag == w("t"):
-                    parts.append(node.text or "")
+                    # Without xml:space="preserve", a reader drops the spaces at either end.
+                    text = node.text or ""
+                    parts.append(
+                        text if node.get(XML_SPACE) == "preserve" else text.strip(" \t\r\n")
+                    )
                 elif node.tag == w("tab"):
                     parts.append("\t")
                 elif node.tag == w("br") and node.get(w("type"), "textWrapping") == "textWrapping":
@@ -1676,7 +1741,8 @@ def read_docx(data: bytes, reference: dict[str, bytes]) -> Docx:
                 "the abstract title or the repeated title is not set once",
             )
         )
-    # A picture is shown at its own proportions and at a readable width.
+    # A picture is shown at its own proportions, at a readable width, and within the text area of the
+    # page (Codex review of 2026-10-04: a figure drawn twice its size, off the page, passed).
     for drawing in body.iter(w("drawing")):
         extent = drawing.find(f".//{{{WP}}}extent")
         blip = drawing.find(f".//{{{A}}}blip")
@@ -1689,6 +1755,8 @@ def read_docx(data: bytes, reference: dict[str, bytes]) -> Docx:
             not size
             or not cy
             or cx < 1828800
+            or cx > TEXT_WIDTH * EMU_PER_TWIP
+            or cy > TEXT_HEIGHT * EMU_PER_TWIP
             or abs(cx / cy - size[0] / size[1]) > 0.01 * size[0] / size[1]
         ):
             problems.append(
@@ -1698,6 +1766,31 @@ def read_docx(data: bytes, reference: dict[str, bytes]) -> Docx:
                     f"a picture not shown at its own proportions: {cx}x{cy}, {size}",
                 )
             )
+    # A paragraph that shows nothing still takes a line, and a hundred of them a page (Codex review
+    # of 2026-10-04: 150 empty paragraphs after the title passed). Only the spacers may be empty: a
+    # Page Break (counted above), an After Table right after its table, and a cell's only paragraph.
+    blank = 0
+    for parent in body.iter():
+        children = list(parent)
+        for position, p in enumerate(children):
+            if p.tag != w("p") or labels.get(id(p)):
+                continue
+            if any((t.text or "").strip() for t in p.iter(w("t"))) or any(
+                True for _ in p.iter(w("drawing"))
+            ):
+                continue
+            style = p.find(f"{w('pPr')}/{w('pStyle')}")
+            name = names.get(style.get(w("val"), ""), "") if style is not None else ""
+            after_table = position > 0 and children[position - 1].tag == w("tbl")
+            only_in_cell = parent.tag == w("tc") and len(parent.findall(w("p"))) == 1
+            if not (
+                name == "Page Break" or (name == "After Table" and after_table) or only_in_cell
+            ):
+                blank += 1
+    if blank:
+        problems.append(
+            Problem("structure", "empty paragraphs", f"{blank} paragraphs that show nothing")
+        )
     # The header and footer each section shows: the parts its references name, whatever those are
     # called (Codex review of 2026-10-04: a header renamed word/running-head.xml went unread).
     for reference_to in body.iter():
@@ -2575,6 +2668,43 @@ def _all_paragraphs(doc: Docx) -> list[DPara]:
     return out
 
 
+def check_line_breaks(
+    view: DocView, doc: Docx, main_items: list[Item], pairs: list[tuple[int, int]]
+) -> list[Problem]:
+    """A line break only where a code block of main.md breaks its lines, and as many as it has.
+
+    A break shows as a new line, and a hundred of them as a page, while the words compared stay the
+    same (Codex review of 2026-10-04: 150 line breaks after the title passed).
+    """
+    problems: list[Problem] = []
+    broken = sorted(
+        {p.index for p in _all_paragraphs(doc) if "\n" in p.text and p.style != "Source Code"}
+    )
+    if broken:
+        problems.append(
+            Problem(
+                "structure", "line breaks", f"line breaks outside code, in docx blocks {broken[:4]}"
+            )
+        )
+    for mi, di in pairs:
+        mine, theirs = main_items[mi].block, view.items[di].block
+        if (
+            isinstance(mine, MBlock)
+            and mine.kind == "code"
+            and isinstance(theirs, DPara)
+            and theirs.text.count("\n") != mine.raw.count("\n")
+        ):
+            problems.append(
+                Problem(
+                    "structure",
+                    "line breaks",
+                    f"main.md:{mine.line}: {theirs.text.count(chr(10))} line breaks for "
+                    f"{mine.raw.count(chr(10))}",
+                )
+            )
+    return problems
+
+
 def check_figures(inp: Inputs, view: DocView, doc: Docx) -> list[Problem]:
     problems: list[Problem] = []
     manifest = {f["name"]: f for f in inp.figures.get("figures", [])}
@@ -2904,6 +3034,7 @@ def run_checks(inp: Inputs, data: bytes) -> tuple[list[Problem], dict[str, Any]]
     problems += check_head(inp, view, doc)
     problems += check_figures(inp, view, doc)
     problems += check_tables(inp, view)
+    problems += check_line_breaks(view, doc, main_items, pairs)
     problems += check_drops(inp, doc)
     problems += check_text(inp, view, doc, main_items, pairs)
     state = {"doc": doc, "view": view, "main_items": main_items, "pairs": pairs}
@@ -4541,6 +4672,191 @@ def m_twin_entry(data, contract, state):
     return buffer.getvalue(), contract, {("package", "parts")}
 
 
+# Found by the sixth review of 2026-10-04.
+
+
+def m_label_suppressed(data, contract, state):
+    """The first list's level made to draw no label, by w:null on its text."""
+    _, abstract, level, _ = _first_list(data)
+
+    def edit(root):
+        for definition in root.findall(w("abstractNum")):
+            if definition.get(w("abstractNumId")) == abstract:
+                for lvl in definition.findall(w("lvl")):
+                    if lvl.get(w("ilvl")) == level:
+                        lvl.find(w("lvlText")).set(w("null"), "1")
+
+    return _rewrite(data, edit, "word/numbering.xml"), contract, {("structure", "numbering")}
+
+
+def m_list_unnumbered(data, contract, state):
+    """The first list's instance renumbered 0, which removes numbering, and its items with it."""
+    num_id, _, _, _ = _first_list(data)
+    body = _body(ET.fromstring(zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml")))
+    indices = {
+        i
+        for i, p in enumerate(body)
+        if (numbered := p.find(f"{w('pPr')}/{w('numPr')}")) is not None
+        and _value(numbered, "numId") == num_id
+    }
+
+    def renumber(root):
+        for num in root.findall(w("num")):
+            if num.get(w("numId")) == num_id:
+                num.set(w("numId"), "0")
+
+    def unnumber(root):
+        for i in indices:
+            list(_body(root))[i].find(f"{w('pPr')}/{w('numPr')}/{w('numId')}").set(w("val"), "0")
+
+    view, main_items, pairs = state["view"], state["main_items"], state["pairs"]
+    lines = {
+        main_items[mi].where
+        for mi, di in pairs
+        if isinstance(view.items[di].block, DPara) and view.items[di].block.index in indices
+    }
+    return (
+        _rewrite(_rewrite(data, renumber, "word/numbering.xml"), unnumber),
+        contract,
+        {("fulltext", f"main.md:{line}") for line in lines},
+    )
+
+
+def _edge_space(state: dict[str, Any], data: bytes) -> tuple[int, int, int]:
+    """A plain paragraph of main.md whose .docx paragraph has a text node that begins with, or is,
+    the space between two words: (index of the .docx block, position of that node, main.md line)."""
+    body = _body(ET.fromstring(zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml")))
+    view, main_items, pairs = state["view"], state["main_items"], state["pairs"]
+    for mi, di in pairs:
+        mine, theirs = main_items[mi], view.items[di]
+        if not (
+            isinstance(mine.block, MBlock)
+            and mine.block.kind == "para"
+            and not mine.block.generated
+            and not mine.cites
+            and isinstance(theirs.block, DPara)
+        ):
+            continue
+        nodes = list(list(body)[theirs.block.index].iter(w("t")))
+        texts = [n.text or "" for n in nodes] + [""]
+        for k in range(1, len(nodes)):
+            before, text, after = texts[k - 1], texts[k], texts[k + 1]
+            # pandoc sets the space between two runs as a node of its own, or at a node's start.
+            if text[:1] == " " and before[-1:].strip() and (text.strip() or after[:1].strip()):
+                return theirs.block.index, k, mine.where
+    raise NoTarget("no text node beginning with a space")
+
+
+def m_space_unpreserved(data, contract, state):
+    """A text node's xml:space="preserve" taken off, so that the space it begins with is dropped."""
+    index, k, line = _edge_space(state, data)
+
+    def edit(root):
+        node = list(list(_body(root))[index].iter(w("t")))[k]
+        del node.attrib[XML_SPACE]
+
+    return _rewrite(data, edit), contract, {("fulltext", f"main.md:{line}")}
+
+
+def m_space_default(data, contract, state):
+    """A text node's xml:space set to "default", so that the space it begins with is dropped."""
+    index, k, line = _edge_space(state, data)
+
+    def edit(root):
+        list(list(_body(root))[index].iter(w("t")))[k].set(XML_SPACE, "default")
+
+    return (
+        _rewrite(data, edit),
+        contract,
+        {("fulltext", f"main.md:{line}"), ("structure", "attributes")},
+    )
+
+
+def m_picture_large(data, contract, state):
+    """Figure 1's picture and its frame drawn twice the size, past the edge of the page."""
+    index = _figure_image(state, 1)
+
+    def edit(root):
+        for e in list(_body(root))[index].iter():
+            if e.tag in (f"{{{WP}}}extent", f"{{{A}}}ext"):
+                e.set("cx", str(int(e.get("cx", "0")) * 2))
+                e.set("cy", str(int(e.get("cy", "0")) * 2))
+
+    return _rewrite(data, edit), contract, {("structure", "pictures")}
+
+
+def _block_of_style(state: dict[str, Any], style: str) -> int:
+    block = next(
+        (b for b in state["doc"].blocks if isinstance(b, DPara) and b.style == style), None
+    )
+    if block is None:
+        raise NoTarget(f"no paragraph in the style {style!r}")
+    return block.index
+
+
+def m_blank_paragraphs(data, contract, state):
+    """A hundred and fifty empty paragraphs after the title: pages with nothing on them."""
+    index = _block_of_style(state, "Title")
+
+    def edit(root):
+        body = _body(root)
+        for _ in range(150):
+            body.insert(index + 1, ET.Element(w("p")))
+
+    return _rewrite(data, edit), contract, {("structure", "empty paragraphs")}
+
+
+def m_cell_blank(data, contract, state):
+    """Twenty empty paragraphs added to a table cell: a row pages high."""
+    table = _first_table(state)
+
+    def edit(root):
+        cell = list(_body(root))[table].find(f"{w('tr')}/{w('tc')}")
+        for _ in range(20):
+            cell.append(ET.Element(w("p")))
+
+    return _rewrite(data, edit), contract, {("structure", "empty paragraphs")}
+
+
+def m_after_table_repeated(data, contract, state):
+    """The spacer after the first table set a hundred and fifty times: pages of nothing below it."""
+    table = _first_table(state)
+
+    def edit(root):
+        body = _body(root)
+        spacer = list(body)[table + 1]
+        if spacer.tag != w("p"):
+            raise NoTarget("no spacer after the table")
+        for _ in range(150):
+            body.insert(table + 2, copy.deepcopy(spacer))
+
+    return _rewrite(data, edit), contract, {("structure", "empty paragraphs")}
+
+
+def m_line_breaks(data, contract, state):
+    """A hundred and fifty line breaks added to the title's run."""
+    index = _block_of_style(state, "Title")
+
+    def edit(root):
+        run = list(_body(root))[index].find(w("r"))
+        for _ in range(150):
+            ET.SubElement(run, w("br"))
+
+    return _rewrite(data, edit), contract, {("structure", "line breaks")}
+
+
+def m_code_breaks(data, contract, state):
+    """Three line breaks added to the end of a code block: lines its code does not have."""
+    index = _block_of_style(state, "Source Code")
+
+    def edit(root):
+        run = list(list(_body(root))[index].iter(w("r")))[-1]
+        for _ in range(3):
+            ET.SubElement(run, w("br"))
+
+    return _rewrite(data, edit), contract, {("structure", "line breaks")}
+
+
 def m_contract(data, contract, state):
     changed = copy.deepcopy(contract)
     narrative = next((c for c in changed.get("citations", []) if c["kind"] == "narrative"), None)
@@ -4636,6 +4952,16 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("a table column set wider than the text", m_columns_wide),
     ("a black page colour set beside the body", m_page_colour),
     ("a second document.xml in the archive", m_twin_entry),
+    ("a list's label suppressed by w:null", m_label_suppressed),
+    ("a list renumbered 0", m_list_unnumbered),
+    ("a text node's preserved space taken off", m_space_unpreserved),
+    ("a text node's space set to default", m_space_default),
+    ("a picture drawn twice its size", m_picture_large),
+    ("150 empty paragraphs after the title", m_blank_paragraphs),
+    ("20 empty paragraphs in a table cell", m_cell_blank),
+    ("the spacer after a table set 150 times", m_after_table_repeated),
+    ("150 line breaks in the title", m_line_breaks),
+    ("three line breaks added to a code block", m_code_breaks),
 )
 
 
@@ -5248,6 +5574,7 @@ SYNTHETIC_DOCX: list[tuple[Any, ...]] = [
             [[("Entropy floor", "")], [("The entropy of each context", "")], [("0.5 bit", "")]],
         ],
     ),
+    ("p", "After Table", [], None, []),
     ("p", "heading 1", [("2. Method", "")], None, ["method"]),
     (
         "p",
