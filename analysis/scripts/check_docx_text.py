@@ -44,8 +44,10 @@ depends on that is missing, the residue of a citation that did not resolve, and 
 comparison's own placeholders. Content the reader cannot account for -- in a text box, in a header,
 in a comment, hidden, or in any element outside the few pandoc writes (a content control, alternate
 content, an equation, a symbol, a field, a tracked change) -- is reported rather than read through
-or skipped. So are styles that hide text or break pages where the check does not expect it, and a
-hyperlink whose destination is not what its text and the inputs say.
+or skipped; so is any property outside the few pandoc sets (a merged cell, a row height, a cropped
+or transparent picture, a section break). Styles are resolved through their inheritance and must
+neither hide text nor break pages where the check does not expect it; the header holds the page
+number and nothing else; and every link must show and lead where main.md and refs.json say.
 
 **And the check is checked.** ``--self-test`` builds a small ``.docx`` from a synthetic manuscript,
 which must pass, and then breaks a copy of it one way at a time -- a paragraph dropped or doubled, a
@@ -66,6 +68,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import collections
 import copy
 import difflib
 import hashlib
@@ -603,8 +606,9 @@ class Docx:
     links: dict[str, str]  # relationship id -> target of an external hyperlink
     footnotes: list[str]
     parts: dict[str, bytes]
-    bookmarks: list[str]  # every bookmark name of the body, in order
+    bookmarks: list[str]  # every bookmark name of the body, in order, wherever it stands
     problems: list[Problem] = field(default_factory=list)  # what the reader could not account for
+    break_count: int = 0  # paragraphs in the style Page Break, wherever they stand
 
 
 def _style_names(parts: dict[str, bytes]) -> dict[str, str]:
@@ -620,8 +624,7 @@ def _style_names(parts: dict[str, bytes]) -> dict[str, str]:
 #: manuscript, and nothing else. An element outside this list is reported, not read through and not
 #: skipped -- a content control, alternate content, an equation, a symbol, a field, a tracked change
 #: or an imported document each carried text past an earlier version of this check (Codex reviews
-#: of 2026-10-04). Property elements (``*Pr``, ``tblGrid``, ``sectPr``) are not descended into, but
-#: are searched for the properties that hide text or break pages.
+#: of 2026-10-04).
 ALLOWED: dict[str, frozenset[str]] = {
     "body": frozenset({"p", "tbl", "bookmarkStart", "bookmarkEnd", "sectPr"}),
     "p": frozenset({"pPr", "r", "hyperlink", "bookmarkStart", "bookmarkEnd"}),
@@ -632,17 +635,84 @@ ALLOWED: dict[str, frozenset[str]] = {
     "tc": frozenset({"tcPr", "p"}),
 }
 _CONTAINERS = frozenset({"p", "hyperlink", "r", "tbl", "tr", "tc"})
+#: What each property element may hold, by the same rule: what pandoc writes, so that no merged
+#: cell, row height, colour, section break or other property can change what a reader sees while
+#: the text stays the same (Codex review of 2026-10-04: a header cell spanning two columns and a row
+#: one twip high both passed). A property listed here holds only the listed children; any other
+#: property is a leaf.
+PROPERTIES: dict[str, frozenset[str]] = {
+    "pPr": frozenset({"pStyle", "numPr"}),
+    "numPr": frozenset({"ilvl", "numId"}),
+    "rPr": frozenset({"rStyle", "b", "bCs", "i", "iCs"}),
+    "tblPr": frozenset({"tblStyle", "tblW", "tblLayout", "tblLook"}),
+    "trPr": frozenset({"tblHeader"}),
+    "tcPr": frozenset(),
+    "tblGrid": frozenset({"gridCol"}),
+    "sectPr": frozenset({"headerReference", "footerReference", "pgSz", "pgMar"}),
+}
 _HIDING = ("vanish", "specVanish", "webHidden")
+WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+PIC = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+#: The elements of a picture as pandoc writes one: a rectangle, stretched, with no cropping, no
+#: effect and no text (Codex review of 2026-10-04: a picture cropped to its last tenth, and one made
+#: transparent, both passed, since the embedded PNG was unchanged).
+DRAWING: frozenset[str] = frozenset(
+    {f"{{{WP}}}{n}" for n in ("inline", "extent", "effectExtent", "docPr")}
+    | {f"{{{PIC}}}{n}" for n in ("pic", "nvPicPr", "cNvPr", "cNvPicPr", "blipFill", "spPr")}
+    | {
+        f"{{{A}}}{n}"
+        for n in (
+            "graphic",
+            "graphicData",
+            "picLocks",
+            "blip",
+            "stretch",
+            "fillRect",
+            "xfrm",
+            "off",
+            "ext",
+            "prstGeom",
+            "avLst",
+            "noFill",
+            "ln",
+            "headEnd",
+            "tailEnd",
+        )
+    }
+)
 
 
 def _local(tag: str) -> str:
     return tag[len(W) + 2 :] if tag.startswith("{" + W + "}") else tag
 
 
+def _on(element: ET.Element | None) -> bool:
+    """A toggle property that is present and not switched off."""
+    return element is not None and element.get(w("val"), "true") not in ("0", "false", "off")
+
+
 def validate_body(body: ET.Element) -> list[Problem]:
-    """Every element of the body against :data:`ALLOWED`, and the properties that hide or break."""
+    """Every element and property of the body against :data:`ALLOWED` and :data:`PROPERTIES`."""
     problems: list[Problem] = []
     unread: list[str] = []
+    properties: list[str] = []
+
+    def props(element: ET.Element, kind: str) -> None:
+        for child in element:
+            name = _local(child.tag)
+            if name in _HIDING or name == "pageBreakBefore":
+                continue  # reported as hidden text and as a page break, below
+            if kind == "pPr" and name == "sectPr":
+                problems.append(
+                    Problem("structure", "page breaks", "a section break in a paragraph")
+                )
+                continue
+            if name not in PROPERTIES[kind]:
+                properties.append(f"{name} in {kind}")
+            elif name in PROPERTIES:
+                props(child, name)
+            elif len(child):
+                properties.append(f"children of {name}")
 
     def walk(element: ET.Element, kind: str) -> None:
         for child in element:
@@ -650,15 +720,32 @@ def validate_body(body: ET.Element) -> list[Problem]:
             if name not in ALLOWED[kind]:
                 unread.append(f"{name} in {kind}")
                 continue
+            if name in PROPERTIES:
+                props(child, name)
+                continue
             if name == "br" and child.get(w("type"), "textWrapping") != "textWrapping":
                 problems.append(
                     Problem("structure", "page breaks", "a page or column break inside a paragraph")
                 )
             if name == "drawing":
-                blips = list(child.iter(f"{{{A}}}blip"))
-                texts = [t for t in child.iter() if _local(t.tag) in ("t", "txbxContent")]
-                if len(blips) != 1 or texts:
-                    unread.append("a drawing that is not one picture")
+                parts = list(child.iter())[1:]
+                blips = [e for e in parts if e.tag == f"{{{A}}}blip"]
+                odd = sorted({e.tag.rsplit("}", 1)[-1] for e in parts if e.tag not in DRAWING})
+                shapes = {e.get("prst") for e in parts if e.tag == f"{{{A}}}prstGeom"}
+                if len(blips) != 1 or len(blips[0]) or odd or shapes - {"rect"}:
+                    problems.append(
+                        Problem(
+                            "structure", "pictures", f"a picture that is not one plain image {odd}"
+                        )
+                    )
+            if name == "tbl":
+                columns = len(child.findall(f"{w('tblGrid')}/{w('gridCol')}"))
+                if any(len(row.findall(w("tc"))) != columns for row in child.findall(w("tr"))):
+                    problems.append(
+                        Problem(
+                            "structure", "table grid", "a table whose rows do not fill its grid"
+                        )
+                    )
             if name in _CONTAINERS:
                 walk(child, name)
 
@@ -671,10 +758,16 @@ def validate_body(body: ET.Element) -> list[Problem]:
                 "elements outside what the .docx may hold: " + ", ".join(sorted(set(unread))[:6]),
             )
         )
-    if any(
-        _local(e.tag) in _HIDING and e.get(w("val"), "true") not in ("0", "false", "off")
-        for e in body.iter()
-    ):
+    if properties:
+        problems.append(
+            Problem(
+                "structure",
+                "properties",
+                "properties outside what the .docx may carry: "
+                + ", ".join(sorted(set(properties))[:6]),
+            )
+        )
+    if any(_local(e.tag) in _HIDING and _on(e) for e in body.iter()):
         problems.append(Problem("structure", "hidden text", "text hidden by direct formatting"))
     if any(_local(e.tag) == "pageBreakBefore" for e in body.iter()):
         problems.append(Problem("structure", "page breaks", "a page break set on a paragraph"))
@@ -686,28 +779,37 @@ BREAKING_STYLES = frozenset({"Page Break", "Abstract Title", "Title Repeat"})
 
 
 def validate_styles(styles: bytes) -> list[Problem]:
-    """No style hides its text, and exactly the expected styles break the page.
+    """No style hides its text, and exactly the expected styles break the page, in effect.
 
     The check reads paragraphs by their style names, so what a style does is part of what it checks
-    (Codex review of 2026-10-04: hiding the Body Text style, or taking the break off Page Break,
-    passed).
+    (Codex reviews of 2026-10-04: hiding the Body Text style, taking the break off Page Break, turning
+    it off with ``w:val="0"``, or basing another style on Page Break, each passed). Whether a style
+    breaks the page is resolved through its ``basedOn`` chain and the paragraph defaults.
     """
     problems: list[Problem] = []
     root = ET.fromstring(styles)
-    hiding = [
-        e
-        for e in root.iter()
-        if _local(e.tag) in _HIDING and e.get(w("val"), "true") not in ("0", "false", "off")
-    ]
-    if hiding:
+    if any(_local(e.tag) in _HIDING and _on(e) for e in root.iter()):
         problems.append(Problem("structure", "hidden text", "a style or the defaults hide text"))
+    by_id = {s.get(w("styleId"), ""): s for s in root.iter(w("style"))}
+    default = _on(
+        root.find(f"{w('docDefaults')}/{w('pPrDefault')}/{w('pPr')}/{w('pageBreakBefore')}")
+    )
+
+    def breaks(style_id: str, seen: frozenset[str]) -> bool:
+        style = by_id.get(style_id)
+        if style is None or style_id in seen:
+            return default
+        own = style.find(f"{w('pPr')}/{w('pageBreakBefore')}")
+        if own is not None:
+            return _on(own)
+        based = style.find(w("basedOn"))
+        return breaks(based.get(w("val"), ""), seen | {style_id}) if based is not None else default
+
     breaking = set()
-    for style in root.iter(w("style")):
-        if any(_local(e.tag) == "pageBreakBefore" for e in style.iter()):
+    for style_id, style in by_id.items():
+        if style.get(w("type")) == "paragraph" and breaks(style_id, frozenset()):
             name = style.find(w("name"))
-            breaking.add(
-                name.get(w("val"), "") if name is not None else style.get(w("styleId"), "")
-            )
+            breaking.add(name.get(w("val"), "") if name is not None else style_id)
     if breaking != BREAKING_STYLES:
         problems.append(
             Problem(
@@ -717,6 +819,30 @@ def validate_styles(styles: bytes) -> list[Problem]:
             )
         )
     return problems
+
+
+#: What a header or footer may hold: a paragraph with the page number field, and nothing else
+#: (Codex review of 2026-10-04: an equation in the header, and a field whose instruction quoted a
+#: sentence while its cached result read "1", both passed).
+HEADER_ALLOWED = frozenset(
+    {"hdr", "ftr", "p", "pPr", "jc", "spacing", "r", "fldChar", "instrText", "t"}
+)
+
+
+def validate_header(name: str, data: bytes) -> list[Problem]:
+    root = ET.fromstring(data)
+    odd = sorted({_local(e.tag) for e in root.iter() if _local(e.tag) not in HEADER_ALLOWED})
+    instructions = {(e.text or "").strip() for e in root.iter(w("instrText"))}
+    shown = "".join(t.text or "" for t in root.iter(w("t")))
+    if odd or instructions - {"PAGE"} or shown not in ("", "1"):
+        return [Problem("structure", "header", f"{name} holds {odd or instructions or shown!r}")]
+    return []
+
+
+def _png_size(data: bytes) -> tuple[int, int] | None:
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or data[12:16] != b"IHDR":
+        return None
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
 
 
 def _runs(
@@ -801,25 +927,30 @@ def read_docx(data: bytes) -> Docx:
     if body is None:
         raise ValueError("word/document.xml has no body")
     media: dict[str, str] = {}
+    sizes: dict[str, tuple[int, int] | None] = {}
     links: dict[str, str] = {}
     if "word/_rels/document.xml.rels" in parts:
         for rel in ET.fromstring(parts["word/_rels/document.xml.rels"]):
             rid, target = rel.get("Id", ""), rel.get("Target", "")
             if target.startswith("media/") and "word/" + target in parts:
                 media[rid] = hashlib.sha256(parts["word/" + target]).hexdigest()
-            if rel.get("Type", "").endswith("/hyperlink"):
+                sizes[rid] = _png_size(parts["word/" + target])
+            # Only an external hyperlink counts as a link to its target (Codex review of
+            # 2026-10-04: a DOI relationship without TargetMode="External" passed).
+            if rel.get("Type", "").endswith("/hyperlink") and rel.get("TargetMode") == "External":
                 links[rid] = target
     problems = validate_body(body)
     if "word/styles.xml" in parts:
         problems += validate_styles(parts["word/styles.xml"])
     blocks: list[DPara | DTable] = []
     pending: list[str] = []
-    bookmarks: list[str] = []
+    # Every bookmark of the body, in paragraphs and table cells too (Codex review of 2026-10-04: a
+    # second ref-cds59 inside a table cell passed).
+    bookmarks = [b.get(w("name"), "") for b in body.iter(w("bookmarkStart"))]
     opened: dict[str, str] = {}  # bookmark id -> name
     for index, child in enumerate(body):
         if child.tag == w("bookmarkStart"):
             pending.append(child.get(w("name"), ""))
-            bookmarks.append(child.get(w("name"), ""))
             opened[child.get(w("id"), "")] = child.get(w("name"), "")
         elif child.tag == w("bookmarkEnd"):
             # A bookmark that closes before any paragraph opens marks nothing: it is not given to
@@ -828,8 +959,6 @@ def read_docx(data: bytes) -> Docx:
             if name in pending:
                 pending.remove(name)
         elif child.tag == w("p"):
-            for inner in child.iter(w("bookmarkStart")):
-                bookmarks.append(inner.get(w("name"), ""))
             blocks.append(_para(child, index, names, pending))
             pending = []
         elif child.tag == w("tbl"):
@@ -837,12 +966,52 @@ def read_docx(data: bytes) -> Docx:
             pending = []
     if any(True for _ in document.iter(w("txbxContent"))):
         problems.append(Problem("structure", "unread content", "a text box"))
-    for name, part in parts.items():
-        if re.fullmatch(r"word/(header|footer)\d*\.xml", name) and _part_text(part).strip() not in (
-            "",
-            "1",
+    # The breaking paragraphs are counted wherever they stand, title pages and table cells included
+    # (Codex review of 2026-10-04: a break after the title, and one in a cell, passed).
+    ids = {name: style_id for style_id, name in names.items()}
+
+    def styled(name: str) -> int:
+        return sum(
+            1
+            for p in body.iter(w("p"))
+            if (p.find(f"{w('pPr')}/{w('pStyle')}") is not None)
+            and p.find(f"{w('pPr')}/{w('pStyle')}").get(w("val")) == ids.get(name)
+        )
+
+    break_count = styled("Page Break")
+    if styled("Abstract Title") != 1 or styled("Title Repeat") != 1:
+        problems.append(
+            Problem(
+                "structure",
+                "page breaks",
+                "the abstract title or the repeated title is not set once",
+            )
+        )
+    # A picture is shown at its own proportions and at a readable width.
+    for drawing in body.iter(w("drawing")):
+        extent = drawing.find(f".//{{{WP}}}extent")
+        blip = drawing.find(f".//{{{A}}}blip")
+        size = sizes.get(blip.get(f"{{{R}}}embed", "")) if blip is not None else None
+        try:
+            cx, cy = int(extent.get("cx", "0")), int(extent.get("cy", "0"))  # type: ignore[union-attr]
+        except (AttributeError, ValueError):
+            cx = cy = 0
+        if (
+            not size
+            or not cy
+            or cx < 1828800
+            or abs(cx / cy - size[0] / size[1]) > 0.01 * size[0] / size[1]
         ):
-            problems.append(Problem("structure", "unread content", f"{name} carries text"))
+            problems.append(
+                Problem(
+                    "structure",
+                    "pictures",
+                    f"a picture not shown at its own proportions: {cx}x{cy}, {size}",
+                )
+            )
+    for name, part in parts.items():
+        if re.fullmatch(r"word/(header|footer)\d*\.xml", name):
+            problems += validate_header(name, part)
         if name == "word/comments.xml" and any(
             True for _ in ET.fromstring(part).iter(w("comment"))
         ):
@@ -866,7 +1035,7 @@ def read_docx(data: bytes) -> Docx:
             for p in note.iter(w("p")):
                 _runs(p, names, runs, [], [])
             footnotes.append("".join(t for t, _ in runs))
-    return Docx(blocks, media, links, footnotes, parts, bookmarks, problems)
+    return Docx(blocks, media, links, footnotes, parts, bookmarks, problems, break_count)
 
 
 # --------------------------------------------------------------------------------------------------
@@ -1163,14 +1332,7 @@ def docx_view(doc: Docx) -> DocView:
         key = (f"H{heading.group(1)}|" if heading else "P|") + norm(text)
         add(Item(_tidy(key), block.index, mine, block))
         i += 1
-    if pending_break:
-        problems.append(
-            Problem(
-                "structure",
-                "page breaks",
-                f"{pending_break} page break(s) after the last of the text",
-            )
-        )
+    # A break left after the last of the text is counted by the total in check_text.
     return DocView(head, items, groups, figures, tables, bibliography, problems)
 
 
@@ -1432,35 +1594,35 @@ def check_bibliography(inp: Inputs, view: DocView, doc: Docx) -> list[Problem]:
     return problems
 
 
-def expected_links(inp: Inputs) -> set[tuple[str, str]]:
-    """(text shown, destination) of every link main.md writes, outside code."""
+def expected_links(inp: Inputs) -> list[tuple[str, str]]:
+    """(text shown, destination) of every link main.md writes, outside code, once per occurrence."""
     text = _blank_code(inp.manuscript.text)
-    pairs = {(m.group(1), m.group(1)) for m in re.finditer(r"<(https?://[^>\s]+)>", text)}
-    pairs |= {
+    pairs = [(m.group(1), m.group(1)) for m in re.finditer(r"<(https?://[^>\s]+)>", text)]
+    pairs += [
         (norm(_plain(m.group(1))), m.group(2))
         for m in re.finditer(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", text)
-    }
+    ]
     return pairs
 
 
 def check_links(inp: Inputs, view: DocView, doc: Docx) -> list[Problem]:
-    """Every link outside the reference list leads where main.md says, and shows what it says."""
-    allowed = expected_links(inp)
+    """The links outside the reference list are those main.md writes: each shown and led where it
+    says, none added and none lost (Codex review of 2026-10-04: an ORCID link unwrapped into plain
+    text passed, since only the links that remained were looked at)."""
+    expected = collections.Counter(expected_links(inp))
     bibliography = {id(p) for p in view.bibliography}
-    problems: list[Problem] = []
+    found: collections.Counter[tuple[str, str]] = collections.Counter()
     for para in _all_paragraphs(doc):
-        if id(para) in bibliography:
-            continue
-        for rid, shown in para.links:
-            pair = (norm(shown), doc.links.get(rid, ""))
-            if pair not in allowed:
-                problems.append(
-                    Problem(
-                        "link",
-                        norm(shown)[:60],
-                        f"a link to {pair[1]!r} that main.md does not have",
-                    )
-                )
+        if id(para) not in bibliography:
+            found.update((norm(shown), doc.links.get(rid, "")) for rid, shown in para.links)
+    problems = [
+        Problem("link", shown[:60], f"a link to {target!r} that main.md does not have")
+        for (shown, target) in found - expected
+    ]
+    problems += [
+        Problem("link", shown[:60], f"the link to {target!r} main.md has is not in the .docx")
+        for (shown, target) in expected - found
+    ]
     return problems
 
 
@@ -1916,8 +2078,9 @@ def check_text(
             mine = to_main.get(di)
             place = str(mine.where) if mine is not None else f"docx block {item.where}"
             found[place] = found.get(place, 0) + item.page_break
-    # One break each, counted: two breaks in a row leave an empty page (Codex review of 2026-10-04).
-    if found != dict.fromkeys(wanted, 1):
+    # One break each, counted: two breaks in a row leave an empty page (Codex review of 2026-10-04);
+    # and none anywhere else, on the title pages or in a table cell.
+    if found != dict.fromkeys(wanted, 1) or doc.break_count != len(wanted):
         problems.append(
             Problem(
                 "structure",
@@ -2242,7 +2405,12 @@ def m_swap_figures(data, contract, state):
         a.set(key, eb)
         b.set(key, ea)
 
-    return _rewrite(data, edit), contract, {("figure", "Figure 1"), ("figure", "Figure 2")}
+    # Each picture is now also drawn at the other's proportions.
+    return (
+        _rewrite(data, edit),
+        contract,
+        {("figure", "Figure 1"), ("figure", "Figure 2"), ("structure", "pictures")},
+    )
 
 
 def m_double_figure(data, contract, state):
@@ -2253,7 +2421,11 @@ def m_double_figure(data, contract, state):
         key = f"{{{R}}}embed"
         _blips(body[second])[0].set(key, _blips(body[first])[0].get(key))
 
-    return _rewrite(data, edit), contract, {("figure", "Figure 2")}
+    return (
+        _rewrite(data, edit),
+        contract,
+        {("figure", "Figure 2"), ("structure", "pictures")},
+    )
 
 
 def _entry(state: dict[str, Any], position: int) -> tuple[int, int]:
@@ -2972,6 +3144,265 @@ def m_link_outside_references(data, contract, state):
     raise NoTarget("no link outside the reference list")
 
 
+# Found by the fourth review of 2026-10-04.
+
+
+def m_style_break_off(data, contract, state):
+    """The Page Break style's break switched off with w:val="0"."""
+
+    def edit(root):
+        style = _style(root, "PageBreak")
+        node = next(e for e in style.iter() if e.tag == w("pageBreakBefore"))
+        node.set(w("val"), "0")
+
+    return _rewrite(data, edit, "word/styles.xml"), contract, {("structure", "page breaks")}
+
+
+def m_style_based_on_break(data, contract, state):
+    """The Body Text style based on Page Break, so that every body paragraph breaks the page."""
+
+    def edit(root):
+        style = _style(root, "BodyText")
+        for old in style.findall(w("basedOn")):
+            style.remove(old)
+        based = ET.Element(w("basedOn"))
+        based.set(w("val"), "PageBreak")
+        style.insert(1, based)
+
+    return _rewrite(data, edit, "word/styles.xml"), contract, {("structure", "page breaks")}
+
+
+def m_break_after_title(data, contract, state):
+    """A page break set on the title page, where the text is not compared."""
+    index, _ = _break_before_references(state)
+
+    def edit(root):
+        body = _body(root)
+        body.insert(1, copy.deepcopy(list(body)[index]))
+
+    return _rewrite(data, edit), contract, {("structure", "page breaks")}
+
+
+def _first_table(state: dict[str, Any]) -> int:
+    table = next((b for b in state["doc"].blocks if isinstance(b, DTable)), None)
+    if table is None:
+        raise NoTarget("no table")
+    return table.index
+
+
+def m_break_in_cell(data, contract, state):
+    """A page break set inside a table cell."""
+    index, _ = _break_before_references(state)
+    table = _first_table(state)
+
+    def edit(root):
+        body = list(_body(root))
+        cell = body[table].find(f"{w('tr')}/{w('tc')}")
+        cell.append(copy.deepcopy(body[index]))
+
+    return _rewrite(data, edit), contract, {("structure", "page breaks")}
+
+
+def m_section_break(data, contract, state):
+    """A section break, starting a new page, set on a paragraph."""
+    index, _ = _target(state)
+
+    def edit(root):
+        paragraph = list(_body(root))[index]
+        props = paragraph.find(w("pPr"))
+        if props is None:
+            props = ET.Element(w("pPr"))
+            paragraph.insert(0, props)
+        section = ET.SubElement(props, w("sectPr"))
+        ET.SubElement(section, w("type")).set(w("val"), "nextPage")
+
+    return _rewrite(data, edit), contract, {("structure", "page breaks")}
+
+
+def m_grid_span(data, contract, state):
+    """A heading cell spanning two columns of a grid one column wider: the headings shift."""
+    table = _first_table(state)
+
+    def edit(root):
+        element = list(_body(root))[table]
+        ET.SubElement(element.find(w("tblGrid")), w("gridCol"))
+        cell = element.find(f"{w('tr')}/{w('tc')}")
+        props = cell.find(w("tcPr"))
+        if props is None:
+            props = ET.Element(w("tcPr"))
+            cell.insert(0, props)
+        ET.SubElement(props, w("gridSpan")).set(w("val"), "2")
+
+    return (
+        _rewrite(data, edit),
+        contract,
+        {("structure", "properties"), ("structure", "table grid")},
+    )
+
+
+def m_row_height(data, contract, state):
+    """A body row set one twip high, which clips what it holds."""
+    table = _first_table(state)
+
+    def edit(root):
+        row = list(_body(root))[table].findall(w("tr"))[1]
+        props = row.find(w("trPr"))
+        if props is None:
+            props = ET.Element(w("trPr"))
+            row.insert(0, props)
+        height = ET.SubElement(props, w("trHeight"))
+        height.set(w("val"), "1")
+        height.set(w("hRule"), "exact")
+
+    return _rewrite(data, edit), contract, {("structure", "properties")}
+
+
+def m_crop(data, contract, state):
+    """Figure 1's picture cropped to its last tenth; the PNG is unchanged."""
+    index = _figure_image(state, 1)
+
+    def edit(root):
+        fill = next(e for e in list(_body(root))[index].iter() if e.tag == f"{{{PIC}}}blipFill")
+        crop = ET.Element(f"{{{A}}}srcRect")
+        crop.set("l", "90000")
+        fill.insert(1, crop)
+
+    return _rewrite(data, edit), contract, {("structure", "pictures")}
+
+
+def m_transparent(data, contract, state):
+    """Figure 1's picture made fully transparent; the PNG is unchanged."""
+    index = _figure_image(state, 1)
+
+    def edit(root):
+        blip = _blips(list(_body(root))[index])[0]
+        ET.SubElement(blip, f"{{{A}}}alphaModFix").set("amt", "0")
+
+    return _rewrite(data, edit), contract, {("structure", "pictures")}
+
+
+def _header(data: bytes) -> str:
+    names = [
+        n
+        for n in zipfile.ZipFile(io.BytesIO(data)).namelist()
+        if re.fullmatch(r"word/header\d*\.xml", n)
+    ]
+    if not names:
+        raise NoTarget("no header")
+    return names[0]
+
+
+def m_header_equation(data, contract, state):
+    """An equation set in the header, which shows on every page."""
+    part = _header(data)
+
+    def edit(root):
+        math = ET.SubElement(root.find(w("p")), f"{{{MATH}}}oMath")
+        ET.SubElement(ET.SubElement(math, f"{{{MATH}}}r"), f"{{{MATH}}}t").text = "p < 0.001"
+
+    return _rewrite(data, edit, part), contract, {("structure", "header")}
+
+
+def m_header_field(data, contract, state):
+    """The header's page-number field turned into one that quotes a sentence, its cache still 1."""
+    part = _header(data)
+
+    def edit(root):
+        node = next(root.iter(w("instrText")))
+        node.text = ' QUOTE "The primary effect was 99.9 percent." '
+
+    return _rewrite(data, edit, part), contract, {("structure", "header")}
+
+
+def m_link_mode(data, contract, state):
+    """A reference's link relationship without TargetMode="External"."""
+    _, n, para = _bib_with(state, lambda p: bool(p.links))
+    rid = para.links[0][0]
+
+    def edit(root):
+        for rel in root:
+            if rel.get("Id") == rid:
+                del rel.attrib["TargetMode"]
+                return
+        raise NoTarget("no relationship")
+
+    return (
+        _rewrite(data, edit, "word/_rels/document.xml.rels"),
+        contract,
+        {("bibliography", f"[{n}]")},
+    )
+
+
+def m_unwrap_link(data, contract, state):
+    """A link outside the reference list unwrapped into plain runs: the text stays, the link goes."""
+    view = state["view"]
+    bibliography = {id(p) for p in view.bibliography}
+    para = next(
+        (p for p in _all_paragraphs(state["doc"]) if id(p) not in bibliography and p.links), None
+    )
+    if para is None:
+        raise NoTarget("no link outside the reference list")
+    shown = norm(para.links[0][1])
+    index = para.index
+
+    def edit(root):
+        paragraph = list(_body(root))[index]
+        link = paragraph.find(w("hyperlink"))
+        position = list(paragraph).index(link)
+        paragraph.remove(link)
+        for offset, run in enumerate(list(link)):
+            paragraph.insert(position + offset, run)
+
+    return _rewrite(data, edit), contract, {("link", shown[:60])}
+
+
+def m_bookmark_in_cell(data, contract, state):
+    """A second bookmark of the first reference's identifier, inside a table cell."""
+    _, first = _entry(state, 0)
+    table = _first_table(state)
+
+    def edit(root):
+        paragraph = list(_body(root))[table].find(f"{w('tr')}/{w('tc')}/{w('p')}")
+        start = ET.Element(w("bookmarkStart"))
+        start.set(w("id"), "9998")
+        start.set(w("name"), f"ref-cds{first}")
+        end = ET.Element(w("bookmarkEnd"))
+        end.set(w("id"), "9998")
+        paragraph.insert(1, start)
+        paragraph.append(end)
+
+    return _rewrite(data, edit), contract, {("bibliography", "bookmarks")}
+
+
+def m_added_link(data, contract, state):
+    """A plain run of a body paragraph made into a link that main.md does not have."""
+    index, _ = _target(state)
+    rid = "rIdAddedLink"
+
+    def add_relationship(root):
+        rel = ET.SubElement(root, f"{{{PKG}}}Relationship")
+        rel.set("Id", rid)
+        rel.set("Type", f"{R}/hyperlink")
+        rel.set("Target", "https://example.com/added")
+        rel.set("TargetMode", "External")
+
+    shown: list[str] = []
+
+    def wrap(root):
+        paragraph = list(_body(root))[index]
+        run = _last_run(paragraph)
+        position = list(paragraph).index(run)
+        paragraph.remove(run)
+        link = ET.Element(w("hyperlink"))
+        link.set(f"{{{R}}}id", rid)
+        link.append(run)
+        paragraph.insert(position, link)
+        shown.append("".join(t.text or "" for t in run.iter(w("t"))))
+
+    mutated = _rewrite(_rewrite(data, add_relationship, "word/_rels/document.xml.rels"), wrap)
+    return mutated, contract, {("link", norm(shown[0])[:60])}
+
+
 def m_contract(data, contract, state):
     changed = copy.deepcopy(contract)
     narrative = next((c for c in changed.get("citations", []) if c["kind"] == "narrative"), None)
@@ -3028,6 +3459,21 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("a reference carrying another one bookmark", m_extra_bookmark),
     ("an apostrophe inside a container title", m_container_apostrophe),
     ("a link outside the references leading elsewhere", m_link_outside_references),
+    ("the Page Break style's break switched off", m_style_break_off),
+    ("the Body Text style based on Page Break", m_style_based_on_break),
+    ("a page break set on the title page", m_break_after_title),
+    ("a page break set in a table cell", m_break_in_cell),
+    ("a section break set on a paragraph", m_section_break),
+    ("a heading cell spanning two grid columns", m_grid_span),
+    ("a table row set one twip high", m_row_height),
+    ("a picture cropped", m_crop),
+    ("a picture made transparent", m_transparent),
+    ("an equation set in the header", m_header_equation),
+    ("the header's field quoting a sentence", m_header_field),
+    ("a reference link not marked external", m_link_mode),
+    ("a link outside the references unwrapped", m_unwrap_link),
+    ("a reference identifier repeated in a table cell", m_bookmark_in_cell),
+    ("a link added that main.md does not have", m_added_link),
 )
 
 
@@ -3291,8 +3737,10 @@ def write_docx(paragraphs: list[tuple[Any, ...]], media: dict[str, bytes]) -> by
                 )
                 rows.append(f"<w:tr>{cells}</w:tr>")
             styles["Compact"] = "paragraph"
+            grid = "".join("<w:gridCol/>" for _ in entry[1][0])
             body.append(
-                '<w:tbl><w:tblPr><w:tblStyle w:val="Table"/></w:tblPr>' + "".join(rows) + "</w:tbl>"
+                '<w:tbl><w:tblPr><w:tblStyle w:val="Table"/></w:tblPr>'
+                f"<w:tblGrid>{grid}</w:tblGrid>" + "".join(rows) + "</w:tbl>"
             )
             continue
         _, style, runs, picture, bookmarks = entry
@@ -3305,8 +3753,11 @@ def write_docx(paragraphs: list[tuple[Any, ...]], media: dict[str, bytes]) -> by
         if picture is not None:
             rid = f"rIdImage{len(rels)}"
             rels.append(f'<Relationship Id="{rid}" Type="{R}/image" Target="media/{picture}"/>')
+            width, height = _png_size(media[picture]) or (1, 1)
+            cx = 5486400  # six inches, at the picture's own proportions
             drawing = (
-                f"<w:r><w:drawing><wp:inline><a:graphic><a:graphicData><pic:pic><pic:blipFill>"
+                f'<w:r><w:drawing><wp:inline><wp:extent cx="{cx}" cy="{cx * height // width}"/>'
+                f"<a:graphic><a:graphicData><pic:pic><pic:blipFill>"
                 f'<a:blip r:embed="{rid}"/></pic:blipFill></pic:pic></a:graphicData></a:graphic>'
                 f"</wp:inline></w:drawing></w:r>"
             )
@@ -3344,6 +3795,14 @@ def write_docx(paragraphs: list[tuple[Any, ...]], media: dict[str, bytes]) -> by
         out.writestr("word/document.xml", document)
         out.writestr("word/styles.xml", style_xml)
         out.writestr("word/footnotes.xml", footnotes)
+        out.writestr(
+            "word/header1.xml",
+            f'<?xml version="1.0" encoding="UTF-8"?><w:hdr xmlns:w="{W}"><w:p><w:pPr>'
+            '<w:jc w:val="right"/></w:pPr><w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+            '<w:r><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>'
+            '<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r>'
+            '<w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:hdr>',
+        )
         out.writestr(
             "word/_rels/document.xml.rels",
             f'<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="{PKG}">'
@@ -3624,6 +4083,24 @@ SYNTHETIC_DOCX: list[tuple[Any, ...]] = [
 ]
 
 
+def _png(width: int, height: int, shade: int) -> bytes:
+    """A small grey PNG of the given size, for the synthetic figures."""
+    import struct  # noqa: PLC0415
+    import zlib  # noqa: PLC0415
+
+    def chunk(kind: bytes, payload: bytes) -> bytes:
+        body = kind + payload
+        return struct.pack(">I", len(payload)) + body + struct.pack(">I", zlib.crc32(body))
+
+    rows = b"".join(b"\x00" + bytes([shade]) * width for _ in range(height))
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 0, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress(rows))
+        + chunk(b"IEND", b"")
+    )
+
+
 def self_test() -> list[str]:
     """Build the synthetic .docx, require it to pass, and require every mutation to be named."""
     import make_docx_source  # noqa: PLC0415
@@ -3631,7 +4108,7 @@ def self_test() -> list[str]:
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         write_synthetic(root)
-        pictures = {"first": b"\x89PNG first figure", "second": b"\x89PNG second figure"}
+        pictures = {"first": _png(30, 10, 60), "second": _png(20, 15, 160)}
         figures = {
             "figures": [
                 {
