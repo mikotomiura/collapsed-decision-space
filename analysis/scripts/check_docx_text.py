@@ -844,15 +844,22 @@ def validate_body(body: ET.Element) -> list[Problem]:
                             f"a table not laid out as pandoc lays one out: columns {widths}",
                         )
                     )
-            if name == "tc":
-                # A cell of a pipe table is one paragraph in the Compact style, as pandoc writes it:
-                # the comparison joins a cell's paragraphs, so a cell set as a paragraph a word
-                # (Codex review of 2026-10-04: 107 of them, a row pages long, passed) or in another
-                # style (the Title's two inches above it) shows what the words compared do not.
-                paragraphs = child.findall(w("p"))
-                style = paragraphs[0].find(f"{w('pPr')}/{w('pStyle')}") if paragraphs else None
-                if len(paragraphs) != 1 or style is None or style.get(w("val")) != "Compact":
-                    cells.append(len(paragraphs))
+                # A cell of a pipe table is one paragraph, in the style table-cells.lua sets it in:
+                # Table Heading in the first row (the heading of a pipe table), Table Text in the
+                # others. The comparison joins a cell's paragraphs, so a cell set as a paragraph a
+                # word (Codex review of 2026-10-04: 107 of them, a row pages long, passed) or in
+                # another style (the Title's two inches above it) shows what the words compared do
+                # not; and a cell in the style pandoc writes (Compact) came out in Word at twelve
+                # point and double spaced, its words broken inside their columns.
+                for row_number, row in enumerate(child.findall(w("tr"))):
+                    want = "TableHeading" if row_number == 0 else "TableText"
+                    for cell in row.findall(w("tc")):
+                        paragraphs = cell.findall(w("p"))
+                        style = (
+                            paragraphs[0].find(f"{w('pPr')}/{w('pStyle')}") if paragraphs else None
+                        )
+                        if len(paragraphs) != 1 or style is None or style.get(w("val")) != want:
+                            cells.append(len(paragraphs))
             if name in _CONTAINERS:
                 walk(child, name)
 
@@ -863,8 +870,8 @@ def validate_body(body: ET.Element) -> list[Problem]:
             Problem(
                 "structure",
                 "table cells",
-                f"{len(cells)} table cells not one paragraph in the Compact style "
-                f"(paragraphs: {sorted(set(cells))[:4]})",
+                f"{len(cells)} table cells not one paragraph in the Table Heading style (the first "
+                f"row) or the Table Text style (paragraphs: {sorted(set(cells))[:4]})",
             )
         )
     if unread:
@@ -5548,11 +5555,13 @@ def m_line_auto_close(data, contract, state):
 
 
 def m_line_rule_elsewhere(data, contract, state):
-    """A table cell's lines a page apart: Compact given a line of 417 (as single spacing would read
-    it), the table style an exact rule with no height of its own."""
+    """A table cell's lines a page apart: Table Text given a line of 417 and no rule (as single
+    spacing would read it), the table style an exact rule with no height of its own."""
 
     def edit(root):
-        _add_to_style("Compact", ("pPr",), "spacing", line="100000")(root)
+        own = _child(_child(_style(root, "TableText"), "pPr"), "spacing")
+        own.attrib.pop(w("lineRule"), None)
+        own.set(w("line"), "100000")
         spacing = _child(_child(_style(root, "Table"), "pPr"), "spacing")
         spacing.attrib.pop(w("line"), None)
         spacing.set(w("lineRule"), "exact")
@@ -5567,10 +5576,10 @@ def m_style_line_negative(data, contract, state):
 
 
 def m_table_size_reversed(data, contract, state):
-    """The table style set at one point, under a Compact style that names 12."""
+    """The table style set at one point, under a Table Text style that names 12."""
 
     def edit(root):
-        _add_to_style("Compact", ("rPr",), "sz", val="24")(root)
+        _child(_child(_style(root, "TableText"), "rPr"), "sz").set(w("val"), "24")
         table = _child(_style(root, "Table"), "rPr")
         for size in table.findall(w("sz")):
             table.remove(size)
@@ -5770,9 +5779,9 @@ MUTATIONS: tuple[tuple[str, Mutation], ...] = (
     ("the Figure Image style's line exact by the defaults' rule", m_rule_from_defaults),
     ("Body Text's rule auto over a least line of 35 points", m_line_auto_inherited),
     ("Body Text's rule auto over a least line of 5 points", m_line_auto_close),
-    ("Compact's line of 417 under the table style's exact rule", m_line_rule_elsewhere),
+    ("Table Text's line of 417 under the table style's exact rule", m_line_rule_elsewhere),
     ("the Body Text style in a least line of minus 12 points", m_style_line_negative),
-    ("the table style at one point under a Compact of 12", m_table_size_reversed),
+    ("the table style at one point under a Table Text of 12", m_table_size_reversed),
     ("the Body Text style given its size twice", m_style_size_twice),
     ("the default character style at one point", m_default_character_tiny),
     (
@@ -6039,13 +6048,17 @@ def write_docx(paragraphs: list[tuple[Any, ...]], media: dict[str, bytes]) -> by
     for entry in paragraphs:
         if entry[0] == "tbl":
             rows = []
-            for row in entry[1]:
+            for row_number, row in enumerate(entry[1]):
+                # As table-cells.lua sets them: the heading row in Table Heading, the others in
+                # Table Text.
+                cell_style = "Table Heading" if row_number == 0 else "Table Text"
+                styles[cell_style] = "paragraph"
                 cells = "".join(
-                    f'<w:tc><w:p><w:pPr><w:pStyle w:val="Compact"/></w:pPr>{_xml_runs(cell, styles, escape, rels)}</w:p></w:tc>'
+                    f'<w:tc><w:p><w:pPr><w:pStyle w:val="{_style_id(cell_style)}"/></w:pPr>'
+                    f"{_xml_runs(cell, styles, escape, rels)}</w:p></w:tc>"
                     for cell in row
                 )
                 rows.append(f"<w:tr>{cells}</w:tr>")
-            styles["Compact"] = "paragraph"
             # As pandoc lays a table out: the text's full width, by its grid, the first row the
             # heading.
             width = 7920 // len(entry[1][0])

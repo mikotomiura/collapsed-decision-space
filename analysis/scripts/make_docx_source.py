@@ -51,7 +51,8 @@ What it changes, and why each change is necessary:
 7. **The references and each appendix begin on a new page**, and the markers in HTML comments and
    the horizontal rules are left out. Each table is followed by an empty line, and its columns get
    widths for the face and size the ``.docx`` sets it in (:func:`weight_docx_columns`); neither
-   changes a word.
+   changes a word. (pandoc then sets the cells in the paragraph styles Table Heading and Table Text,
+   through ``manuscript/docx/table-cells.lua``.)
 
 Everything else is passed through byte for byte, including the section numbers, which the
 repository cites.
@@ -892,6 +893,7 @@ BOLD = "<w:b/><w:bCs/>"
 ITALIC = "<w:i/><w:iCs/>"
 KEEP = "<w:keepNext/>"
 SINGLE = '<w:spacing w:line="240" w:lineRule="auto"/>'
+SMALL = '<w:sz w:val="20"/><w:szCs w:val="20"/>'
 
 #: The styles the reference document defines, replacing pandoc's defaults of the same identifier.
 STYLES: tuple[str, ...] = (
@@ -951,6 +953,13 @@ STYLES: tuple[str, ...] = (
     _pstyle("FigureImage", "Figure Image", CENTER),
     _pstyle("TableNumber", "Table Number", KEEP + '<w:spacing w:before="240"/>', BOLD),
     _pstyle("TableTitle", "Table Title", KEEP, ITALIC),
+    # The cells of a table (manuscript/docx/table-cells.lua sets them in these): single-spaced in 10
+    # point (APA 7, 7.21), the heading row in bold. Each keeps with the next paragraph, so a table
+    # that fits on a page is not broken across two; a longer one still breaks between rows, with its
+    # heading row repeated. The cells carry this themselves: Word did not apply the table style's
+    # size, spacing and bold to the paragraphs pandoc writes in a cell (Compact).
+    _pstyle("TableText", "Table Text", KEEP + SINGLE + NO_INDENT, SMALL),
+    _pstyle("TableHeading", "Table Heading", "", BOLD, based="TableText"),
     _pstyle(
         "SourceCode",
         "Source Code",
@@ -977,13 +986,11 @@ STYLES: tuple[str, ...] = (
     _cstyle("Citation", CITATION_STYLE, ""),
     # APA tables: rules above and below the table and under the heading row, none between cells;
     # set single-spaced in 10 point (APA 7, 7.21). Set on the table style, which paragraph styles that
-    # set neither size nor line spacing leave in force. Every paragraph in a table keeps with the
-    # next, so a table that fits on a page is not broken across two; a longer one still breaks
-    # between rows, with its heading row repeated (not on Compact, which lists outside tables use).
+    # set neither size nor line spacing leave in force -- in LibreOffice; Word left them out, and
+    # the cells' own styles above (Table Text, Table Heading) carry the same.
     '<w:style w:type="table" w:default="1" w:styleId="Table"><w:name w:val="Table"/>'
     '<w:basedOn w:val="TableNormal"/><w:qFormat/>'
-    '<w:pPr><w:keepNext/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr>'
-    '<w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>'
+    '<w:pPr><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>'
     '<w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="8" w:space="0" w:color="000000"/>'
     '<w:bottom w:val="single" w:sz="8" w:space="0" w:color="000000"/></w:tblBorders>'
     '<w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/>'

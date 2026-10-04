@@ -7,10 +7,12 @@ to: docx
 reference-doc: reference.docx
 bibliography: ${.}/../refs.json
 csl: ${.}/apa.csl
-# citeproc first, then the filter that writes "and" in narrative citations (narrative-and.lua).
+# citeproc first, then the filter that writes "and" in narrative citations (narrative-and.lua), then
+# the one that sets table cells in paragraph styles of their own (table-cells.lua).
 filters:
   - citeproc
   - ${.}/narrative-and.lua
+  - ${.}/table-cells.lua
 shift-heading-level-by: -1
 # The labels and titles of figures and tables are paragraphs make_docx_source.py writes above them;
 # pandoc sets no caption of its own. The positions are stated anyway, so that a caption it did set
