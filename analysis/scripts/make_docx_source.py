@@ -941,7 +941,10 @@ STYLES: tuple[str, ...] = (
     _pstyle(
         "SourceCode",
         "Source Code",
-        SINGLE + '<w:spacing w:before="120" w:after="120" w:line="240" w:lineRule="auto"/>',
+        # One spacing element: a property given twice may be read by one reader as the first and by
+        # another as the last, and the check reports it (found while closing the eighth Codex
+        # review of 2026-10-04; this style gave its line twice).
+        '<w:spacing w:before="120" w:after="120" w:line="240" w:lineRule="auto"/>',
         '<w:rFonts w:ascii="Courier New" w:hAnsi="Courier New"/><w:sz w:val="20"/><w:szCs w:val="20"/>',
     ),
     _pstyle(
