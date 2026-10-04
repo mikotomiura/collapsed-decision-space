@@ -476,7 +476,9 @@ were laid out again and one figure caption was given a short title; what moved i
   exit label puts it.
 - What the power row said about the surrogate (its value at the margin for both bases checked, at one
   hundredth of the margin, and the simulated test's agreement with it from half the margin upward)
-  moved, word for word, to a paragraph tagged post hoc after the table.
+  moved to a paragraph tagged post hoc after the table. Its words are those of the row, except that
+  "so a pass does not tell them apart" became "so a pass of the power gate does not tell them apart",
+  since the sentence no longer stands in the power row.
 
 ### The analysis map
 
