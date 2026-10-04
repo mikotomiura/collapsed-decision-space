@@ -17,7 +17,9 @@ name: APA docx
 # changes from the inputs on its own, requires the record to agree, checks every change against the
 # file -- citation by citation, reference by reference, figure by figure (by the SHA-256 of its
 # picture), table by table, cell by cell -- and compares the rest of the text with main.md word for
-# word. Then it breaks copies of this .docx one way at a time and requires each to be reported with
+# word; and what the body does not carry -- the styles, the header, the theme, the parts and their
+# relationships -- it compares with the reference document generated above, which pandoc copied them
+# from. Then it breaks copies of this .docx one way at a time and requires each to be reported with
 # exactly its diagnostics. What the XML cannot show -- how the pages look -- is what the PDF that
 # LibreOffice makes of the .docx is for: it is uploaded to be read, page by page, before the .docx is
 # used. CI has no Times New Roman, so that PDF is set in its metric-compatible substitute.
@@ -151,8 +153,8 @@ jobs:
         run: |
           uv run --no-project --with "pyyaml==6.0.3" python analysis/scripts/check_docx_text.py \
             build/docx/paper.docx --contract build/docx/contract.json \
-            --figures build/docx/figs/figures.json --write-text build/docx/paper-docx.txt \
-            --mutation-test
+            --figures build/docx/figs/figures.json --reference build/docx/reference.docx \
+            --write-text build/docx/paper-docx.txt --mutation-test
 
       - name: Check the .docx against the claim boundary
         # The .docx is a claim surface too; the patterns come from `manuscript/CLAIM-BOUNDARY.md`.
