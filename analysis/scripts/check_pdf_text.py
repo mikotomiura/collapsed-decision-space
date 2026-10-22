@@ -60,8 +60,9 @@ from make_pdf_source import manuscript_headings  # noqa: E402
 #: Headings and title-block fields that must survive into the PDF. Each is load-bearing for the
 #: submission rather than decorative: the title and the author block come from a transformation
 #: this repository performs (``make_pdf_source.py``) and would be absent if it silently failed, the
-#: disclosure and ethics sections are what a venue checks for, and the two sections named after
-#: them are where the pre-registration itself lives.
+#: disclosure is what a venue checks for, and the decision rules are where the pre-registration
+#: itself lives. The other lettered sections are in the Supplementary Material, which this PDF does
+#: not set.
 #:
 #: These are compared against the extracted text, so they must be the headings the manuscript
 #: actually carries. An earlier version of this tuple still named the previous title and two
@@ -70,11 +71,7 @@ from make_pdf_source import manuscript_headings  # noqa: E402
 REQUIRED_PHRASES: tuple[str, ...] = (
     "Three gates, three proxies",
     "Decision rules",
-    "Eligibility: what is known at seal time, and what is not",
-    "What the seal covers, and what breaks it",
     "AI usage disclosure",
-    "Ethics, funding and competing interests",
-    "Data, code and reproducibility",
 )
 
 #: The title block differs between the two builds, and each must carry its own. The named build
@@ -106,13 +103,14 @@ FIRST_PAGE_PHRASES: tuple[str, ...] = ("Use of AI assistance.",)
 REFERENCES_LAST_PAGE = 12
 #: The first appendix's title. LaTeX numbers the appendices (TEMPLATE-DIFF.md), and pdftotext sets
 #: the letter on a line of its own before the title, so the title line is what is matched; a letter
-#: on the same line is allowed for an extractor that joins them.
-FIRST_APPENDIX_TITLE = "The apparatus and the channel (completed preliminary study)"
+#: on the same line is allowed for an extractor that joins them. The paper carries §E and §K, so the
+#: first appendix is §E.
+FIRST_APPENDIX_TITLE = "Decision rules"
 #: The two headings the page checks are read from, as line patterns on the extracted page. A line
 #: carrying anything besides the heading -- a trailing space included -- does not match, so a
 #: heading that pdftotext set differently is reported missing rather than guessed at.
 REFERENCES_PATTERN = r"^References$"
-FIRST_APPENDIX_PATTERN = r"^(?:A\s+)?" + re.escape(FIRST_APPENDIX_TITLE) + "$"
+FIRST_APPENDIX_PATTERN = r"^(?:[A-Z]\s+)?" + re.escape(FIRST_APPENDIX_TITLE) + "$"
 #: How a figure caption begins on the page: LaTeX's "Figure 2:" (``\caption``, TEMPLATE-DIFF.md).
 #: main.md writes the same caption as "**Figure 2.**", which make_pdf_source.py takes off.
 CAPTION_ON_PAGE = "Figure {number}:"
@@ -641,25 +639,24 @@ def check_figures(repo_root: Path, pages: list[str]) -> list[str]:
             )
     return problems
 
-#: Every column header of the widest table in the manuscript -- the eligibility audit of section F.
+#: Every column header of the widest table in the paper -- Table 1, the three gates of section 1.
 #: Losing the right-hand columns of a wide table is the specific way ``longtable`` goes wrong, and
 #: it would not be visible from a page count. This table is the one to watch because its two
-#: right-hand columns are the ones that carry the audit: the third says what was unknown at seal
-#: time and the fourth says what is reported after the run, and a page that dropped them would
-#: still look like a complete table.
+#: right-hand columns carry what was found and what it did to the evaluation, and a page that
+#: dropped them would still look like a complete table.
 WIDEST_TABLE_COLUMNS: tuple[str, ...] = (
-    "Planned analysis",
-    "Role",
-    "Realized outcome known at seal time?",
-    "Reported after the run",
+    "Gate",
+    "Meant to secure",
+    "What it read",
+    "What we found",
+    "Effect on the evaluation",
 )
 
-#: The column headers of the analysis map of section 2.4, the widest table the revision added. Its
-#: right-hand columns say when each layer was fixed and what it licenses, which is the part a page
-#: that dropped them would lose without looking incomplete.
+#: The column headers of the table of layers in section 2.5. Its right-hand columns say when each
+#: layer was fixed and what it licenses, which is the part a page that dropped them would lose
+#: without looking incomplete.
 ANALYSIS_MAP_COLUMNS: tuple[str, ...] = (
     "Layer",
-    "Computes, on which data",
     "Fixed when",
     "Licenses",
 )
@@ -861,19 +858,22 @@ def main(argv: list[str] | None = None) -> int:
     for column in WIDEST_TABLE_COLUMNS:
         if normalise(column) not in flat:
             problems.append(
-                f"a column header of the section F table is absent: {column!r} "
+                f"a column header of Table 1 is absent: {column!r} "
                 "(the table may have been set too wide and lost its right-hand columns)"
             )
 
     for column in ANALYSIS_MAP_COLUMNS:
         if normalise(column) not in flat:
             problems.append(
-                f"a column header of the section 2.4 analysis map is absent: {column!r} "
+                f"a column header of the table of layers in section 2.5 is absent: {column!r} "
                 "(the table may have been set too wide and lost its right-hand columns)"
             )
 
+    paper = (args.repo_root / "manuscript" / "main.md").read_text(encoding="utf-8")
     for glyph, name in REQUIRED_GLYPHS:
-        if glyph not in raw:
+        # Required where the paper uses it; a glyph only the Supplementary Material uses is not set
+        # here.
+        if glyph in paper and glyph not in raw:
             problems.append(
                 f"the character {glyph!r} ({name}) does not appear in the PDF. "
                 "XeTeX sets nothing for a character the font lacks and does not fail, "
@@ -890,6 +890,10 @@ def main(argv: list[str] | None = None) -> int:
         for key in key_path:
             value = value[key]
         literal = literal_of(value, how)
+        # Only a quantity the paper quotes can be missing from its page; the Supplementary Material
+        # quotes the rest, and check_manuscript_numbers.py holds both files to the inputs.
+        if literal not in paper:
+            continue
         # A long token may have been broken across lines to keep it on the page, so a quantity
         # missing from the whitespace-collapsed text is looked for again with whitespace removed.
         if literal not in flat and despace(literal) not in tight:
@@ -911,10 +915,10 @@ def main(argv: list[str] | None = None) -> int:
         f"every heading and figure carries the number main.md gives it in the .aux, "
         "the AI-use footnote is on the first page, every figure's numbers stand row by row on its "
         f"page, {len(REQUIRED_PHRASES) + len(title_phrases)} required phrases, "
-        f"all {len(WIDEST_TABLE_COLUMNS)} column headers of the section F table and "
-        f"{len(ANALYSIS_MAP_COLUMNS)} of the section 2.4 analysis map, "
-        f"{len(REQUIRED_GLYPHS)} glyphs at risk of silent loss, and "
-        f"{len(REQUIRED)} quantities read from the frozen inputs are present in the PDF "
+        f"all {len(WIDEST_TABLE_COLUMNS)} column headers of Table 1 and "
+        f"{len(ANALYSIS_MAP_COLUMNS)} of the table of layers, "
+        f"the glyphs at risk of silent loss that the paper uses, and "
+        f"the quantities read from the frozen inputs that the paper quotes are present in the PDF "
         f"({len(flat)} characters of text)"
     )
     return 0

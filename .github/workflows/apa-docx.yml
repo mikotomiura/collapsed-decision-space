@@ -144,6 +144,18 @@ jobs:
           rm paper-again.docx
           ls -l paper.docx
 
+      # The Supplementary Material is a separate document, set with the same reference document.
+      # It is converted, not read back: check_docx_text.py holds the paper's .docx to main.md, and
+      # supplement.md is held to the frozen inputs by check_manuscript_numbers.py and to the claim
+      # boundary by check_claim_boundary.py, in repro.sh.
+      - name: Build the Supplementary Material .docx
+        working-directory: build/docx
+        run: |
+          set -eux
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          pandoc ../../manuscript/supplement.md --from markdown-implicit_figures \
+            --reference-doc reference.docx -o supplement.docx
+          ls -l supplement.docx
       - name: Read the .docx back against main.md, and break copies of it
         id: read
         run: |
@@ -176,6 +188,7 @@ jobs:
           name: apa-docx-${{ github.sha }}
           path: |
             build/docx/paper.docx
+            build/docx/supplement.docx
             build/docx/paper-docx.pdf
             build/docx/paper-docx.txt
             build/docx/paper-source.md

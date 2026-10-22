@@ -5,6 +5,67 @@ silently. Sections are named by title, not by number, because numbers change bet
 file is not part of the submission PDF, and it changes nothing that the sealed rules, the frozen
 files or the checks say.
 
+## 2026-10-22 — revised for the editor's assessment: shorter, built on the three safeguards
+
+The editor asked for a body of 5,000 to 7,000 words, one section per safeguard stating what it was
+meant to secure, what it measured, what was found and why it matters, a simpler account of the
+original evaluation, the registered, post hoc and held-out distinction stated once, and a
+discussion separating flaws that affected the evaluation from those that are only potential. The
+body now runs: introduction; the evaluation and what it returned; one section per gate, each in
+those four parts; discussion; limitations. Abstract and body together fall from about 7,900 words to
+about 6,750, tables and captions included.
+
+**The paper and its Supplementary Material are now two files.** `manuscript/main.md` carries the
+body, the references, §E (the decision rules as sealed) and §K (the AI-use disclosure).
+`manuscript/supplement.md` carries every other lettered section under its old letter. §E stays in
+the paper because the sealed checks require the generated rule text to stand in `main.md`; the
+letters stay because files that cannot change cite them. The checks that read the manuscript read
+both files (numbers, claim boundary, cross-references); the `.docx` and the PDF set the paper only.
+
+### Where the content of the earlier body went
+
+| Earlier section (by title) | Now |
+|---|---|
+| Introduction, and its table of the three gates | Introduction; the table now gives each gate what it was meant to secure, what it read, what was found and what it did to the evaluation |
+| Setting and protocol: the agent, the world and the read-out; the manipulation and the runs; estimand, test, margin and gates | *The evaluation and what it returned*, shortened: the prompt's content, the reason for the backend change and the description of R5 to R2 are one sentence each |
+| Setting and protocol: analysis map | *The evaluation and what it returned*: what each analysis may be read as. The layers are defined once in prose; the table keeps when each was fixed and what it licenses, and the column of what each computes left it. Paragraph tags left the body; each gate section gives its findings' layers in a table |
+| What the sealed rules returned | *The evaluation and what it returned*: what the sealed rules returned (the registered paragraphs); the table of what the runs show at each gate became the introduction's table; the sealed reading of R4 beside the data moved to *Gate 2* |
+| Gate 1: the surrogate's sweep | Appendix B.1, with the sentence that reads it; the body quotes its value at one hundredth of the margin |
+| Gate 1: simulated operating characteristics | *Gate 1*, shortened; the four feasible directions at the registered shift, the infeasible ones and the statistics D1 and D5 share moved to appendix B.3 |
+| Gate 2: the simulation's two observations about the empty zones and the degenerate base | Appendix B.3 |
+| Gate 3: the held-out test's freeze, run and status | *Gate 3*; the two operating systems it ran on are in appendix J |
+| Lessons and related work: three diagnostics | *Discussion*: three diagnostics, shortened |
+| Lessons and related work: related work | *Discussion*: relation to prior work, shortened; the sentence on validating generative simulations stays in the introduction |
+| Limitations | *Limitations*, with the qualifiers the body repeated (exchangeable draws, the freeze declared rather than demonstrated, what the held-out result does not license) collected in the section on execution order, and a section on scope |
+
+### Added
+
+- **A discussion of flaws that changed the evaluation and flaws that did not.** The entropy floor
+  decided the reported branch; the power gate and the cap did not, and the section says under what
+  conditions each would.
+- **What each gate was meant to secure**, stated at the head of its section.
+- `≥` in two sentences and one narrative citation of [44], which the `.docx` mutation test needs
+  targets for.
+
+### Changed in the checks
+
+- `check_crossrefs.py`, `check_manuscript_numbers.py` and `check_claim_boundary.py` read
+  `supplement.md` beside `main.md`. One rendered phrase whose host table left the body was dropped
+  from the number check; the labels of the others name the new sections.
+- `make_pdf_source.py` sets an appendix at its own letter when the paper skips letters, and skips an
+  anonymous rewrite whose sentence now stands only in the Supplementary Material.
+- `check_pdf_text.py` and `check_docx_text.py` require the glyphs and quantities the paper uses,
+  not those only the Supplementary Material uses; the widest table watched is now Table 1.
+- `check_docx_text.py` skips the two code-block mutations when the paper has no code block.
+- `check_pdf_identity.py` no longer withholds the word "supplement" from the anonymous PDF: the
+  Supplementary Material is now submitted with the paper and cited from it. The anonymous build
+  takes `supplement.md`, like `main.md`, from the de-identified bundle.
+- The `apa-docx` workflow also converts `supplement.md` to its own `.docx`.
+- The citation fixtures (`manuscript/tmlr/citations.tsv`, `manuscript/docx/citations-apa.tsv`) were
+  regenerated from the new body.
+- Appendix L and `manuscript/tmlr/section-map.json`: the analysis map is now §2.5 and the limitation
+  on model family and think regime §7.1.
+
 ## 2026-09-30 — restructured around the three gates
 
 The body now runs: introduction; setting and protocol; what the sealed rules returned; one section per

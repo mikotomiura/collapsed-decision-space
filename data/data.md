@@ -179,7 +179,7 @@ to be byte-identical.
   (`9cc70f9dc5d61f6c74c08dee4dd73815993861022a80781a75ef5d873860c0f7`), and
   `verify_data_hashes.py` checks that equality on every run rather than asserting it.
 - **Provenance of the frozen thresholds** is in `analysis/freeze-provenance.json`; what the
-  verification does and does not establish is set out in `manuscript/main.md` §G.2.
+  verification does and does not establish is set out in `manuscript/supplement.md` §G.2.
 
 ## Recovering from an end-of-line normalisation (2026-09-12)
 

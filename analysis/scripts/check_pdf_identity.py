@@ -81,10 +81,9 @@ PDF_WITHHELD: tuple[tuple[str, str], ...] = (
     ("public continuous integration", r"public\s+continuous\s+integration"),
     # This repository's name on its own, not only inside its URL (DA-C-18).
     ("the repository's name", r"collapsed-decision-space"),
-    # F02 = c: no supplement is submitted, so the PDF must not promise or describe one. The word is
-    # matched everywhere; only the PDF syntax ``/Supplement <n>`` is taken out of the raw bytes first
-    # (:data:`_CMAP_SUPPLEMENT`), because every ToUnicode CMap pdflatex writes carries one.
-    ("a supplement", r"supplement"),
+    # F02 = c withheld the word "supplement" while no supplement was to be submitted. The 2026-10-22
+    # revision moved the lettered sections other than §E and §K into a Supplementary Material that is
+    # submitted with the paper and cited from it, so the word is no longer withheld.
     # The placeholders the bundle installs. On the page a URL would lead nowhere, and a deposit
     # identifier would point a reviewer at an archive (TASK-POST review). Matched before the mask
     # that lets the bundle's own scan accept them.
@@ -106,7 +105,8 @@ PDF_WITHHELD: tuple[tuple[str, str], ...] = (
 #: The one PDF construct the word "supplement" occurs in without being prose: the ``/Supplement``
 #: entry of a CMap's ``/CIDSystemInfo`` (the previous submission's inflated bytes held 26 and no
 #: other occurrence). Removed from the raw-bytes haystacks only; the page and the source are
-#: searched as they are.
+#: searched as they are. No pattern withholds the word since the 2026-10-22 revision; the removal is
+#: kept so that a pattern added later is not tripped by a CMap.
 _CMAP_SUPPLEMENT = re.compile(r"/Supplement\s+\d+")
 
 #: One sample per withheld word for ``--mutation-test``: put back into a copy of the real page text
@@ -123,8 +123,6 @@ MUTATION_SAMPLES: dict[str, tuple[str, ...]] = {
     "a project-specific script name": ("scripts/paper02_run_arms.py",),
     "public continuous integration": ("re-run by public\ncontinuous integration",),
     "the repository's name": ("collapsed-decision-space",),
-    # The second sample is the case an exclusion of "/Supplement" would let through (TASK-POST).
-    "a supplement": ("the review supplement", "files under manuscript/supplement/ are"),
     "a placeholder location": ("https://anonymous.invalid/repo",),
     "a placeholder identifier": ("10.0000/anonymous.concept",),
     "a time to the second": ("2026-09-13T23:44:39.000Z", "2026-07-07T17:08:49Z"),

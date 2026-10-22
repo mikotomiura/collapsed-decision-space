@@ -1,12 +1,12 @@
 {
-  "purpose": "The manuscript was reordered into TMLR order on 2026-09-26 (body, References, appendices) and its sections renumbered. Files that cannot be edited -- sealed, frozen or declared -- still cite the earlier numbers. Each such citation is listed here with the section it now means; appendix L of main.md carries the same table, and check_crossrefs.py requires the two to agree, every literal to still stand at its line, and no other citation of that kind to exist in those files.",
+  "purpose": "The manuscript was reordered into TMLR order on 2026-09-26 (body, References, appendices) and its sections renumbered. Files that cannot be edited -- sealed, frozen or declared -- still cite the earlier numbers. Each such citation is listed here with the section it now means; appendix L, in the Supplementary Material (manuscript/supplement.md), carries the same table, and check_crossrefs.py requires the two to agree, every literal to still stand at its line, and no other citation of that kind to exist in those files.",
   "frozen_citations": [
     {
       "file": "analysis/autopsy/DECLARATION.md",
       "line": 8,
       "literal": "§1.4 of the manuscript",
       "old": "1.4",
-      "new": "2.4"
+      "new": "2.5"
     },
     {
       "file": "analysis/autopsy/grid.json",
@@ -48,7 +48,7 @@
       "line": 147,
       "literal": "§12.1",
       "old": "12.1",
-      "new": "8.1"
+      "new": "7.1"
     },
     {
       "file": "analysis/heldout-stay/SPEC.ja.md",
@@ -62,14 +62,14 @@
       "line": 133,
       "literal": "§12.1",
       "old": "12.1",
-      "new": "8.1"
+      "new": "7.1"
     },
     {
       "file": "analysis/heldout-stay/result.json",
       "line": 668,
       "literal": "§12.1",
       "old": "12.1",
-      "new": "8.1"
+      "new": "7.1"
     },
     {
       "file": "data/posthoc/pipeline.md",

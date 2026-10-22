@@ -266,8 +266,8 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
         "| the held-out test's specification | 21 | 8 | §E |",
     ),
     (
-        "| `analysis/heldout-stay/SPEC.ja.md` | 147 | 12.1 | §8.1 |",
-        "| the held-out test's specification | 147 | 12.1 | §8.1 |",
+        "| `analysis/heldout-stay/SPEC.ja.md` | 147 | 12.1 | §7.1 |",
+        "| the held-out test's specification | 147 | 12.1 | §7.1 |",
     ),
     (
         "| `analysis/heldout-stay/SPEC.ja.md` | 169 | 6.3 | §C.4 |",
@@ -282,9 +282,9 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     # §1, the first contribution: nothing is supplied for review, so what it rests on can be checked
     # only once the compendium is public.
     (
-        "compare most quoted quantities with the data, are in this repository (§J).",
-        "compare most quoted quantities with the data, will be made public after review and can be "
-        "checked there (§J).",
+        "with the rules, records and checks that\nrecompute it (§J);",
+        "with the rules, records and checks that\nrecompute it, which will be made public after "
+        "review (§J);",
     ),
 )
 
@@ -790,16 +790,25 @@ def number_headings(body: str) -> tuple[str, list[Heading]]:
             _die(f"a heading carries no section number: {line!r}")
         counters[level - 1] += 1
         counters[level:] = [0] * (3 - level)
+        number, title = numbered.group(1), numbered.group(2)
+        # The paper carries only some of the lettered appendices (§E and §K; the others are in the
+        # Supplementary Material), so a lettered section may skip ahead. It is set at its own
+        # letter by moving LaTeX's counter, never by renumbering what the repository cites.
+        skip = ""
+        if appendix and level == 1 and re.fullmatch(r"[A-Z]", number):
+            position = ord(number) - ord("A") + 1
+            if position > counters[0]:
+                skip = f"\\setcounter{{section}}{{{position - 1}}}\n\n"
+                counters[0] = position
         head = chr(ord("A") + counters[0] - 1) if appendix else str(counters[0])
         expected = ".".join([head, *(str(c) for c in counters[1:level])])
-        number, title = numbered.group(1), numbered.group(2)
         if number != expected:
             _die(
                 f"the heading {line!r} is numbered {number} in main.md, but LaTeX will number it "
                 f"{expected}; renumber main.md (and what cites it) rather than the build"
             )
         headings.append(Heading(level, number, title))
-        lines[index] = f"{match.group(1)} {title}"
+        lines[index] = f"{skip}{match.group(1)} {title}"
     if fenced:
         _die("a fenced code block is never closed")
     return "\n".join(lines), headings
@@ -970,7 +979,16 @@ def build(
     # path such as `analysis/apparatus/erre_sandbox/...`, and the escaped form no longer matches the
     # name. The first anonymous build put it on the page exactly that way.
     if anonymous:
+        supplement_path = repo_root / "manuscript" / "supplement.md"
+        supplement = (
+            supplement_path.read_text(encoding="utf-8") if supplement_path.is_file() else ""
+        )
         for old, new in ANONYMOUS_REWRITES:
+            # Most of these sentences now stand in the Supplementary Material, which this PDF does
+            # not set; a rewrite is skipped there, and must still match one file exactly once, so
+            # a sentence edited out from under it is reported rather than silently passed.
+            if body.count(old) == 0 and supplement.count(old) == 1:
+                continue
             if body.count(old) != 1:
                 _die(
                     f"an anonymous rewrite no longer matches main.md exactly once: {old[:60]!r}"

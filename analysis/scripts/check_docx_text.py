@@ -3154,7 +3154,9 @@ def check_text(
                 )
     everything = "".join(p.text for p in _all_paragraphs(doc))
     for glyph, name in REQUIRED_GLYPHS:
-        if glyph not in everything:
+        # A glyph is required only where main.md uses it; the Supplementary Material is a
+        # separate document, and a glyph that moved there is not this one's to set.
+        if glyph in inp.manuscript.text and glyph not in everything:
             problems.append(Problem("glyph", name, f"{glyph!r} is nowhere in the .docx"))
     k_heading = next(
         (b for b in inp.manuscript.blocks if b.kind == "heading" and b.raw.startswith("K. ")), None
@@ -3373,6 +3375,14 @@ def figure_text_problems(root: Path, directory: Path) -> list[Problem]:
 
 class NoTarget(Exception):
     """The document offers nothing to mutate this way; the test fails rather than skipping it."""
+
+
+class NotApplicable(NoTarget):
+    """The manuscript has nothing the mutation could break, so the mutation does not apply.
+
+    Unlike :class:`NoTarget`, this is not a failure: a mutation of a code block cannot be run on a
+    .docx built from a manuscript with no code block, and nothing is left unchecked by skipping it.
+    """
 
 
 Expectation = set[tuple[str, str]]
@@ -5222,9 +5232,16 @@ def m_line_breaks(data, contract, state):
     return _rewrite(data, edit), contract, {("structure", "line breaks")}
 
 
+def _code_block(state: dict[str, Any]) -> int:
+    """The first code block of the .docx, or :class:`NotApplicable` when main.md has none."""
+    if not any(b.kind == "code" for b in state["inputs"].manuscript.blocks):
+        raise NotApplicable("main.md has no code block")
+    return _block_of_style(state, "Source Code")
+
+
 def m_code_breaks(data, contract, state):
     """Three line breaks added to the end of a code block: lines its code does not have."""
-    index = _block_of_style(state, "Source Code")
+    index = _code_block(state)
 
     def edit(root):
         run = list(list(_body(root))[index].iter(w("r")))[-1]
@@ -5308,7 +5325,7 @@ def m_prose_as_code(data, contract, state):
 
 def m_code_lines_moved(data, contract, state):
     """A code block's line breaks turned into spaces and set again at its end: its lines run on."""
-    index = _block_of_style(state, "Source Code")
+    index = _code_block(state)
 
     def edit(root):
         paragraph = list(_body(root))[index]
@@ -5890,6 +5907,8 @@ def mutation_test(inp: Inputs, data: bytes) -> list[str]:
     for name, mutate in MUTATIONS:
         try:
             mutated, contract, expected = mutate(data, inp.contract, state)
+        except NotApplicable:
+            continue
         except NoTarget as reason:
             failures.append(f"{name}: no target ({reason})")
             continue

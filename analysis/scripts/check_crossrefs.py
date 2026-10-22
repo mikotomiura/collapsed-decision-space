@@ -148,10 +148,23 @@ def map_row(entry: dict[str, object]) -> str:
     return f"| `{entry['file']}` | {entry['line']} | {entry['old']} | §{entry['new']} |"
 
 
-def check(root: Path) -> list[str]:
+#: The lettered sections other than §E and §K are in the Supplementary Material, which shares the
+#: paper's section numbering: a ``§`` reference in either file may name a heading of the other.
+SUPPLEMENT = Path("manuscript/supplement.md")
+
+
+def manuscript_text(root: Path) -> tuple[str, str]:
+    """The paper and its Supplementary Material, read as one numbering."""
     main = (root / "manuscript" / "main.md").read_text(encoding="utf-8")
-    known = headings(main)
+    supplement = root / SUPPLEMENT
+    return main, supplement.read_text(encoding="utf-8") if supplement.is_file() else ""
+
+
+def check(root: Path) -> list[str]:
+    main, supplement = manuscript_text(root)
+    known = headings(main) | headings(supplement)
     problems = unresolved(GENERATED.sub("", main), known, "manuscript/main.md")
+    problems += unresolved(supplement, known, SUPPLEMENT.as_posix())
     for rel in DOCUMENTS:
         text = (root / rel).read_text(encoding="utf-8")
         problems += unresolved(text, known | headings(text), rel)
@@ -160,7 +173,7 @@ def check(root: Path) -> list[str]:
         "frozen_citations"
     ]
     listed = set()
-    flat = " ".join(main.split())
+    flat = " ".join((main + "\n" + supplement).split())
     for entry in entries:
         rel, line, literal = entry["file"], entry["line"], entry["literal"]
         listed.add((rel, line, literal))
@@ -176,7 +189,7 @@ def check(root: Path) -> list[str]:
         count = flat.count(" ".join(map_row(entry).split()))
         if count != 1:
             problems.append(
-                f"main.md carries the appendix L row for {rel}:{line} {count} times, not once"
+                f"the manuscript carries the appendix L row for {rel}:{line} {count} times, not once"
             )
     files = frozen_files(root)
     # A scope with a missing entry is a failure, not a pass: a check that found nothing to read has

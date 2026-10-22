@@ -431,6 +431,7 @@ def main(argv: list[str] | None = None) -> int:
     extra_targets: list[Path] = [p.resolve() for p in args.extra_target]
     targets = (
         main_path,
+        repo_root / "manuscript" / "supplement.md",
         repo_root / "README.md",
         repo_root / "README.ja.md",
         citation_path,

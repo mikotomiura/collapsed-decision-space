@@ -60,6 +60,19 @@ from render_reported_branch import (  # noqa: E402
 from verify_data_hashes import PROSPECTIVE_OUTPUTS  # noqa: E402
 import check_crossrefs  # noqa: E402
 
+def manuscript_text(root: Path) -> str:
+    """The paper and its Supplementary Material, which together are the manuscript.
+
+    The lettered sections other than §E and §K moved to ``manuscript/supplement.md``; a quantity
+    the manuscript quotes may stand in either file, and is counted across both.
+    """
+    main = (root / "manuscript" / "main.md").read_text(encoding="utf-8")
+    supplement = root / "manuscript" / "supplement.md"
+    if supplement.is_file():
+        main += "\n\n" + supplement.read_text(encoding="utf-8")
+    return main
+
+
 #: (label, input file, key path, how to render the literal).
 #: The key path walks dictionaries only.
 REQUIRED: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
@@ -814,7 +827,7 @@ def check_third_finding_support(repo_root: Path) -> list[str]:
     raw_dir = repo_root / "data" / "raw"
     rules_path = repo_root / "seal" / "decision-rules.json"
     derived_path = repo_root / "data" / "derived" / "collapse-and-floor.json"
-    text = (repo_root / "manuscript" / "main.md").read_text(encoding="utf-8")
+    text = manuscript_text(repo_root)
 
     landed = sorted(name for name in PROSPECTIVE_OUTPUTS if (raw_dir / name).is_file())
     if len(landed) != len(PROSPECTIVE_OUTPUTS) or not PROSPECTIVE_OUTPUTS:
@@ -1093,9 +1106,9 @@ def check_third_finding_guards_fire(repo_root: Path) -> list[str]:
                 (root / "data" / "derived").mkdir(parents=True)
                 (root / "seal").mkdir(parents=True)
                 (root / "manuscript").mkdir(parents=True)
-                shutil.copy2(
-                    repo_root / "manuscript" / "main.md", root / "manuscript" / "main.md"
-                )
+                for name in ("main.md", "supplement.md"):
+                    if (repo_root / "manuscript" / name).is_file():
+                        shutil.copy2(repo_root / "manuscript" / name, root / "manuscript" / name)
                 payloads = {
                     name: load_json(repo_root / "data" / "raw" / name)
                     for name in ("cproper-verdict.json", *sorted(PROSPECTIVE_OUTPUTS))
@@ -1166,6 +1179,7 @@ _ZONES: tuple[str, ...] = ("agora", "chashitsu", "garden", "peripatos", "study")
 #: Where the rendered comparison reads its sources, relative to the repository root.
 RENDER_SOURCES: tuple[str, ...] = (
     "manuscript/main.md",
+    "manuscript/supplement.md",
     "data/derived/collapse-and-floor.json",
     "data/derived/power-curve.md",
     "data/raw/bank_annotation.jsonl",
@@ -1483,11 +1497,11 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         problems.append("agreement phrase: the test never equals the surrogate along D1")
     else:
         fragments.append(
-            ("agreement phrase, §4.2", f"they agree from `delta_tv` = {agree_from} upward and part below it")
+            ("agreement phrase, §3", f"they agree from `delta_tv` = {agree_from} upward and part below it")
         )
         fragments.append(
             (
-                "agreement phrase, after the table of §3",
+                "agreement phrase, §B.3",
                 f"equals the surrogate's {surrogate[('C', agree_from)]!r} from `delta_tv` = "
                 f"{agree_from} upward along the surrogate's direction",
             )
@@ -1750,8 +1764,8 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         ),
         ("completed-run None total", f"All {total} are the same thing"),
         ("completed-run None total, all string null", f"all {total} `None` records are this string"),
-        ("completed-run None total, in §6.2", f"all {total} dropped draws are the string"),
-        ("completed-run None by condition, in the table of §3", f"{none_on} against {none_off} in the completed run"),
+        ("completed-run None total, in §5", f"all {total} dropped draws are the string"),
+        ("completed-run None by condition, in Table 1 or §5", f"{none_on} against {none_off} in the completed run"),
     ]
     freeze = load_json(root / "analysis" / "heldout-stay" / "freeze.json")
     pinned = freeze["positive_control"]["records_classes"]
@@ -1777,12 +1791,12 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
     low, high = _word(primary["cell_min"]), _word(primary["cell_max"])
     fragments += [
         (
-            "primary cells, in the table of §3",
+            "primary cells, in Table 1 or §5",
             f"each of its {primary['cells']} (context, condition) cells produced between {low} "
             f"and {high} zones",
         ),
         (
-            "primary cells, beside the sealed reading in §3",
+            "primary cells, beside the sealed reading in §4",
             f"every one of the primary arm's {primary['cells']} (context, condition) cells "
             f"produces {low} or more zones, between {low} and {high}",
         ),
@@ -1857,11 +1871,11 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             f"({c_none['on']} against {c_none['off']}; {p_none['on']} against {p_none['off']})",
         ),
         (
-            "held-out counts of the control arm, in the table of §3",
+            "held-out counts of the control arm, in Table 1 or §5",
             f"{c_none['on']} against {c_none['off']} in the control arm",
         ),
         (
-            "held-out counts of the primary arm, in the table of §3",
+            "held-out counts of the primary arm, in Table 1 or §5",
             f"{p_none['on']} against {p_none['off']} in the primary arm",
         ),
         (
@@ -1869,7 +1883,7 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             f"{points('control')} and {points('primary')} percentage points",
         ),
         (
-            "held-out rate difference, in §6.2",
+            "held-out rate difference, in §5",
             f"{points('control')} percentage points in the control arm and {points('primary')} in "
             "the primary arm",
         ),
@@ -1891,21 +1905,20 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             "in the primary arm",
         ),
         (
-            "held-out freeze commit, in the table title of §6.2",
+            "held-out freeze commit, in the table title of §5",
             f"Specification frozen at commit `{result['freeze_commit'][:7]}`, before the "
             "condition-wise counts",
         ),
         (
-            "held-out freeze commit, in §6.2",
+            "held-out freeze commit, in §5",
             f"interpretation table were frozen at commit `{result['freeze_commit'][:7]}`",
         ),
         ("held-out row", f"row {result['row']['id']} of the frozen interpretation table"),
-        ("held-out row, in the table of §3", f"(row {result['row']['id']} of the held-out test's frozen interpretation table"),
-        ("held-out row, in §2.4", f"Row {result['row']['id']} of its frozen table"),
+        ("held-out row, in §2.5", f"Row {result['row']['id']} of its frozen table"),
         ("held-out level", f"at level {result['alpha']}"),
-        ("held-out level, in §2.4", f"control first, α = {result['alpha']}"),
+        ("held-out level, in §2.5", f"control first, α = {result['alpha']}"),
         (
-            "empty destinations among the prospective None, in §6.2",
+            "empty destinations among the prospective None, in §5",
             f"for all but {_word(empty)} of the draws dropped in the prospective arms",
         ),
         (
@@ -2330,7 +2343,7 @@ def check_rendered_fragments(repo_root: Path) -> list[str]:
         return [f"the rendered comparison has no source at {missing}"]
     fragments, problems = rendered_fragments(repo_root)
     problems += _fragment_problems(
-        fragments, (repo_root / "manuscript" / "main.md").read_text(encoding="utf-8")
+        fragments, manuscript_text(repo_root)
     )
     if not problems:
         print(
@@ -2517,7 +2530,7 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
         ("M31 the seed-varied Type-I count moves", with_digests(summary_json, _set(("reading_rules", "type_i_with_per_replicate_scorer_seed", "r2", "k"), 94)), "Type-I row, scorer seed varied"),
         ("M32 D4 becomes feasible at 0.02 on the degenerate base", with_digests(summary_json, cell_edit("G|D4|0.02", "status", value="run")), "degenerate-base feasibility"),
         ("M33 the surrogate falls below 1.0 at 0.02 on the degenerate base", with_digests(side_json, side_row("surrogate_alongside", lambda r: (r["base"], r["delta_tv"]) == ("G", "0.02"), "surrogate_power", 0.99)), "degenerate-base surrogate"),
-        ("M34 the test stops matching the surrogate at 0.05", with_digests(summary_json, cell_edit("C|D1|0.05", "summary", "test_reject", "rate", value=0.999)), "agreement phrase, §4.2"),
+        ("M34 the test stops matching the surrogate at 0.05", with_digests(summary_json, cell_edit("C|D1|0.05", "summary", "test_reject", "rate", value=0.999)), "agreement phrase, §3"),
         ("M35 a replicate stops at R4 under the null on the degenerate base less often", with_digests(summary_json, cell_edit("G|null|0", "summary", "branch_counts", "R4", value=3999)), "degenerate-base null branch counts"),
         ("M36 D5 departs from D1 at the registered delta_tv", with_digests(summary_json, cell_edit("C|D5|0.10", "summary", "mean_tv_bar", value=0.5)), "D1/D5 phrase"),
         ("M37 a direction stops being an alias", with_digests(summary_json, cell_edit("Cs|D2|0.10", "alias_of", value="Cs|D3|0.10")), "alias phrase"),
@@ -2734,7 +2747,7 @@ def main(argv: list[str] | None = None) -> int:
     if not main_md.is_file():
         print(f"[numbers] FAIL: the manuscript is missing: {main_md}", file=sys.stderr)
         return 1
-    text = main_md.read_text(encoding="utf-8")
+    text = manuscript_text(repo_root)
 
     readme_md = repo_root / "README.md"
     if not readme_md.is_file():

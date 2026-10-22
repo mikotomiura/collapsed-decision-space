@@ -25,7 +25,7 @@ entropy floor, so the estimand is not measured there. That is not read as a null
 claim narrows to single-model scope. The control arm's first capture attempt was stopped from
 outside before it produced a verdict and was restarted from the beginning; the attempt logs and
 the stopped attempt's partial record are shipped in `data/attempts/` (§I.5 of the manuscript).
-§3 of `manuscript/main.md` reports the branch and
+§2.4 of `manuscript/main.md` reports the branch and
 `manuscript/REPORTED-BRANCH.md` records the derivation; step 13 re-derives the branch from the
 sealed rules on every run.
 
@@ -84,7 +84,7 @@ The full guard list, with the search patterns used to enforce it, is in
   itself what lowers the computed power. The sealed design did not evaluate the power of the
   permutation test; a post hoc simulation, declared before it was run, finds its rejection rate
   equal to the surrogate's 1.0 from `delta_tv` = 0.05 upward along the surrogate's direction on the
-  completed run's channel-off base, and below it at smaller shifts (manuscript §4.2, `data/posthoc/`)
+  completed run's channel-off base, and below it at smaller shifts (manuscript §3, `data/posthoc/`)
 - the channel's downstream effect was not detected under a margin fixed before the data existed, in
   the two runs that produced an estimate
 - effect-absent, low-power and apparatus-invalid are kept apart as three distinct outcomes
@@ -114,7 +114,8 @@ its fixture, or starts matching one of the sentences its negative control lists 
 
 | Path | Contents |
 |---|---|
-| `manuscript/main.md` | The protocol |
+| `manuscript/main.md` | The protocol: the paper, with §E (the decision rules as sealed) and §K (the AI-use disclosure) |
+| `manuscript/supplement.md` | The Supplementary Material: the other lettered sections, §A to §D, §F to §J and §L to §O |
 | `manuscript/refs.json` | The bibliography as CSL-JSON; the References section of `main.md` is rendered from it |
 | `manuscript/CLAIM-BOUNDARY.md` | The claim guards and their search patterns |
 | `manuscript/REPORTED-BRANCH.md` | How the reported decision branch is written, and what checking it establishes |
@@ -236,7 +237,7 @@ The distinction matters more than the green badge, so it is stated here rather t
   per-draw record is treated as a frozen input rather than as something the script recreates.
 - The upstream commit *dates*, unless you point the script at a clone of that repository. Offline,
   the checks establish content, not chronology; the two together are what supports the ordering
-  claim, and `manuscript/main.md` §G.2 states this rather than implying either half carries it.
+  claim, and `manuscript/supplement.md` §G.2 states this rather than implying either half carries it.
 - The age of one record. The forensic record of the channel study entered version control through a
   relocation commit, so history witnesses its content but not when it was produced. This is
   recorded in `analysis/freeze-provenance.json` and disclosed in the protocol.
@@ -286,7 +287,7 @@ the check did not have; the list it now enforces is `README_QUANTITIES` in
 | degenerate | 0.10 | 1.0000 |
 
 These are powers of the pooled chi-square surrogate the power gate computes, not of the permutation
-test the decision turns on, which the sealed design did not evaluate; §4.2 of the manuscript
+test the decision turns on, which the sealed design did not evaluate; §3 of the manuscript
 simulates it post hoc. For that surrogate, power is governed
 by the size of the shift being looked for, not by how concentrated the base distribution is — the
 third row carries that point, and the first and fourth show that at the registered `delta_tv` it

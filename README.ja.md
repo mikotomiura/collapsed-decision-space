@@ -75,7 +75,7 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 - 検出力ゲートが計算する chi-square 代理検定では、基底分布の集中それ自体は計算上の検出力を下げないこと。
   permutation 検定の power は封印済の設計では評価されていない。実行前に宣言した事後 simulation では、
   完了済 run の channel-off 基底の上で、代理の向きに沿って `delta_tv` = 0.05 以上では代理と同じ 1.0、
-  それより小さい偏りでは代理を下回る (本文 §4.2、`data/posthoc/`)
+  それより小さい偏りでは代理を下回る (本文 §3、`data/posthoc/`)
 - 推定値を産出した 2 つの run で、チャネルの下流効果が、データが存在する前に固定した margin の下で
   検出されなかったこと
 - effect-absent / low-power / apparatus-invalid を**三者別々**に保つこと
@@ -102,7 +102,8 @@ study が、チャネルが因果的であること、静的な位置チャネ�
 
 | パス | 内容 |
 |---|---|
-| `manuscript/main.md` | protocol 本文 |
+| `manuscript/main.md` | protocol 本文 (論文本体と、§E 封印済の決定規則・§K AI 利用の開示) |
+| `manuscript/supplement.md` | 補足資料 (それ以外の付録 §A〜§D・§F〜§J・§L〜§O) |
 | `manuscript/refs.json` | 書誌 (CSL-JSON)。`main.md` の References はここから描画する |
 | `manuscript/CLAIM-BOUNDARY.md` | claim ガードと検索パターン |
 | `manuscript/REPORTED-BRANCH.md` | 報告する決定分岐の書き方と、その照合が示すこと／示さないこと |
@@ -214,7 +215,7 @@ LibreOffice が要ります。手順は `.github/workflows/apa-docx.yml` の段�
 - draw そのものの再生成。言語モデルの draw は再生成しても一致しないので、per-draw 記録は
   スクリプトが作り直すものではなく凍結入力として扱っています
 - 上流 commit の**日付**（clone を渡さない限り）。オフラインで示せるのは内容であって
-  時系列ではありません。順序の主張は両者の連言であり、`manuscript/main.md` §G.2 は
+  時系列ではありません。順序の主張は両者の連言であり、`manuscript/supplement.md` §G.2 は
   どちらか一方で言えるかのようには書いていません
 - ある 1 件の記録の**年代**。チャネル研究の forensic 記録はバージョン管理へ「移設」commit で
   入ったため、履歴はその内容を証言しますが、いつ産出されたかは証言しません。
@@ -243,7 +244,7 @@ LibreOffice が要ります。手順は `.github/workflows/apa-docx.yml` の段�
 - 完了済み測定: `verdict = NO_CHANNEL_CONFORMANCE`、`tv_bar` は宣言 margin 0.10 を下回り、
   `rho_hat` と `power` はともに 1.0
 - power: これは検出力ゲートが計算する pooled chi-square 代理検定の power であり、判定が依拠する
-  permutation 検定の power ではありません (後者は封印済の設計では評価されておらず、本文 §4.2 が事後にsimulation しています)。この代理計算では
+  permutation 検定の power ではありません (後者は封印済の設計では評価されておらず、本文 §3 が事後にsimulation しています)。この代理計算では
   **検出力を左右するのは探している偏りの大きさであって、基底分布がどれだけ集中しているかでは
   ありません**。登録した `delta_tv` では両方の基底で 1.0000 を返すので、通過は両者を区別しません
 

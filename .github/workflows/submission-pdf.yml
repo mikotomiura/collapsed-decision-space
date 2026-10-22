@@ -63,7 +63,7 @@ jobs:
           set -eux
           uv run --project env --no-sync python analysis/scripts/make_anonymous_bundle.py \
             --out build/anonymous --zip
-          for f in manuscript/main.md analysis/scripts/make_pdf_source.py analysis/scripts/check_pdf_text.py; do
+          for f in manuscript/main.md manuscript/supplement.md analysis/scripts/make_pdf_source.py analysis/scripts/check_pdf_text.py; do
             cp "build/anonymous/$f" "$f"
           done
 
