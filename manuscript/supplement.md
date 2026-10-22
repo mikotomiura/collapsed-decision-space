@@ -1177,6 +1177,19 @@ to be named in this manuscript (§I.5).
 
 ### M.2 What the two arms' gate quantities do and do not compare
 
+**[Post hoc]** The completed run's channel-off read-out, pooled over the contexts (2,276 draws that
+parsed), which §4 gives as counts:
+
+| Zone | Count | Probability |
+|---|---|---|
+| `agora` | 0 | `0.0` |
+| `chashitsu` | 0 | `0.0` |
+| `garden` | 295 | `0.129613` |
+| `peripatos` | 32 | `0.01406` |
+| `study` | 1949 | `0.856327` |
+
+Table: The completed run's channel-off read-out, pooled over the contexts.
+
 Two consequences of the table of zones in §4 are worth stating plainly. The question §C.1 puts — whether the narrow support of
 the completed run belongs to the model or to the apparatus — is not answered in the primary family
 by this run, because the registered scoring procedure returned no estimate there. And the completed
@@ -1194,6 +1207,20 @@ at all.
 that outputs naming `null` as the destination increased only if the same test, applied to the string
 and JSON `null` alone, rejects. It does in the control arm, where it gives *p* = 4.359535e-05, and
 not in the primary arm, where it gives *p* = 2.263667e-01.
+
+**[Held-out] What each draw recorded as `None` held.** Each one's raw response was classified with
+the parser's own steps; §5 quotes the string `"null"` and the absence of a usable JSON object.
+
+| What `destination_zone` held | control, on | control, off | primary, on | primary, off |
+|---|---|---|---|---|
+| the string `"null"` | 154 | 94 | 5 | 2 |
+| a JSON `null` | 1 | 0 | 0 | 0 |
+| no `destination_zone` key | 0 | 0 | 1 | 0 |
+| a valid zone name, with the plan rejected on another field | 0 | 0 | 0 | 0 |
+| some other value | 0 | 0 | 3 | 2 |
+| no usable JSON object | 1 | 0 | 98 | 57 |
+
+Table: What `destination_zone` held in each draw recorded as `None`, by arm and condition.
 
 ### M.3 The estimates the permutation test did not reject
 

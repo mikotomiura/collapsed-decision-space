@@ -1457,7 +1457,6 @@ def primary_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
     a, b, c, d = stops
     fragments += [
         ("primary stops, abstract", f"the floor stopping {a}, {b}, {c} and {d} of them"),
-        ("primary stops, Table 4", f"the sealed floor stops {a}, {b}, {c} and {d} of 500 along D1, D2, D3 and D5"),
         ("primary stops, §4", f"stops {a} of 500 along D1, {b} along D2, {c} along D3 and {d} along D5"),
     ]
     # The primary arm's channel-off counts and the second zone of each cell (section 4), from the
