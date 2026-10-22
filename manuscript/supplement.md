@@ -207,7 +207,8 @@ control arm's, the completed run's with its two empty zones given 0.005 each, an
 and degenerate bases of §B.1. Six directions of shift: the surrogate's own, from the largest cell to
 the smallest (on the completed run's base, into an empty zone); from the largest cell to the
 smallest non-empty one; to the second-largest; from the second-largest back to the largest; into the
-empty zones in equal parts; and a mixture that moves in opposite directions in two halves of the
+empty zones in equal parts, or, on a base with no empty zone, into the two smallest cells other than
+the one the mass leaves, as declared; and a mixture that moves in opposite directions in two halves of the
 contexts. Every context is moved by the same total variation `delta_tv`, one of 0, 0.01, 0.02,
 0.03, 0.04, 0.05, 0.075, 0.10 and 0.15. A direction a context cannot supply at a given size is
 reported as infeasible rather than clipped. The draws with no zone are held at the counts of the run
@@ -217,8 +218,11 @@ applies the sealed rules R4, R3, R1, R2 to the result through the sealed evaluat
 the control arm, is left out. The grid comes to 117,000 scorer calls.
 
 **Rates.** `P(R2)` is reached through a permutation reject or through `tv_bar` ≥ 0.10, and R4 or R3
-can stop evaluation before either is read. Each rate is a count out of the replicates, with a
-Wilson 95% interval and the label declared for it. On the degenerate base `G`, D4 and D6 are
+can stop evaluation before either is read. Each rate is a count out of the replicates, 4,000 under
+the null and 1,000 (base `C`) or 500 (other bases) per shifted cell, with a Wilson 95% interval and
+the label declared for it. The counts were declared with the grid, not derived from a target Monte
+Carlo error; at them the interval lies within about 0.007 of a rate near 0.05 under the null, and
+within about 0.044 (500) or 0.031 (1,000) of any rate per shifted cell. On the degenerate base `G`, D4 and D6 are
 feasible only at 0.01, and the surrogate returns 1.0 from 0.02 upward (`data/posthoc/pipeline.md`).
 Outside the degenerate base, replicates stopped at R4 only in `C|D4|0.04` (1 of 1,000), `C|D4|0.05`
 (3 of 1,000), `C|D4|0.075` (54 of 1,000); none stopped at R3 or ended in an evaluator exit anywhere
@@ -277,7 +281,7 @@ Two observations bear on §4. Filling the completed run's two empty zones (`Cs`)
 which the test reaches 0.8 by at most one grid step, so the empty zones matter to the surrogate's
 calculation more than to the test that decides. On the degenerate base, whose entropy is below the
 floor, the test alone already rejects in most replicates at a shift where the pipeline stops at R4.
-The primary arm's own base was not simulated.
+The primary arm's own base is simulated separately, in §B.5.
 
 The smallest declared `delta_tv` at which each rate reaches 0.8, as a point estimate and as the lower
 limit of its interval, for every base and direction (D1 the surrogate's direction, D2 to the smallest
@@ -351,47 +355,118 @@ repository re-parses the two prospective arms as well, whose records are shipped
 (§I.5). The template quoted in §5 is at `analysis/apparatus/erre_sandbox/cognition/prompting.py`,
 lines 48 and 71.
 
+Every draw of the three runs was sent the same two prompts, given here as the per-draw records carry
+them; the Japanese characters are part of the prompt as sent. The system prompt:
+
+```text
+You are an autonomous agent living in ERRE-Sandbox, a 3D world with five zones (study / peripatos / chashitsu / agora / garden). Each tick represents ten seconds of wall-clock time. Respond in character, following the cognitive habits of the persona described below. The ``utterance`` field MUST be written in Japanese (日本語) so the researcher observing the 3D scene can read it at a glance — original-language key terms (Kant のドイツ語/ラテン語, Nietzsche のドイツ語など) may appear parenthetically inside the Japanese sentence. Keep utterances under 80 Japanese characters.
+
+Persona: Bank Neutral Agent (n/a).
+Personality (Big Five, [0,1]): openness=0.50 conscientiousness=0.50 extraversion=0.50 agreeableness=0.50 neuroticism=0.50.
+Aesthetic sensibility: wabi=0.50 ma_sense=0.50.
+Preferred zones: .
+Cognitive habits (fact / legend / speculative):
+
+
+Current tick: 0.
+Location: agora. ERRE mode: shallow.
+Physical — sleep_quality=0.70, physical_energy=0.70, fatigue=0.00, cognitive_load=0.20.
+Cognitive — valence=0.00, arousal=0.00, motivation=0.50, stress=0.00.
+```
+
+The user prompt:
+
+```text
+Recent observations:
+[affordance] bank_cue_prop#bank-cue-study in study (distance=3.0m, salience=0.60)
+[zone_transition] agora -> study
+[affordance] bank_cue_prop#bank-cue-garden in garden (distance=3.0m, salience=0.60)
+[zone_transition] agora -> garden
+
+Relevant memories:
+- [episodic strength=0.60] a vivid recollection formed while lingering near study
+- [episodic strength=0.60] a vivid recollection formed while lingering near garden
+- [episodic strength=0.50] [affordance] bank_cue_prop#bank-cue-study in study (distance=3.0m, salience=0.60)
+- [episodic strength=0.50] [zone_transition] agora -> study
+- [episodic strength=0.50] [affordance] bank_cue_prop#bank-cue-garden in garden (distance=3.0m, salience=0.60)
+- [episodic strength=0.50] [zone_transition] agora -> garden
+
+Decide what to do in the next ten seconds.
+
+Respond with a SINGLE JSON object matching this schema (all deltas in [-1.0, 1.0], importance_hint in [0.0, 1.0]; use null for optional fields you intentionally skip). The last three keys (salient / decision / next_intent) are the reasoning trace shown to the researcher observing you — keep each under 80 characters of natural Japanese and be honest about why you act; leave them null only if genuinely not applicable:
+{
+  "thought": "internal monologue",
+  "utterance": "speech bubble text or null",
+  "destination_zone": "study|peripatos|chashitsu|agora|garden|null",
+  "animation": "walk|idle|sit_seiza|bow|null",
+  "valence_delta": 0.0,
+  "arousal_delta": 0.0,
+  "motivation_delta": 0.0,
+  "importance_hint": 0.5,
+  "salient": "what you found most salient this tick or null",
+  "decision": "the one-sentence reason for your action or null",
+  "next_intent": "what you plan to do next or null"
+}
+Return ONLY the JSON object. No prose outside the braces.
+```
+
 ### B.5 What the entropy floor withheld on the primary arm's base
 
-**Post hoc, declared before it ran.** The simulation of §B.3 left the primary arm's base out. Review
-of the revised manuscript asked what a gate that reads support would have done there, and this
-simulation answers that question on an assumed truth. Its grid, seeds, replicate counts and
-reading rules, including the sentence the paper may write in each case, are in
-`analysis/autopsy-primary/grid.json` and `DECLARATION.md`, committed and pushed before the first
-full run at the commit the tag `autopsy-primary-declared` points at;
-`analysis/autopsy-primary/simulate_primary.py --run` and `--render` refuse to start unless every
-declared file is byte-identical to its copy at that tag. Every declared cell is in
+**[Post hoc, declared before it ran]** The simulation of §B.3 left the primary arm's base out. This
+one was declared after both prospective arms had been seen and after an internal pre-submission
+review of this manuscript, run by its author with AI reviewers (§K), asked what a pipeline admitting contexts by
+support would have done on that base. Its grid, seeds, replicate counts and reading rules,
+including the sentence the paper may write in each case, are in `analysis/autopsy-primary/grid.json`
+and `DECLARATION.md`, committed at `074e000`, which the tag `autopsy-primary-declared` points at, and
+pushed before the first full run. That the push preceded the run is recorded by the repository
+host's timeline, not by any check. Before the declaration two computations touched this base: the
+count of the primary arm's channel-off draws by zone that §4 reports, and the script's self-test,
+which checks which cells are feasible and that the sealed floor is restored after the call that
+replaces it, scores one synthetic annotation for that purpose without reporting it, and computes no
+declared cell. `analysis/autopsy-primary/simulate_primary.py --run` and `--render` refuse to start
+unless every declared file is byte-identical to its copy at that tag. Every declared cell is in
 `data/posthoc/primary/summary.md`, rendered from the per-replicate record
 `data/posthoc/primary/replicates.tsv`.
 
 **Design.** The base is the primary arm's per-context channel-off distribution (base `P`). The
 directions, deltas, roles and sampling of draws are those of §B.3, by reference, with 4,000
 replicates under the null and 500 per shifted cell. Two pipelines and one test are applied to the
-same draws: the sealed pipeline; a counterfactual pipeline identical to it except that the
-scorer's entropy floor is replaced, for that call only, by 1e-9, so that a context is admitted when
-its pooled draws occupy two or more zones; and the permutation test on all eight contexts. The
-primary arm's channel-on draws are not read. D4 is feasible only at 0.01 and D6 only up to 0.02,
-because one context holds too little mass in the cell they move from.
+same draws: the sealed pipeline; the same pipeline without the floor, in which the scorer's entropy
+floor is replaced, for that call only, by 1e-9, so that a context is admitted when its pooled draws
+occupy two or more zones; and the permutation test on all eight contexts. Every context of base `P`
+occupies two or more zones, so the pipeline without the floor admits all eight contexts in every
+replicate but five, all at D6 and 0.02, which admit seven;
+the declaration and the rendered summary call it the support gate. It was chosen knowing that every
+cell of the primary arm produces two or more zones (§4). The primary arm's channel-on draws are not
+read. D4 is feasible only at 0.01 and D6 only up to 0.02, because one context holds too little mass
+in the cell they move from. As in §B.3, the scorer permutes with one fixed seed, and the zones the
+base leaves empty are read as exact zeros; D5 moves mass into those zones.
 
 **Results.** Under the null the sealed pipeline stops at R4 in 4,000 of 4,000 replicates; the
-counterfactual pipeline reaches R2 in 187/4000 = `0.04675` [0.040632, 0.053738], compatible with
-0.05, and so does the test alone. At the registered shift:
+pipeline without the floor reaches R2 in 187/4000 = `0.04675` [0.040632, 0.053738], compatible with
+0.05, and the test alone rejects in the same 187/4000, compatible. At the registered shift:
 
-| Direction | P(R2), counterfactual | P(R4), sealed | P(R2), sealed |
-|---|---|---|---|
-| D1 | 500/500 | 353/500 = `0.706` | 147/500 = `0.294` |
-| D2 | 500/500 | 452/500 = `0.904` | 48/500 = `0.096` |
-| D3 | 500/500 | 500/500 | 0/500 |
-| D5 | 500/500 | 49/500 = `0.098` | 451/500 = `0.902` |
+| Direction | P(test_reject) | P(R2), without the floor | P(R4), sealed | P(R2), sealed | Sealed branches |
+|---|---|---|---|---|---|
+| D1 | 500/500 = `1.0` [0.992376, 1.0] | 500/500 = `1.0` [0.992376, 1.0] | 353/500 = `0.706` [0.664617, 0.744242] | 147/500 = `0.294` [0.255758, 0.335383] | R4 353, R2 147 |
+| D2 | 500/500 = `1.0` [0.992376, 1.0] | 500/500 = `1.0` [0.992376, 1.0] | 452/500 = `0.904` [0.875013, 0.926826] | 48/500 = `0.096` [0.073174, 0.124987] | R4 452, R2 48 |
+| D3 | 500/500 = `1.0` [0.992376, 1.0] | 500/500 = `1.0` [0.992376, 1.0] | 500/500 = `1.0` [0.992376, 1.0] | 0/500 = `0.0` [0.0, 0.007624] | R4 500 |
+| D5 | 500/500 = `1.0` [0.992376, 1.0] | 500/500 = `1.0` [0.992376, 1.0] | 49/500 = `0.098` [0.074924, 0.127206] | 451/500 = `0.902` [0.872794, 0.925076] | R4 49, R2 451 |
 
-Table: The primary arm's base at the registered shift, per feasible direction.
+Table: The primary arm's base at the registered shift, per feasible direction. Rates are k/n with Wilson 95% intervals; the pipeline without the floor ends at R2 in all 500 replicates of each direction.
 
-The counterfactual pipeline first reaches 0.8 at `delta_tv` = 0.02 along D1, D2, D5 and D6 and at
-0.03 along D3. Along D5 the shift moves mass into the zones the base leaves empty, which raises the
-pooled entropy the floor reads, and from 0.075 upward the sealed floor stops fewer replicates. The
-declared reading rule puts the result in its case C: the floor does not stop at least 80% of
-replicates in every feasible direction, so the paper reports the directions one by one and makes
-no summary statement about what the firing withheld.
+Without the floor every replicate at the registered shift reaches R2 through a permutation
+rejection, and every replicate the sealed floor stops at R4 is one in which the test alone rejects.
+The pipeline without the floor first reaches 0.8 at `delta_tv` = 0.02 along D1, D2, D5 and D6 and
+at 0.03 along D3. Along D5 the shift moves mass into the zones the base leaves empty, which raises
+the pooled entropy the floor reads, and from 0.075 upward the sealed floor stops fewer replicates.
+
+The declared reading rule puts the result in its case C, which the declaration states as "(C)
+otherwise the text reports the directions one by one and makes no summary statement." Under every
+case it requires that "the comparison is between two pipelines on an assumed truth taken from the
+primary arm's channel-off draws, at the declared directions, deltas and numbers of draws only." The
+paper accordingly gives the four directions one by one, here and in §4, and states nothing that
+summarizes what the firing withheld.
 
 ## C. Prospective design
 
@@ -542,8 +617,7 @@ One word of the block needs a pointer. The estimand drops "unparseable" draws,
 meaning every draw whose recorded destination is `None`. §5 shows what those draws are: in the
 completed run the word is exact for all 330 of them, and in the prospective arms for all but
 two of the 418, the other two being a JSON `null` and an absent destination key, which the parser
-treats as an empty destination rather than an error. The block
-reproduces the sealed text exactly, spelling included.
+treats as an empty destination rather than an error.
 
 **What an R5 pass states.** A pass states that the five quantities fall inside the declared band.
 That is the whole of its content. It is not a statement about whether the backend upgrade changed
@@ -726,7 +800,7 @@ constraint of the deployment, and it sets the cost of the design.
 
 ### I.3 Bounded envelope
 
-Every claim is bounded by a single apparatus, a single disabled-`think` regime, one frozen prompt
+Every claim is bounded by a single apparatus, thinking disabled or absent in every run, one frozen prompt
 run in eight pairs of blocks (the frozen bank of eight contexts, §2.2), and a five-way zone decision. The subject is the channel described in §2.1. Nothing
 here is a statement about human ambulation, about creative production, or about whether embodiment
 matters in general.
@@ -806,7 +880,7 @@ exists in no shipped record at all, as §4 of `manuscript/CLAIM-BOUNDARY.md` sta
 
 ### I.6 What the post hoc simulation adds to the reading of R3
 
-Two consequences follow for what a pass of R3 can be read as. At the registered `delta_tv`, the
+The sweep of §B.1 has two consequences for what a pass of R3 can be read as. At the registered `delta_tv`, the
 surrogate returns `1.0000` for both bases §B.1 checks, near-uniform and degenerate, so a pass does
 not distinguish a collapsed base from a spread one; only those two bases were checked, and nothing
 here says what the surrogate returns for bases in general. And against the completed run's
@@ -817,16 +891,11 @@ power of the decision the design makes. We state that rather than let the word "
 weight the number cannot bear.
 
 **[Post hoc]** What the simulation of §3 adds holds for the bases and directions it declared and
-for no others. On the completed run's channel-off base the test's simulated rejection rate is 1.0 at
-the registered `delta_tv` in every feasible direction, so there a pass of the gate and the test
-agree; along the surrogate's direction they agree down to half the margin and not below it. At a
-tenth of the margin the surrogate still returns 1.0 where the test rejects in the proportion §B.3
-tabulates, and on the degenerate base the pipeline stops at R4 in replicates where the test alone
-rejects. None of this changes how a pass of R3 is read here: a
-figure that agrees with the test at one effect size and not at others does not measure it. And the
-simulation is a property of the design under assumed distributions; it does not bear on the
-completed run's estimate (§3; Hoenig & Heisey, 2001, on why a power figure computed at an observed
-effect cannot interpret a non-significant result).
+for no others (§3, §B.3, §B.5). It does not change how a pass of R3 is read here: a figure that
+agrees with the test at one effect size and not at others does not measure it. And the simulation
+is a property of the design under assumed distributions; it does not bear on the completed run's
+estimate (§3; Hoenig & Heisey, 2001, on why a power figure computed at an observed effect cannot
+interpret a non-significant result).
 
 ### I.7 What would distinguish a shared collapse from a replication
 
@@ -846,7 +915,7 @@ of you does not hold exactly those bytes. **The pin is a hash, not a branch name
 
 The upstream source repository the apparatus and the provenance records come from is
 <https://github.com/mikotomiura/ERRE-Sandbox>, and §G.2 gives the commit identifiers within it.
-Apart from the archival deposit of the sealed files described in §J, there is no separate
+Apart from the archival deposit of the sealed files described below, there is no separate
 supplementary archive: the data, the analysis scripts, the apparatus and the reproduction command
 are all in the repository named here.
 
@@ -917,16 +986,21 @@ sealed `repro.sh` names step 8, and the script and output file it calls, with th
 computes is the permutation-null mean of §M.3, a reference value for the observed statistic rather
 than a floor under it.
 
-The post hoc simulation of §3 is outside the fourteen steps, because `repro.sh` is sealed and a
-step cannot be added to it. Its code, grid and declaration are in `analysis/autopsy/` and its
-outputs in `data/posthoc/`. The `autopsy` workflow runs on two operating systems on every change:
+The post hoc simulations of §3 and §4 are outside the fourteen steps, because `repro.sh` is sealed
+and a step cannot be added to it. The first's code, grid and declaration are in `analysis/autopsy/`
+and its outputs in `data/posthoc/`. The `autopsy` workflow runs on two operating systems on every change:
 it checks that the declared files are those of the tagged declaration, runs the fidelity
 self-tests, recomputes the side analyses and the summaries and requires them to equal the committed
 files, recomputes the first replicate of every cell and requires it to equal the committed record
 byte for byte, and compares the two systems' outputs. The `autopsy-full` workflow recomputes the
 whole grid, split into sixteen shards on each system, and requires both results to equal the
-committed record; it runs when the simulation or its inputs change. The numbers §3 and §B.3 quote are
-read from that record by the character-level comparison of step 9, like the others.
+committed record; it runs when the simulation or its inputs change. The second's code, grid and
+declaration are in `analysis/autopsy-primary/` and its outputs in `data/posthoc/primary/`; its script
+refuses to run unless the declared files are those of the tagged declaration, and no workflow
+recomputes its grid, which is the second's limit. The numbers §3, §4, §B.3 and §B.5 quote are read
+from those records by the character-level comparison of step 9, like the others, and step 9 also
+requires the rows of `data/posthoc/primary/summary.md` that §B.5 quotes to be what the per-replicate
+record gives.
 
 The thirteenth step is the third of the three checks named in §E. Both prospective verdicts are
 now in place, so it runs: it re-derives the branch from the sealed rules and compares it with the
@@ -1062,8 +1136,8 @@ the entries whose body matches `co-authored-by:.*claude`, case-insensitively.
 ## L. Section numbers cited by files that cannot change
 
 Some files cite a section of this manuscript by a number it no longer carries, and cannot be
-edited, because the seal (§H), the freeze of the held-out test (§5) or the declaration
-of the post hoc simulation (§3) binds their bytes. Each such citation is listed below with the
+edited, because the seal (§H), the freeze of the held-out test (§5) or the declarations
+of the post hoc simulations (§3, §4) bind their bytes. Each such citation is listed below with the
 section it now means. `analysis/scripts/check_crossrefs.py` requires every row to match the file it
 names, and fails if any other file in those groups cites a section of the manuscript.
 
@@ -1176,7 +1250,7 @@ Only the first two rows are what the label's name describes.
 
 **Standard results this paper rests on.** The power that bears on a decision is the power of the
 test the decision uses; a figure computed for another statistic does not carry over, and using a
-power figure computed after the data to interpret a non-significant result is a documented misuse
+power figure computed at an observed effect to interpret a non-significant result is a documented misuse
 (Hoenig & Heisey, 2001). Card and colleagues (2020) document how often conclusions in NLP rest on designs without the
 power to support them. The sealed rules come close to the form that Hoenig and Heisey (2001) warn
 against: `power` is
@@ -1193,16 +1267,16 @@ distribution: a distribution can clear an entropy floor while occupying few cate
 it while occupying several. Dropping a category and renormalizing over the rest removes from the
 comparison any difference between conditions in how often that category occurs.
 
-**Total-variation estimation and equivalence.** Price, Tian, Xun and Zhu (2026) give sample-complexity
+**Total-variation estimation and equivalence.** Price et al. (2026) give sample-complexity
 results for estimating total-variation distance in autoregressive models. Their estimand is
 sequence-level, and their access models (samples of the next token after any prefix, or its logits)
 are richer than independent whole generations; ours is a decision-level five-way
 categorical distance, and the gap between the two is the main efficiency cost of this design (§I.2).
-Jiao, Han and Weissman (2018) give minimax rates for estimating the L1 distance, twice the
+Jiao et al. (2018) give minimax rates for estimating the L1 distance, twice the
 total-variation distance, between two discrete distributions from samples, and show that in a
 large-alphabet, non-asymptotic setting the plug-in estimate needs more samples than a rate-optimal
 one. Our alphabet has five categories; `tv_bar` averages plug-in distances, and we make no claim about
-its efficiency. Bastian, Dette and Koletzko (2024) construct a bootstrap test of whether two
+its efficiency. Bastian et al. (2024) construct a bootstrap test of whether two
 multinomial distributions are equivalent, in the sense that a norm of the difference between their
 class probabilities, the L1 norm included, lies below a threshold. It is a direct test of the
 question that a margin on a total-variation distance points toward, and this protocol runs neither it

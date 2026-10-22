@@ -1198,6 +1198,9 @@ RENDER_SOURCES: tuple[str, ...] = (
     "data/posthoc/pipeline-replicates.tsv",
     "data/posthoc/manifest.json",
     "analysis/autopsy/DEVIATIONS.md",
+    # The second post hoc simulation, on the primary arm's base (section 4, appendix B.5).
+    "data/posthoc/primary/replicates.tsv",
+    "data/posthoc/primary/summary.md",
     # The per-draw records, from which the setting every draw was made in is computed
     # (:func:`records_identity`); section 2.2 states it.
     "data/completed/bank_records.jsonl",
@@ -1348,6 +1351,119 @@ def _annotation_summary(path: Path) -> dict[str, Any]:
 
 def _posthoc_rate(r: dict[str, Any]) -> str:
     return f"{r['k']}/{r['n']} = `{r['rate']!r}` [{r['wilson_low']!r}, {r['wilson_high']!r}]"
+
+
+#: The directions feasible at the registered delta_tv on the primary arm's base, in the order the
+#: manuscript gives them.
+_PRIMARY_DIRECTIONS: tuple[str, ...] = ("D1", "D2", "D3", "D5")
+_PRIMARY_BRANCHES: tuple[str, ...] = ("R4", "R3", "R1", "R2", "none", "die")
+
+
+def _primary_rate(k: int, n: int) -> str:
+    """A rate as ``analysis/autopsy-primary/simulate_primary.py`` renders it: k/n, Wilson 95%."""
+    z = 1.959963984540054
+    p = k / n
+    centre = (p + z * z / (2 * n)) / (1 + z * z / n)
+    half = z * (p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5 / (1 + z * z / n)
+    return f"{k}/{n} = `{round(p, 6)}` [{round(centre - half, 6)}, {round(centre + half, 6)}]"
+
+
+def primary_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
+    """Rows and phrases of section 4 and appendix B.5 (the simulation on the primary arm's base),
+    and of the sentences elsewhere that quote it.
+
+    Rendered from the per-replicate record ``data/posthoc/primary/replicates.tsv``. The summary
+    beside it is rendered from the same record by ``simulate_primary.py --render``, which needs the
+    declaration's tag; here, without it, the rows of the summary for the cells the text quotes are
+    required to be what the record gives, so a summary edited by hand fails. Statements the text
+    makes in words -- every replicate without the floor reaches R2 through a permutation
+    rejection, every replicate the sealed floor stops is one the test rejects -- are checked as
+    problems against the same record.
+    """
+    fragments: list[tuple[str, str]] = []
+    problems: list[str] = []
+    primary = root / "data" / "posthoc" / "primary"
+    lines = (primary / "replicates.tsv").read_text(encoding="utf-8").splitlines()
+    header = lines[0].split("\t")
+    by_cell: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+    for line in lines[1:]:
+        row = dict(zip(header, line.split("\t"), strict=True))
+        by_cell[row["cell"]].append(row)
+    summary = (primary / "summary.md").read_text(encoding="utf-8")
+
+    def count(rows: list[dict[str, str]], key: str, value: str) -> int:
+        return sum(1 for r in rows if r[key] == value)
+
+    def branches(rows: list[dict[str, str]], key: str) -> str:
+        return " / ".join(f"{b} {count(rows, key, b)}" for b in _PRIMARY_BRANCHES)
+
+    def summary_row(cell: str, rows: list[dict[str, str]]) -> None:
+        n = len(rows)
+        expected = (
+            f"| `{cell}` | {n} | {_primary_rate(count(rows, 'sealed_branch', 'R2'), n)} | "
+            f"{_primary_rate(count(rows, 'sealed_branch', 'R4'), n)} | "
+            f"{_primary_rate(count(rows, 'support_branch', 'R2'), n)} | "
+            f"{_primary_rate(count(rows, 'test_reject', '1'), n)} | "
+            f"{branches(rows, 'sealed_branch')} | {branches(rows, 'support_branch')} |"
+        )
+        if expected not in summary.splitlines():
+            problems.append(f"data/posthoc/primary/summary.md: the row of {cell} is not what the record gives")
+
+    null = by_cell["P|null|0"]
+    summary_row("P|null|0", null)
+    n0, k0 = len(null), count(null, "support_branch", "R2")
+    if count(null, "test_reject", "1") != k0 or count(null, "sealed_branch", "R4") != n0:
+        problems.append("primary null phrase: the record does not give the counts the text states")
+    fragments.append(
+        (
+            "primary null phrase, §4",
+            f"stops at R4 in {n0:,} of {n0:,} replicates, and the pipeline without the floor reaches "
+            f"R2 in {k0} ({round(k0 / n0, 3)}), as often as the test alone rejects",
+        )
+    )
+    fragments.append(
+        (
+            "primary null phrase, §B.5",
+            f"reaches R2 in {_primary_rate(k0, n0)}, compatible with 0.05, and the test alone "
+            f"rejects in the same {k0}/{n0}, compatible",
+        )
+    )
+    stops: list[int] = []
+    for direction in _PRIMARY_DIRECTIONS:
+        cell = f"P|{direction}|0.10"
+        rows = by_cell[cell]
+        n = len(rows)
+        summary_row(cell, rows)
+        tr, r2u = count(rows, "test_reject", "1"), count(rows, "support_branch", "R2")
+        r4s, r2s = count(rows, "sealed_branch", "R4"), count(rows, "sealed_branch", "R2")
+        sealed = ", ".join(
+            f"{b} {count(rows, 'sealed_branch', b)}" for b in _PRIMARY_BRANCHES if count(rows, "sealed_branch", b)
+        )
+        fragments.append(
+            (
+                f"primary registered row, {direction}",
+                f"| {direction} | {_primary_rate(tr, n)} | {_primary_rate(r2u, n)} | "
+                f"{_primary_rate(r4s, n)} | {_primary_rate(r2s, n)} | {sealed} |",
+            )
+        )
+        if tr != n or r2u != n or count(rows, "support_permutation_reject", "1") != n:
+            problems.append(
+                f"primary {direction}: the text says the test alone rejects, and the pipeline without "
+                "the floor reaches R2 through a permutation rejection, in every replicate"
+            )
+        if any(r["sealed_branch"] == "R4" and r["test_reject"] != "1" for r in rows):
+            problems.append(f"primary {direction}: a replicate the sealed floor stops is one the test does not reject")
+        stops.append(r4s)
+    a, b, c, d = stops
+    fragments += [
+        ("primary stops, abstract", f"the floor stops {a}, {b}, {c} and {d} of them"),
+        ("primary stops, Table 1", f"it stops {a}, {b}, {c} and {d} of 500 replicates in four directions"),
+        ("primary stops, Table 4", f"the sealed floor stops {a}, {b}, {c} and {d} of 500 along D1, D2, D3 and D5"),
+        ("primary stops, §4", f"stops {a} of 500 along D1, {b} along D2, {c} along D3 and {d} along D5"),
+    ]
+    if "**Case of the declared reading rule at delta 0.10: C.**" not in summary:
+        problems.append("primary case phrase: the summary does not put the result in case C, as the text says")
+    return fragments, problems
 
 
 def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
@@ -1508,15 +1624,9 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         )
         if Fraction(agree_from) * 2 != Fraction("0.10"):
             problems.append(
-                f"agreement phrase, Abstract and §I.6: the text says half the margin, but the "
+                f"agreement phrase, Table 3: the text says half the margin, but the "
                 f"agreement starts at {agree_from}"
             )
-        fragments.append(
-            (
-                "agreement phrase, Abstract",
-                f"at the surrogate's {surrogate[('C', agree_from)]!r} from half the margin upward",
-            )
-        )
 
     # The smallest declared delta reaching 0.8, every (base, direction).
     for row in rules["rate_surface"]:
@@ -1567,13 +1677,14 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
                 )
             )
 
-    # The Abstract's sentence on the same comparison, at a tenth of the margin.
+    # The Abstract's sentence on the same comparison, at a tenth of the margin, in words.
     tenth = stats("C|D1|0.01")["test_reject"]
     fragments.append(
         (
             "abstract surrogate-against-test phrase",
-            f"at a tenth of the margin the surrogate returns {surrogate[('C', '0.01')]!r} where the "
-            f"test rejects in {tenth['k']} of {tenth['n']:,} simulated replicates",
+            f"surrogate that, on the first run's draws, returns {surrogate[('C', '0.01')]!r} at a "
+            f"tenth of the margin, where the test rejects in about one replicate in "
+            f"{_word(round(tenth['n'] / tenth['k']))}",
         )
     )
 
@@ -1875,10 +1986,6 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             f"{p_none['on']} against {p_none['off']} in the primary arm",
         ),
         (
-            "held-out rate difference, in the abstract",
-            f"{points('control')} and {points('primary')} percentage points",
-        ),
-        (
             "held-out rate difference, in §5",
             f"{points('control')} percentage points in the control arm and {points('primary')} in "
             "the primary arm",
@@ -1959,6 +2066,9 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
             f"the primary arm, but result.json records {modifiers!r}"
         )
     posthoc, posthoc_problems = posthoc_fragments(root)
+    primary, primary_problems = primary_fragments(root)
+    posthoc += primary
+    posthoc_problems += primary_problems
     # The setting every draw was made in (section 2.2), computed from the per-draw records, so
     # that the sampling values and the one prompt the text states cannot drift from them.
     identity, identity_problems = records_identity(root)
@@ -2518,7 +2628,7 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
         ("M23 one floor's sweep departs from the others", with_digests(side_json, side_row("surrogate_sensitivity.floor", lambda r: (r["floor"], r["delta_tv"]) == ("1e-3", "0.001"), "power", 0.5)), "floor phrase"),
         ("M24 the null expectation stops falling along the path", with_digests(side_json, side_row("concentration_and_null_mean", lambda r: r["point"] == "t=0.9", "null_mean_tv_bar", 0.07)), "concentration phrase"),
         ("M25 the per-replicate record changes under its summary", lambda root: _replace_bytes(root / "data/posthoc/pipeline-replicates.tsv", b"\tR1\t", b"\tR2\t"), "pipeline-replicates.tsv does not match the digest"),
-        ("M26 the count the Abstract quotes moves", with_digests(summary_json, cell_edit("C|D1|0.01", "summary", "test_reject", "k", value=121)), "abstract surrogate-against-test phrase"),
+        ("M26 the count the Abstract quotes moves", with_digests(summary_json, cell_edit("C|D1|0.01", "summary", "test_reject", "k", value=250)), "abstract surrogate-against-test phrase"),
         ("M27 a smallest-delta row moves", with_digests(summary_json, surface("C", "D3", "r2", "0.04")), "smallest-delta row, C D3"),
         ("M28 the degenerate base's test count moves", with_digests(summary_json, cell_edit("G|D1|0.02", "summary", "test_reject", "k", value=410)), "degenerate-base phrase"),
         ("M29 the degenerate base reaches 0.8 elsewhere", with_digests(summary_json, surface("G", "D1", "r2", "0.075")), "degenerate-base reach phrase"),
@@ -2534,6 +2644,8 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
         ("M39 a replicate ends at R3", with_digests(summary_json, cell_edit("C|D1|0.01", "summary", "branch_counts", "R3", value=1)), "R3/die phrase"),
         ("M40 R2's split stops adding up", with_digests(summary_json, cell_edit("C|D1|0.01", "summary", "r2_split", "both", value=1)), "R2's split does not add up"),
         ("M41 the record has one call fewer", lambda root: _drop_first_line(root / "data/posthoc/pipeline-replicates.tsv"), "scorer-call count"),
+        ("M50 a replicate the sealed floor stops on the primary arm's base reaches R2", lambda root: _replace_bytes(root / "data/posthoc/primary/replicates.tsv", b"P|D1|0.10\t0\tR4\t", b"P|D1|0.10\t0\tR2\t"), "summary.md: the row of P|D1|0.10"),
+        ("M51 the primary arm's summary is edited by hand", lambda root: _replace_bytes(root / "data/posthoc/primary/summary.md", b"353/500", b"354/500"), "summary.md: the row of P|D1|0.10"),
         ("M42 the deviation ledger gains an entry", lambda root: (root / "analysis/autopsy/DEVIATIONS.md").write_text((root / "analysis/autopsy/DEVIATIONS.md").read_text(encoding="utf-8") + "\n## DV-3 — test\n", encoding="utf-8"), "deviation count"),
         ("M43 one more context falls short in garden", lambda root: [_rewrite_first_row(root / "data/raw/bank_annotation.jsonl", lambda row: row["frozen_ctx_id"] == "cproper-ctx-3" and row["condition"] == "off" and row["pre_bias_destination_zone"] == "garden", "study") for _ in range(2)] and None, "garden phrase"),
     )  # fmt: skip
@@ -2562,7 +2674,7 @@ def check_rendered_fragments_fire(repo_root: Path) -> list[str]:
         (
             "M48 a held-out rate difference moves",
             lambda root: _rewrite_json(root / result, _set(("arms", "control", "none", "rate_difference"), "0.035833")),
-            "held-out rate difference, in the abstract",
+            "held-out rate difference, in §5",
         ),
         (
             "M5 the completed run loses a None draw",

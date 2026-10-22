@@ -171,7 +171,7 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     (
         "The upstream source repository the apparatus and the provenance records come from is\n"
         "<https://github.com/mikotomiura/ERRE-Sandbox>, and §G.2 gives the commit identifiers "
-        "within it.\nApart from the archival deposit of the sealed files described in §J, there is "
+        "within it.\nApart from the archival deposit of the sealed files described below, there is "
         "no separate\nsupplementary archive: the data, the analysis scripts, the apparatus and the "
         "reproduction command\nare all in the repository named here.\n",
         "The apparatus and the provenance records come from an upstream source repository that will "
@@ -223,8 +223,8 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     ),
     # §K: the continuous integration is public only once the compendium is.
     (
-        "re-run by public continuous integration on two operating systems",
-        "re-run by continuous integration on two operating systems",
+        "re-run by public continuous\nintegration",
+        "re-run by continuous\nintegration",
     ),
     # §K, the table: the upstream repository's URL.
     (

@@ -578,5 +578,73 @@
     "URL": "https://arxiv.org/abs/2405.14782",
     "issued": {"date-parts": [[2024]]},
     "x-cds": {"n": 67}
+  },
+  {
+    "id": "cds68",
+    "type": "article-journal",
+    "author": [
+      {"family": "Flake", "given": "J. K."},
+      {"family": "Fried", "given": "E. I."}
+    ],
+    "title": "Measurement schmeasurement: Questionable measurement practices and how to avoid them",
+    "container-title": "Advances in Methods and Practices in Psychological Science",
+    "volume": "3",
+    "issue": "4",
+    "page": "456–465",
+    "DOI": "10.1177/2515245920952393",
+    "issued": {"date-parts": [[2020]]},
+    "x-cds": {"n": 68}
+  },
+  {
+    "id": "cds69",
+    "type": "article-journal",
+    "author": [
+      {"family": "Hardwicke", "given": "T. E."},
+      {"family": "Mathur", "given": "M. B."},
+      {"family": "MacDonald", "given": "K."},
+      {"family": "Nilsonne", "given": "G."},
+      {"family": "Banks", "given": "G. C."},
+      {"family": "Kidwell", "given": "M. C."},
+      {"family": "Hofelich Mohr", "given": "A."},
+      {"family": "Clayton", "given": "E."},
+      {"family": "Yoon", "given": "E. J."},
+      {"family": "Henry Tessler", "given": "M."},
+      {"family": "Lenne", "given": "R. L."},
+      {"family": "Altman", "given": "S."},
+      {"family": "Long", "given": "B."},
+      {"family": "Frank", "given": "M. C."}
+    ],
+    "title": "Data availability, reusability, and analytic reproducibility: Evaluating the impact of a mandatory open data policy at the journal Cognition",
+    "container-title": "Royal Society Open Science",
+    "volume": "5",
+    "issue": "8",
+    "number": "180448",
+    "DOI": "10.1098/rsos.180448",
+    "issued": {"date-parts": [[2018]]},
+    "x-cds": {"n": 69, "number-prefix": "article "}
+  },
+  {
+    "id": "cds70",
+    "type": "article-journal",
+    "author": [
+      {"family": "Hardwicke", "given": "T. E."},
+      {"family": "Bohn", "given": "M."},
+      {"family": "MacDonald", "given": "K."},
+      {"family": "Hembacher", "given": "E."},
+      {"family": "Nuijten", "given": "M. B."},
+      {"family": "Peloquin", "given": "B. N."},
+      {"family": "deMayo", "given": "B. E."},
+      {"family": "Long", "given": "B."},
+      {"family": "Yoon", "given": "E. J."},
+      {"family": "Frank", "given": "M. C."}
+    ],
+    "title": "Analytic reproducibility in articles receiving open data badges at the journal Psychological Science: An observational study",
+    "container-title": "Royal Society Open Science",
+    "volume": "8",
+    "issue": "1",
+    "number": "201494",
+    "DOI": "10.1098/rsos.201494",
+    "issued": {"date-parts": [[2021]]},
+    "x-cds": {"n": 70, "number-prefix": "article "}
   }
 ]
