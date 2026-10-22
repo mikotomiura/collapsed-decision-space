@@ -680,8 +680,8 @@ not renumbered between manuscripts.
 
 <!-- TMLR:APPENDIX -->
 
-Two appendices follow. §E states the decision rules as sealed, and §K discloses the use of AI
-assistance. The other lettered sections, §A to §D, §F to §J and §L to §O, are in the
+Two appendices follow, §E and §K; §E states the decision rules as sealed. The other lettered
+sections, §A to §D, §F to §J and §L to §O, are in the
 Supplementary Material.
 
 ## E. Decision rules
