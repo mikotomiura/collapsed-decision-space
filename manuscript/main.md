@@ -195,7 +195,7 @@ whose draws were collected without reference to it.
 |---|---|---|
 | Registered | Sealed before any prospective draw, by our record (§H) | The reported branch, R4. Nothing about the channel's effect in the primary arm |
 | Prospective, descriptive | After the runs. No test | Descriptions of the two arms. No change to the branch |
-| Post hoc | After the completed run was seen (§F). The simulation's grid, seeds and reading rules were pushed before its first full run | Descriptions of the runs, the records and the gates; operating characteristics of the design under assumed distributions. Nothing about the channel |
+| Post hoc | After the completed run was seen (§F). Each simulation's grid, seeds and reading rules were pushed before its first full run | Descriptions of the runs, the records and the gates; operating characteristics of the design under assumed distributions. Nothing about the channel |
 | Held-out | Specification frozen before the condition-wise counts were tabulated (declared); run once, control first, α = 1/40 | Row A of its frozen table, quoted with its class breakdown. Not separable from block order (§7.2) |
 
 Table: The four layers of analysis, when each was fixed, and what each licenses.
@@ -526,8 +526,7 @@ model families.
 ### 7.4 Scope
 
 Every claim here is bounded by one apparatus, thinking disabled or absent in every run, two models and one frozen
-prompt run in eight pairs of blocks, with a five-way zone decision. The simulation of §3 covers only
-its declared bases, directions and draw counts. §I gives further limitations.
+prompt run in eight pairs of blocks, with a five-way zone decision. The simulations of §3 and §4 cover only their declared bases, directions and draw counts. §I gives further limitations.
 
 ---
 
