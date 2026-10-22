@@ -5,11 +5,11 @@ title: "Three gates, three proxies: auditing the null-report checks of a pre-reg
 # analysis/scripts/check_claim_boundary.py compares them on every run, so editing
 # one without the other fails repro.sh.
 abstract: >-
-  We audit the three gates by which one of our pre-registered evaluations fixed in advance what a
-  null result would be worth. The evaluation asked whether a channel from a language-model agent's
-  recent movement to its sampling settings, in practice two fixed sampling settings, shifts which of
-  five zones it names next by more than a total-variation margin of 0.10. Each gate ran as written
-  but read a proxy for the quantity its reading depends on. The entropy floor decided the reported
+  We audit the three gates by which one of our pre-registered evaluations set what a null result
+  would be worth. The evaluation asked whether a channel from a language-model agent's recent
+  movement to its sampling settings, in practice two fixed sampling settings, shifts which of five
+  zones it names next by more than a total-variation margin of 0.10. Each gate ran as written but
+  read a proxy for the quantity its reading depends on. The entropy floor decided the reported
   branch, stopping the rules on the second of two models although each context and condition
   produced two to four zones. Simulated post hoc on an assumed truth from that model's draws, at its
   declared shifts only, the deciding test detects a margin-sized shift in all 500 replicates of each

@@ -22,14 +22,14 @@ it (§J).
 
 ## Abstract
 
-We audit the three gates by which one of our pre-registered evaluations fixed in advance what a null
-result would be worth. The evaluation asked whether a channel from a language-model agent's recent
-movement to its sampling settings, in practice two fixed sampling settings, shifts which of five
-zones it names next by more than a total-variation margin of 0.10. Each gate ran as written but read
-a proxy for the quantity its reading depends on. The entropy floor decided the reported branch,
-stopping the rules on the second of two models although each context and condition produced two to
-four zones. Simulated post hoc on an assumed truth from that model's draws, at its declared shifts
-only, the deciding test detects a margin-sized shift in all 500 replicates of each of four feasible
+We audit the three gates by which one of our pre-registered evaluations set what a null result would
+be worth. The evaluation asked whether a channel from a language-model agent's recent movement to
+its sampling settings, in practice two fixed sampling settings, shifts which of five zones it names
+next by more than a total-variation margin of 0.10. Each gate ran as written but read a proxy for
+the quantity its reading depends on. The entropy floor decided the reported branch, stopping the
+rules on the second of two models although each context and condition produced two to four zones.
+Simulated post hoc on an assumed truth from that model's draws, at its declared shifts only, the
+deciding test detects a margin-sized shift in all 500 replicates of each of four feasible
 directions, with the floor stopping 353, 452, 500 and 49 of them. The power gate, which left the
 branch unchanged, reads the power of a chi-square surrogate, not of that test: simulated on the
 completed run's draws, the surrogate returns 1.0 at a tenth of the margin, where the test rejects in
@@ -381,7 +381,7 @@ In the control arm almost every `None` is an explicit `"null"`, as in the comple
 malformed JSON object, and 41 of the primary arm's 46-draw excess in the channel-on blocks is of
 that kind. The word "unparseable" in the estimand is exact for all but two of the draws dropped in
 the prospective arms; the other two are a JSON `null` and an absent destination key, which the
-parser treats as an empty destination. The frozen qualifier for writing that outputs naming `null` as the destination increased holds for the control arm and not for the primary arm (§M.2). In both arms, then, the channel-on blocks recorded `None` more often, but what they recorded differs. **What replicated is the recorded outcome, not one behavior or one parser failure across the two families.** The
+parser treats as an empty destination. The frozen qualifier for writing that outputs naming `null` as the destination increased holds for the control arm and not for the primary arm (§M.2). **What replicated, then, is the recorded outcome, more `None` in the channel-on blocks, not one behavior or one parser failure across the two families.** The
 specification also requires a six-category distance, with `None` as a sixth category: it is
 0.047917 (permutation *p* = 0.061197) in the control arm and 0.030833 (*p* = 0.015049) in the
 primary arm. It describes every draw rather than only those with a recorded zone, and it is not
