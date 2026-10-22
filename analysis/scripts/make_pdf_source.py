@@ -160,7 +160,8 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     ),
     # §J: the definition of "this repository" and "shipped" replaces the repository's URL.
     (
-        "**Everything this manuscript refers to is reachable from one place.** The repository is\n"
+        "**Everything this manuscript refers to is reachable from one place,** except the pilot's "
+        "timings\nand digests of §B.2, which exist in no shipped record (§I.5). The repository is\n"
         "<https://github.com/mikotomiura/collapsed-decision-space>. Work continues on its default "
         "branch, so\n",
         "**Everything this manuscript refers to is in, or referenced from, one research compendium, "

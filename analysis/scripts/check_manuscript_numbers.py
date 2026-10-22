@@ -1456,11 +1456,37 @@ def primary_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         stops.append(r4s)
     a, b, c, d = stops
     fragments += [
-        ("primary stops, abstract", f"the floor stops {a}, {b}, {c} and {d} of them"),
-        ("primary stops, Table 1", f"it stops {a}, {b}, {c} and {d} of 500 replicates in four directions"),
+        ("primary stops, abstract", f"the floor stopping {a}, {b}, {c} and {d} of them"),
         ("primary stops, Table 4", f"the sealed floor stops {a}, {b}, {c} and {d} of 500 along D1, D2, D3 and D5"),
         ("primary stops, §4", f"stops {a} of 500 along D1, {b} along D2, {c} along D3 and {d} along D5"),
     ]
+    # The primary arm's channel-off counts and the second zone of each cell (section 4), from the
+    # per-draw annotations.
+    cells: dict[tuple[str, str], collections.Counter[str]] = collections.defaultdict(collections.Counter)
+    for line in (root / "data/prospective/primary/run_annotation.jsonl").read_text(encoding="utf-8").splitlines():
+        row = json.loads(line)
+        if row["pre_bias_destination_zone"]:
+            cells[(row["frozen_ctx_id"], row["condition"])][row["pre_bias_destination_zone"]] += 1
+    off: collections.Counter[str] = collections.Counter()
+    for (_, condition), zones in cells.items():
+        if condition == "off":
+            off += zones
+    second = [sorted(z.values(), reverse=True)[1] for z in cells.values() if len(z) > 1]
+    if len(second) != len(cells):
+        problems.append("primary counts phrase: a cell of the primary arm produces a single zone")
+    else:
+        named = ", ".join(
+            f"`{zone}` {'has ' if i == 0 else ''}{n:,}" for i, (zone, n) in enumerate(off.most_common())
+        )
+        named = named.rsplit(", ", 1)[0] + " and " + named.rsplit(", ", 1)[1]
+        fragments.append(
+            (
+                "primary counts phrase, §4",
+                f"of its {sum(off.values()):,} parsed channel-off draws, {named}, and in every one of "
+                f"its {len(cells)} cells the second most frequent zone has between {min(second)} and "
+                f"{max(second)} of some 300 draws",
+            )
+        )
     if "**Case of the declared reading rule at delta 0.10: C.**" not in summary:
         problems.append("primary case phrase: the summary does not put the result in case C, as the text says")
     return fragments, problems
@@ -1682,8 +1708,9 @@ def posthoc_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
     fragments.append(
         (
             "abstract surrogate-against-test phrase",
-            f"surrogate that, on the first run's draws, returns {surrogate[('C', '0.01')]!r} at a "
-            f"tenth of the margin, where the test rejects in about one replicate in "
+            f"simulated on the completed run's draws, the surrogate returns "
+            f"{surrogate[('C', '0.01')]!r} at a tenth of the margin, where the test rejects in about "
+            f"one replicate in "
             f"{_word(round(tenth['n'] / tenth['k']))}",
         )
     )

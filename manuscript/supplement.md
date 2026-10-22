@@ -119,9 +119,9 @@ An a-priori calculation with the same pooled chi-square surrogate that R3 uses, 
 
 Table: The surrogate's power for two reference bases, at the registered shift and at a tenth of it.
 
-The third row is the one that matters for the surrogate. For this calculation the computed power is
-governed by the size of the shift being looked for, not by how concentrated the base distribution
-is: a degenerate base with a collapse-scale shift still attains `0.9533`. The `0.1842` figure
+The third row is the one that matters for the surrogate. At the registered shift both bases return
+`1.0000`, so there a pass does not tell a collapsed base from a spread one; at a tenth of it the two
+part, and the degenerate base still attains `0.9533`. The `0.1842` figure
 belongs specifically to a **near-uniform base with `delta_tv = 0.01`**, one tenth of the declared
 margin, and is quoted only in that full form. The first and fourth rows are the ones §3
 relies on: at the registered `delta_tv` the surrogate returns `1.0000` for both bases. All four rows
@@ -284,7 +284,7 @@ floor, the test alone already rejects in most replicates at a shift where the pi
 The primary arm's own base is simulated separately, in §B.5.
 
 The smallest declared `delta_tv` at which each rate reaches 0.8, as a point estimate and as the lower
-limit of its interval, for every base and direction (D1 the surrogate's direction, D2 to the smallest
+limit of its interval, for every base and direction the grid declares (on `K`, only D1 and D3) (D1 the surrogate's direction, D2 to the smallest
 non-empty cell, D3 to the second-largest, D4 back to the largest, D5 into the empty zones, D6 the
 mixture; the bases in the order of the table above, `C`, `K`, `Cs`, `U`, `G`):
 
@@ -323,7 +323,7 @@ Some directions are the same shift on a base: on `Cs`, D2 is D1; on `U`, D2 and 
 D2 and D3 are D1. Each is computed once and listed under every name. **Three smaller checks.** The empty zones of the completed run have 0 of 2,276 channel-off draws, a
 one-sided 95% upper bound of `0.00131536` for each of `agora` and `chashitsu`; `chashitsu`, absent
 from all 4,470 parsed draws, has a bound of `0.000669962`. These bound what these draws allow, not
-what the model does. The surrogate's sweep in §3 does not depend on the numerical floor under
+what the model does. The surrogate's sweep in §B.1 does not depend on the numerical floor under
 an expected count of zero: it is identical for every floor from `1e-12` to `1e-3`. It does depend on
 reading the zeros as exact. With a pseudocount added to every channel-off count, the smallest
 `delta_tv` in the sweep at which the surrogate clears 0.8, written as the value at the pseudocount,
@@ -336,7 +336,7 @@ proportion to the square root of p(1 − p), which is largest when the base is s
 §M.3 reports `0.027813` for the permutation null of the completed run's own draws. That is the mean over all eight contexts,
 not the scorer's `tv_bar`, which averages only the contexts that clear the entropy floor.
 
-### B.4 What the record of the dropped draws does not show
+### B.4 What the record of the dropped draws does not show, and the prompts
 
 **[Post hoc]** Three things about the record are easy to misread. The annotation field `resolved_from` carries the
 same tag on every row and records nothing about whether a parse succeeded; the annotation has no
@@ -439,7 +439,10 @@ replicate but five, all at D6 and 0.02, which admit seven;
 the declaration and the rendered summary call it the support gate. It was chosen knowing that every
 cell of the primary arm produces two or more zones (§4). The primary arm's channel-on draws are not
 read. D4 is feasible only at 0.01 and D6 only up to 0.02, because one context holds too little mass
-in the cell they move from. As in §B.3, the scorer permutes with one fixed seed, and the zones the
+in the cell they move from. As in §B.3, a replicate's draws are shared across the directions and
+shifts, so the four directions at the registered shift are not independent confirmations; the scorer
+permutes with one fixed seed, so replicates share their permutations too, and the Wilson intervals
+do not allow for that; and the zones the
 base leaves empty are read as exact zeros; D5 moves mass into those zones.
 
 **Results.** Under the null the sealed pipeline stops at R4 in 4,000 of 4,000 replicates; the
@@ -456,8 +459,7 @@ pipeline without the floor reaches R2 in 187/4000 = `0.04675` [0.040632, 0.05373
 Table: The primary arm's base at the registered shift, per feasible direction. Rates are k/n with Wilson 95% intervals; the pipeline without the floor ends at R2 in all 500 replicates of each direction.
 
 Without the floor every replicate at the registered shift reaches R2 through a permutation
-rejection, and every replicate the sealed floor stops at R4 is one in which the test alone rejects.
-The pipeline without the floor first reaches 0.8 at `delta_tv` = 0.02 along D1, D2, D5 and D6 and
+rejection. The pipeline without the floor first reaches 0.8 at `delta_tv` = 0.02 along D1, D2, D5 and D6 and
 at 0.03 along D3. Along D5 the shift moves mass into the zones the base leaves empty, which raises
 the pooled entropy the floor reads, and from 0.075 upward the sealed floor stops fewer replicates.
 
@@ -906,7 +908,8 @@ bank -- which is outside this protocol and is not a change we may make to it (§
 
 ## J. Data, code and reproducibility
 
-**Everything this manuscript refers to is reachable from one place.** The repository is
+**Everything this manuscript refers to is reachable from one place,** except the pilot's timings
+and digests of §B.2, which exist in no shipped record (§I.5). The repository is
 <https://github.com/mikotomiura/collapsed-decision-space>. Work continues on its default branch, so
 a path named below is in general a moving target — with one exception, and it is the exception that
 carries the pre-registration. The files listed in §H are sealed by content: `seal/SEAL-MANIFEST.json`
@@ -987,7 +990,9 @@ computes is the permutation-null mean of §M.3, a reference value for the observ
 than a floor under it.
 
 The post hoc simulations of §3 and §4 are outside the fourteen steps, because `repro.sh` is sealed
-and a step cannot be added to it. The first's code, grid and declaration are in `analysis/autopsy/`
+and a step cannot be added to it. `repro.sh` itself is sealed, but of the scripts its steps call only
+those of steps 11 to 14 are (§H); the others, step 9's checker among them, can change after the
+seal, and that checker has. The first's code, grid and declaration are in `analysis/autopsy/`
 and its outputs in `data/posthoc/`. The `autopsy` workflow runs on two operating systems on every change:
 it checks that the declared files are those of the tagged declaration, runs the fidelity
 self-tests, recomputes the side analyses and the summaries and requires them to equal the committed
@@ -1186,8 +1191,8 @@ to be named in this manuscript (§I.5).
 
 Two consequences of the table of zones in §4 are worth stating plainly. The question §C.1 puts — whether the narrow support of
 the completed run belongs to the model or to the apparatus — is not answered in the primary family
-by this run, because the registered scoring procedure returned no estimate there. And the two arms
-failed the gate quantities in different places: the completed `qwen3:8b` run admits all eight
+by this run, because the registered scoring procedure returned no estimate there. And the completed
+run and the primary arm stand differently against the gate quantities: the completed `qwen3:8b` run admits all eight
 contexts even though two of five zones are never produced in the channel-off condition, whereas the
 primary arm has `effective_k` = 0 of 8 because none of its contexts clears `h_min_bits` = 0.5. These
 are outcomes recorded of these runs under this apparatus, and they are not a comparison of how far
@@ -1251,7 +1256,7 @@ Only the first two rows are what the label's name describes.
 **Standard results this paper rests on.** The power that bears on a decision is the power of the
 test the decision uses; a figure computed for another statistic does not carry over, and using a
 power figure computed at an observed effect to interpret a non-significant result is a documented misuse
-(Hoenig & Heisey, 2001). Card and colleagues (2020) document how often conclusions in NLP rest on designs without the
+(Hoenig & Heisey, 2001). Card et al. (2020) document how often conclusions in NLP rest on designs without the
 power to support them. The sealed rules come close to the form that Hoenig and Heisey (2001) warn
 against: `power` is
 computed after the draws, on the run's own channel-off distribution, though at the registered
@@ -1271,7 +1276,7 @@ comparison any difference between conditions in how often that category occurs.
 results for estimating total-variation distance in autoregressive models. Their estimand is
 sequence-level, and their access models (samples of the next token after any prefix, or its logits)
 are richer than independent whole generations; ours is a decision-level five-way
-categorical distance, and the gap between the two is the main efficiency cost of this design (§I.2).
+categorical distance, and the gap between the two is a possible efficiency cost of this design, whose size is not examined here (§I.2).
 Jiao et al. (2018) give minimax rates for estimating the L1 distance, twice the
 total-variation distance, between two discrete distributions from samples, and show that in a
 large-alphabet, non-asymptotic setting the plug-in estimate needs more samples than a rate-optimal
@@ -1282,20 +1287,20 @@ class probabilities, the L1 norm included, lies below a threshold. It is a direc
 question that a margin on a total-variation distance points toward, and this protocol runs neither it
 nor any other equivalence test (§N.2).
 
-**Surface sensitivity of language-model evaluation.** Sclar and colleagues (2023) show that
+**Surface sensitivity of language-model evaluation.** Sclar et al. (2023) show that
 meaning-preserving changes to prompt formatting can move a model's measured performance by large
 amounts, and that performance across formats correlates only weakly between models. Zheng and
 colleagues (2023) show that models prefer particular option positions and identifiers when choosing
-among listed options. Tam and colleagues (2024) find that requiring output in a structured format such
+among listed options. Tam et al. (2024) find that requiring output in a structured format such
 as JSON lowers models' performance on reasoning tasks, more so the stricter the format. What the fixed
 template, zone order and output schema of this apparatus contribute to the read-out is not measured
 in this work.
 
 **Preregistration, validation and adjacent audits.** Vaccaro (2026) discusses preregistration for
 experiments with AI agents. Larooij and Törnberg (2025) argue that validation is the central challenge
-for generative social simulation, and Tomašević and colleagues (2026)
+for generative social simulation, and Tomašević et al. (2026)
 report a replicated operational validation of an LLM-agent social simulation. Both motivate measuring
-whether a wired mechanism propagates rather than assuming that it does. Park and colleagues (2023)
+whether a wired mechanism propagates rather than assuming that it does. Park et al. (2023)
 provide the generative-agent architecture this apparatus descends from. Singh (2026) audits compressed
 language models with a statistical toolkit built around equivalence testing at a declared margin:
 the practice of fixing a bound in advance (Lakens, 2017), applied to language-model evaluation, which this

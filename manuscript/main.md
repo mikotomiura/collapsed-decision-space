@@ -13,30 +13,33 @@ it (§J).
 | ORCID | [0009-0000-4196-0508](https://orcid.org/0009-0000-4196-0508) |
 | Affiliation | Independent Researcher |
 | Correspondence | mmiura.network@gmail.com |
-| Code and data | <https://github.com/mikotomiura/collapsed-decision-space>. Development continues on the default branch; what pins the protocol against later change is the seal of §H and §J, not a branch name |
+| Code and data | <https://github.com/mikotomiura/collapsed-decision-space>. Development continues on the default branch; what pins the protocol against later change is the seal of §H and §J, not a branch name. |
 | License | Code: Apache-2.0 OR MIT. Manuscript, figures, data and the sealed protocol: CC BY 4.0 |
-| Protocol status | Sealed, by our record, before any prospective draw was collected (§H). By the same record, each arm then produced one complete run on 2026-09-14 (UTC) (§I.5), and the sealed rules applied to the two verdicts reach the apparatus-validity branch, R4 (§2.4) |
+| Protocol status | Sealed, by our record, before any prospective draw was collected (§H). By the same record, each arm then produced one complete run on 2026-09-14 (UTC) (§I.5), and the sealed rules applied to the two verdicts reach the apparatus-validity branch, R4 (§2.4). |
 
 ---
 <!-- /TMLR:DROP -->
 
 ## Abstract
 
-We audit the three gates by which one of our own pre-registered evaluations fixed what a null
-result would be worth. A language-model agent names which of five zones it moves to next; the
-evaluation asked whether a channel from its recent movement to its sampling settings, in practice
-two fixed sampling settings, shifts that choice by more than a total-variation margin of 0.10. Each
-gate ran as written and read a quantity other than the one its reading depends on. The entropy
-floor decided the reported branch, stopping the rules on the second of two models although each
-cell produced two to four zones; in a post hoc simulation on that model's channel-off draws, the
-test rejects a shift of the margin's size in all 500 replicates of each of four directions, and the
-floor stops 353, 452, 500 and 49 of them. The other two gates did not change the branch. The power
-gate reads a chi-square surrogate that, on the first run's draws, returns 1.0 at a tenth of the
-margin, where the test rejects in about one replicate in eight. The cap on draws with no recorded
-zone reads the worst cell, not the difference between conditions, so the estimate describes only
-the draws that produced a zone. The case motivates three diagnostics: simulate the power of the
-test that decides, report support beside entropy, and compare dropped outputs between conditions.
-The claims concern these gates on two models and one prompt, not the effect of the channel.
+We audit the three gates, checks with thresholds fixed in advance, by which one of our own
+pre-registered evaluations fixed what a null result would be worth. A language-model agent names
+which of five zones it moves to next; the evaluation asked whether a channel from its recent
+movement to its sampling settings, in practice two fixed sampling settings, shifts that choice by
+more than a total-variation margin of 0.10. Each gate ran as written and read a quantity other than
+the one its reading depends on. The entropy floor decided the reported branch: it stopped the rules
+on the second of two models although each context and condition produced two to four zones. A post
+hoc simulation on an assumed truth taken from that model's draws, at its declared shifts only,
+finds the permutation test that decides detecting a shift of the margin's size in all 500
+replicates of each of the four feasible directions, and the floor stopping 353, 452, 500 and 49 of
+them. The other two gates did not change the branch. The power gate reads the power of a chi-square
+surrogate, not of that test: simulated on the completed run's draws, the surrogate returns 1.0 at a
+tenth of the margin, where the test rejects in about one replicate in eight. The cap on draws with
+no recorded zone reads the worst context and condition, not the difference between conditions, so
+the estimate describes only the draws that produced a zone. The case motivates three diagnostics:
+simulate the power of the test that decides, report support beside entropy, and compare dropped
+outputs between conditions. The claims concern these gates on one apparatus, two models and one
+prompt, not the effect of the channel.
 
 ---
 
@@ -49,7 +52,7 @@ result credible [54], and a protocol is expected to state outcome-neutral condit
 positive controls or the absence of floor and ceiling effects, that show its methods can test its
 hypotheses [56].
 
-This paper takes up three such conditions: that the design could detect an effect of the size that
+This paper takes up three such conditions, checked in a protocol by gates: that the design could detect an effect of the size that
 matters, that the read-out could register one, and that the units scored stand for all that were
 collected. Each has a known way of going wrong. A power analysis is meant for the test that will be
 run [54], yet in one sample of preregistrations 5 of the 13 power analyses reported fully enough to
@@ -73,24 +76,18 @@ entropy floor, and a cap on draws with no recorded zone. Sealed after a complete
 the rules were applied to a control arm on that model and a primary arm on a second model, and
 stopped when the entropy floor fired on the second.
 
-Each gate ran as written, passing or firing by its own rule, and each read a quantity other than
-the one the reading of its result depends on. The three differ in what that did to the evaluation.
-The entropy floor changed it: its firing decided the reported branch. The power gate and the cap
-did not, but their passes do not certify what they were written to secure. Table 1 sets out the
-three gates in the four respects §3 to §5 take up in turn.
+Each gate ran as written and read a quantity other than the one the reading of its result depends
+on. The entropy floor's firing decided the reported branch; the passes of the power gate and the cap
+do not certify what they were written to secure. Table 1 sets out the three gates in the four
+respects §3 to §5 take up in turn.
 
 | Gate | Meant to secure | What it read | What we found | Effect on the evaluation |
 |---|---|---|---|---|
 | Power gate | That the design could detect a shift of the declared size | The power of a pooled chi-square goodness-of-fit surrogate, against an alternative built from the channel-off draws | Power 1.0 in both runs that formed an estimate. The surrogate agrees with the simulated test at the margin, and also passes shifts a hundred times smaller (§3, §B.1) | Latent: the branch is unchanged |
-| Entropy floor | That the read-out varies enough to register such a shift | The entropy of each context's zone distribution, pooled over both conditions | Two runs passed while two zones never appeared in their channel-off draws; the primary arm fired although each of its 16 (context, condition) cells produced between two and four zones. In simulation at the margin it stops 353, 452, 500 and 49 of 500 replicates in four directions where the test rejects in all 500 (§4) | Actual: it decided the reported branch, R4 |
+| Entropy floor | That the read-out varies enough to register such a shift | The entropy of each context's zone distribution, pooled over both conditions | Two runs passed while two zones never appeared in their channel-off draws; the primary arm fired although each of its 16 (context, condition) cells produced between two and four zones. §4 gives what it withheld in simulation, direction by direction | Actual: it decided the reported branch, R4 |
 | Cap on draws with no recorded zone | That the scored draws stand for what each condition produced | The largest rate, over cells of one context and one condition, of the draws the estimand drops | All three runs passed, while the channel-on blocks dropped more draws in each (§5) | Latent for the branch; it changes which draws the estimate describes |
 
 Table: The three gates of the sealed evaluation: what each was meant to secure, what it read, what we found and what it did to the evaluation. The last two columns are our reading, set after the results were seen.
-
-The case motivates three diagnostics for interpreting protocol gates: simulate the power of the
-test that decides, through the whole pipeline; report how many categories each condition's draws
-occupy beside the entropy the floor reads; and compare the rate and the content of dropped outputs
-between conditions (§6.2).
 
 The claims concern these gates on two models and one frozen prompt, not the effect of the
 channel. Most of the evidence is descriptive, post hoc or held-out (§2.5); the thresholds and the
@@ -140,7 +137,9 @@ admits. A stratified permutation test, with the contexts as strata, tests whethe
 differ at α = 0.05. It is a nil-null test, and failing to reject is not evidence of equivalence;
 the protocol runs no equivalence test [36, 41].
 
-The margin of 0.10 (`delta_tv_min`) is a rule for reading an estimate, fixed before the data: an estimate below it,
+Total variation is half the sum of the absolute differences between zone probabilities, so a
+distance of 0.10 means that ten percentage points of probability move. The margin of 0.10
+(`delta_tv_min`) is a rule for reading an estimate, fixed before the data: an estimate below it,
 with no rejection, is read as below the materiality margin. Its value was frozen upstream before
 the completed run (§G.2), and no rationale is added after the fact. The claims of this paper do not
 depend on whether the value is well chosen; whether a pass of the power gate agrees with the test
@@ -175,7 +174,7 @@ the first rule whose action is to stop (§E).
 Both arms were run on 2026-09-14 (UTC) and, by our record, each was checked against the seal before its verdict was landed (§I.5). In the control arm (`qwen3:8b`), all
 eight contexts clear the entropy floor, the recorded power is 1.0, and the largest rate of draws
 with no recorded zone in any cell is 0.086667. The estimate is 0.030575, and the permutation test
-does not reject it (*p* = 0.43989). R5 is satisfied; it says nothing further about the backend upgrade (§D.4).
+does not reject it (*p* = 0.43989). The sealed scorer reports no interval for it, and none is added (§M.3). R5 is satisfied, which says nothing about the backend upgrade (§D.4).
 
 In the primary arm (`llama3.1:8b`), no context reaches the entropy floor: the per-context entropies
 run from 0.165654 to 0.274008. The largest rate of draws with no recorded zone in any cell is 0.066667. Because no context is admitted,
@@ -188,14 +187,14 @@ validity; R3, R1 and R2 were not reached, and the sealed rule narrows the claim 
 The analyses of this paper were fixed at four different times, and what each may be read as depends
 on when (Table 2). **Registered** analyses apply the estimand, the test and the rules to the two
 prospective arms; **prospective, descriptive** ones describe those arms by quantities no rule
-reads; **post hoc** ones generated the hypothesis that the **held-out** test then tested once, on
-draws collected without reference to it.
+reads; **post hoc** ones describe the runs, simulate the design and generated the hypothesis that the
+**held-out** test then tested once, on draws collected without reference to it.
 
 | Layer | Fixed when | Licenses |
 |---|---|---|
 | Registered | Sealed before any prospective draw, by our record (§H) | The reported branch, R4. Nothing about the channel's effect in the primary arm |
 | Prospective, descriptive | After the runs. No test | Descriptions of the two arms. No change to the branch |
-| Post hoc | After the completed run was seen (§F); the simulation of §4 after both arms and an internal review of this manuscript (§B.5). Each simulation's grid, seeds and reading rules were pushed before its first full run | Descriptions of the runs, the records and the gates; operating characteristics of the design under assumed distributions. Nothing about the channel |
+| Post hoc | After the completed run was seen (§F); both simulations after both arms, and that of §4 also after an internal review of this manuscript (§B.5). Each simulation's grid, seeds and reading rules were pushed before its first full run | Descriptions of the runs, the records and the gates; operating characteristics of the design under assumed distributions. Nothing about the channel |
 | Held-out | Specification frozen before the condition-wise counts were tabulated (declared); run once, control first, α = 1/40 | Row A of its frozen table, quoted with its class breakdown. Not separable from block order (§7.2) |
 
 Table: The four layers of analysis, when each was fixed, and what each licenses.
@@ -263,9 +262,8 @@ stops at R4 in 500 of 500, and P(R2) first reaches 0.8 there at `delta_tv` = 0.1
 **Why it matters.** The flaw is latent. The gate passed in both runs that formed an estimate, and on
 the bases simulated its pass coincides at the margin with what the test that decides can detect, so
 it did not change the evaluation. But the pass carries no information about shifts smaller than the
-margin, and the agreement is a property of a margin of this size: on the completed run's base the same gate, with the same surrogate, would pass a design whose test could not detect a margin a tenth as large (§6.1). What a
-power gate should read is the power of the test that decides, which can be simulated through the
-whole pipeline (§6.2).
+margin, and the agreement is a property of a margin of this size: on the completed run's base the same gate, with the same surrogate, would pass a design whose test could not detect a margin a tenth as large (§6.1); the
+power that matters can be simulated through the whole pipeline (§6.2).
 
 ---
 
@@ -289,7 +287,6 @@ calculation uses.
 |---|---|
 | The completed run and the control arm admit every context, while `agora` and `chashitsu` never appear in either run's channel-off base | Post hoc (completed run); prospective, descriptive (control arm) |
 | The primary arm admits no context and fires R4, although every cell produces two or more zones | Registered (firing); prospective, descriptive (zones) |
-| At a floor above 0.68 the rule would have fired on the completed run too | Post hoc |
 | On the primary arm's channel-off base, at the registered shift, the test alone rejects in every replicate of each feasible direction; the sealed floor stops 353, 452, 500 and 49 of 500 along D1, D2, D3 and D5 | Post hoc (simulation) |
 
 Table: What was found at the entropy floor, and the layer of each finding.
@@ -310,7 +307,9 @@ Table: The completed run's channel-off read-out, pooled over the contexts.
 `chashitsu` is not produced once in the whole run, under either condition, and `agora` appears three
 times, all in one context. Both zeros are empirical: they are what these draws did, not a property
 the task imposes. The control arm repeats the pattern: of its 2,306 parsed channel-off draws,
-`garden` has 386, `study` 1,896 and `peripatos` 24. The primary arm is the reverse case. The table
+`garden` has 386, `study` 1,896 and `peripatos` 24. The primary arm is the reverse case: of its
+2,339 parsed channel-off draws, `study` has 2,272, `garden` 59 and `agora` 8, and in every one of
+its 16 cells the second most frequent zone has between 5 and 15 of some 300 draws. The table
 below sets the zones each run's parsed draws occupy beside what the gate recorded.
 
 | Run | Zones in the channel-off base | Zones under the channel on | Zones per (context, condition) cell | `rho_hat` |
@@ -341,12 +340,13 @@ directions, deltas and numbers of draws. Under no shift the sealed pipeline stop
 replicates, and the pipeline without the floor reaches R2 in 187 (0.047), as often as the test
 alone rejects. At the registered shift the test alone rejects, and the pipeline without the floor
 reaches R2, in 500 of 500 replicates in each of the four feasible directions. The sealed floor
-stops 353 of 500 along D1, 452 along D2, 500 along D3 and 49 along D5, where the shift moves mass
-into the empty zones and so raises the entropy the floor reads; every replicate it stops is one the
-test rejects. The reading rule declared with the simulation reports these directions one by one and
+stops 353 of 500 along D1, 452 along D2, 500 along D3 and 49 along D5; D5 alone moves mass into the
+empty zones, which raises the entropy the floor reads. The simulated shifts are written into the
+read-out itself, so no replicate holds a floor effect, a read-out unable to register a shift: the
+simulation counts what the floor stopped, not what it protects against. The reading rule declared with the simulation reports these directions one by one and
 allows no statement that summarizes them.
 
-**Why it matters.** This flaw is actual in the sense the record shows: the floor decided the reported branch. The entropy it reads is pooled over both conditions and so moves with the shift, as D5 shows. Entropy measures how
+**Why it matters.** This flaw is actual in the sense the record shows: the floor decided the reported branch. The entropy it reads is pooled over both conditions and so moves with the shift. Entropy measures how
 evenly a context's draws spread, and support how many zones they reach, and in these runs the two
 come apart in both directions. A floor of 0.5 bit requires at least two zones in a context and says
 nothing more about the support, so clearing it does not certify the support the power calculation
@@ -394,8 +394,8 @@ The observation was tested once, on the two prospective arms, whose draws had be
 without reference to it. The specification, the test and the interpretation table were frozen at
 commit `61dbd96`; the prospective draws existed before the specification did, so this is not a
 formal pre-registration (§7.2). The test, of whether a draw is recorded as `None`, is an exact one-sided stratified test, with the eight contexts as strata and each context's `None` total
-held fixed, at level 1/40, applied to the control arm first and counted for the primary arm only if
-the control arm's test rejected. Both rejected, which is row A of the frozen interpretation table:
+held fixed, so that its null distribution is the convolution of eight hypergeometric distributions. It is run at level 1/40, one-sided because the direction was chosen after the completed run was seen, and was applied to the control arm first and counted for the primary arm only if
+the control arm's test rejected, which holds the familywise error at 1/40. Both rejected, which is row A of the frozen interpretation table:
 in both prospective runs, recorded `None` was more frequent in the channel-on blocks, 156 against 94
 in the control arm and 107 against 61 in the primary arm. As rates, the channel-on blocks recorded
 `None` more often by 2.6 percentage points in the control arm and 1.9 in the primary arm.
@@ -431,7 +431,8 @@ same behavioral meaning or the same parser-failure mechanism across the two fami
 specification also requires a six-category distance, with `None` as a sixth category: it is
 0.047917 (permutation *p* = 0.061197) in the control arm and 0.030833 (*p* = 0.015049) in the
 primary arm. It describes every draw rather than only those with a recorded zone, and it is not
-judged against the margin.
+judged against the margin. It treats `None` as an outcome rather than as missing, so it does not
+model why a draw is dropped, and it carries the order confound of §7.2.
 
 **Why it matters.** For the branch the flaw is latent: the cap passed with a wide clearance in every
 run, and the reported branch was decided elsewhere. It bears instead on what the estimate describes. The estimand is a distance between the distributions of the draws that produced a zone, so a difference between the conditions in how often a draw produces none lies outside it by construction, and the cap cannot see that difference however large it is, so long as no single cell drops half its draws. The estimate remains a correct description of the draws it is defined on; read as a statement about every draw, it can mislead when the dropped shares differ (§6.1). A cap on dropped outputs should be read beside a comparison of their rate and content between conditions (§6.2).
@@ -442,24 +443,19 @@ run, and the reported branch was decided elsewhere. It bears instead on what the
 
 ### 6.1 Flaws that changed the evaluation, and flaws that did not
 
-An audit of whether a preregistered study kept to its plan [57] would find here that every gate ran
-as written and that each deviation this report records is disclosed (§I.5); the reported branch is
-the one the sealed rules reach. The flaws lie between what a gate computes and what its result is
-taken to show; separating those that changed this evaluation from those that did not tells a reader
-which bear on this report and which on the next protocol.
+An audit of whether a preregistered study kept to its plan [57] asks a different question. Here
+every gate ran as written and the reported branch is the one the sealed rules reach; the
+differences between plan and record that this report states (§E, §I.5) are left to the reader to
+judge. The flaws lie between what a gate computes and what its result is taken to show.
 
 One flaw changed the evaluation, in the sense the record shows: the entropy floor decided the
 reported branch. What that withheld can be asked only of an assumed truth, and §4 reports it
 direction by direction. The branch remains a correct application of the rule, and it rests on a
 threshold (§4).
 
-Two flaws did not. The power gate's pass agreed with the simulated test at the registered margin on
-the bases simulated, but on the completed run's base the surrogate returns 1.0 at a tenth of the
-margin, where the test rejects in about one replicate in eight, so a protocol declaring that margin
-would pass a design unable to detect it (§3). The cap left the branch untouched, but dropping draws
-with no recorded zone is a complete-case analysis whose result can be biased as a statement about
-every draw when what is dropped differs between conditions [50], a difference that a cap on the
-worst cell cannot see (§5).
+Two flaws did not, and each would surface under other conditions: the power gate's under a
+smaller margin (§3), and the cap's when what is dropped differs between conditions, since dropping
+such draws is a complete-case analysis that can be biased as a statement about every draw [50].
 
 The distinction is between consequence and presence. All three flaws are present in the protocol as sealed; one had a consequence in this evaluation. The actual flaw qualifies this report, and the latent ones are what a protocol reusing these gates would inherit.
 
@@ -475,7 +471,7 @@ computed on another statistic agrees with the test that decides, and where it do
 says nothing about bases not simulated, or about an effect in the data. If the test cannot reach the target rate at the margin, enlarge the design before collecting; after collecting, report the estimate with its uncertainty and make no claim that an effect lies below the margin. NLP evaluations often lack the power their conclusions assume [35], the suitable test depends on the measure and setup [48], and a simulation whose shifts are set by design does not read a power figure after the data [44, 49].
 
 **Report support beside entropy, for each condition.** Count the categories each condition's draws
-occupy, and those of the base the power calculation uses, beside the entropy the floor reads. This
+occupy, with the number of draws in each, and those of the base the power calculation uses, beside the entropy the floor reads. This
 shows whether a cleared floor still leaves categories empty, or a failed one hides several (§4); it
 does not show whether an empty category belongs to the model or to the apparatus (§7.3). Where a category is empty, say whether the zero is what the draws did or what the task imposes, and how the power calculation treats it. Support matters to the power calculation because chi-square-type statistics are sensitive to small cells [43].
 
@@ -484,7 +480,7 @@ dropped outputs in each condition and classify each by the parser's own steps. T
 dropping and renormalizing removes a difference between the conditions, and what is dropped (§5).
 It does not show a cause: under a fixed order a difference between conditions is also one of
 position, and randomizing or counterbalancing separates the two only under assumptions about drift
-and dependence between draws. Before collecting, check that every output format the prompt shows is one the parser accepts: in the completed run every dropped draw was the template's own "null". After collecting, say whether the estimate is meant for the draws that produced a category or for every draw. Output depends on the prompt's format and on required output formats [45, 47], which is what makes the content worth reading.
+and dependence between draws. Before collecting, check that every output format the prompt shows is one the parser accepts: in the completed run every dropped draw was the template's own "null". After collecting, say whether the estimate is meant for the draws that produced a category or for every draw.
 
 ### 6.3 Relation to prior work
 
@@ -492,7 +488,7 @@ This case adds a further thing to audit in a preregistered evaluation: the corre
 criteria fixed in advance (§G.1), which does not establish that independence: its gates are computed
 from the same draws as the estimate, and it was not reviewed as a Registered Report. Meta-research on
 preregistration has examined adherence and the disclosure of deviations [57], the reporting of power
-analyses [59] and whether reviewers check preregistrations [58], and preregistration has been argued for experiments with AI agents [37]. Decisions that raise doubts about the validity of measures are questionable measurement practices [68], and a gate that reads a proxy is one made in the protocol; shared data and scripts do not by themselves make reported values reproducible [69, 70], which is what the checks of §J address.
+analyses [59] and whether reviewers check preregistrations [58], and preregistration has been argued for experiments with AI agents [37]. Decisions that raise doubts about the validity of measures are questionable measurement practices [68]; these gates were stated openly, which that account holds necessary but not sufficient, and lacked evidence that each read the quantity its reading depends on. Shared data do not by themselves make reported values reproducible [69, 70]; the checks of §J are the author's own consistency checks, not an independent reproduction.
 
 Fixing an equivalence bound before analysis is standard practice [36, 61], and declaring a materiality margin in advance has been applied to language-model evaluation [28]; this protocol follows that practice but runs no equivalence test [41, 61], and does not read a failure to reject as evidence that an effect is absent [62]. Its power gate is computed at the registered margin rather than at an observed effect [60], but on each run's own base and for a surrogate statistic (§N.1).
 
@@ -515,7 +511,7 @@ In all three runs the contexts were run in sorted order, and within each context
 draws were requested before the 300 channel-off draws; the upstream apparatus fixes that order
 (§I.5). Any difference between the conditions is therefore also a difference between earlier and
 later draws of the same context: the sealed estimate, the descriptive quantities and the held-out
-difference in recorded `None` alike. Elapsed time, server state, drift or the higher temperature and top-p of the channel-on draws could produce it as well as the channel could. The held-out *p*-values are exact only if the draws within a context
+difference in recorded `None` alike. Elapsed time, server state, drift or the higher temperature and top-p of the channel-on draws could produce it as well as the channel could; a higher temperature makes malformed output more likely, and the prompt asks for Japanese text inside the JSON object (§B.4). The held-out *p*-values are exact only if the draws within a context
 are exchangeable over their positions in the run, which a fixed block order does not guarantee, and that the condition-wise counts were not tabulated before the freeze is a declaration in the specification, not something any check demonstrates; the two verdicts, which record the largest rate of such draws in any one cell, had been seen. Nothing here assigns a condition difference to the channel, reads `None` as an intention, or reads a difference between the arms as one between model families.
 
 ### 7.3 A shared collapse would not be a replication
@@ -763,7 +759,7 @@ This work was developed with substantial AI assistance, disclosed here in full.
 Claude (Anthropic; the Opus 4.8, Opus 5, Opus 5.5 and Sonnet 5 models, via Claude Code) was used for
 implementing the measurement apparatus and the analysis and verification scripts shipped here, for
 documentation, and for drafting the text of this manuscript. OpenAI Codex (`gpt-5.5` and `gpt-6-astra`) was used for
-independent design and code review. **No AI system is an author**, and **no figure in this
+independent design and code review. Both were also used as reviewers of this manuscript before submission, Claude's Fable 5.1 model among them, and the post hoc simulation of §4 answers one of their questions (§B.5). **No AI system is an author**, and **no figure in this
 submission was generated by an image-generation model**: the three figures are drawn
 deterministically from the shipped data by `analysis/scripts/make_figures.py`, which, like the rest of
 the code, was written with AI assistance. The submission build checks every number a figure sets
@@ -776,7 +772,7 @@ The extent of that assistance is visible in the public record rather than assert
 | Upstream source, <https://github.com/mikotomiura/ERRE-Sandbox>, at commit `a2a19f9` | 305 | **205** |
 | This repository, at commit `a32bcf3` | 20 | **18** |
 
-Table: Commits carrying an AI co-author trailer, each count taken at the commit it names.
+Table: Commits carrying a Claude co-author trailer, each count taken at the commit it names.
 
 The counting method, and why each count names a commit, are stated in §J.
 
