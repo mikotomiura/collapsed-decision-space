@@ -273,9 +273,9 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     # §1, the first contribution: nothing is supplied for review, so what it rests on can be checked
     # only once the compendium is public.
     (
-        "with the rules, records and checks that\nrecompute it (§J);",
-        "with the rules, records and checks that\nrecompute it, which will be made public after "
-        "review (§J);",
+        "with the rules, records and checks that recompute it (§J),",
+        "with the rules, records and checks that recompute it, which will be made public after "
+        "review (§J),",
     ),
 )
 
