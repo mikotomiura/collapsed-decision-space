@@ -1,0 +1,38 @@
+{
+  "schema": "cds-autopsy-primary-grid-1",
+  "purpose": "Post hoc simulation, on the primary arm's per-context channel-off base, of the sealed decision pipeline and of one counterfactual pipeline that differs from it only in its measurability gate: what the entropy floor's firing on that arm withheld. A property of the design under an assumed truth, not an estimate of any effect of the channel.",
+  "extends": "analysis/autopsy/grid.json (declared at tag autopsy-b3-declared), whose bases_not_included left this base out. Directions, deltas, roles, the sampling of draws and the pipeline are taken from that grid by reference and are not restated; only what differs is declared here.",
+  "master_seed": 20261022,
+  "base": {
+    "id": "P",
+    "index": 5,
+    "label": "primary arm, per-context channel-off",
+    "true_off": "empirical per-context channel-off distribution of data/prospective/primary/run_annotation.jsonl (counts / parsed draws, exact fractions)",
+    "none_counts_from": "data/prospective/primary/run_annotation.jsonl",
+    "not_used": "The primary arm's channel-on draws are not read by this simulation in any way. Nothing here compares the two conditions of the primary arm."
+  },
+  "directions": ["D1", "D2", "D3", "D4", "D5", "D6"],
+  "deltas": ["0", "0.01", "0.02", "0.03", "0.04", "0.05", "0.075", "0.10", "0.15"],
+  "replicates": {"null": 4000, "alternative": 500},
+  "pipelines": {
+    "sealed": "The vendored scorer with its defaults, then the sealed rules R4 -> R3 -> R1 -> R2 through the sealed evaluator, R5 left out. The entropy floor is h_min_bits = 0.5.",
+    "support": "The same call, with the scorer's module constant H_MIN_BITS replaced at run time by 1e-9 for that call only, so that a context is admitted when its pooled zone distribution occupies at least two zones. Nothing else differs: the rules, the power gate (the R3 surrogate), the permutation test, the seeds and the draws are the same. The replacement is a counterfactual of this simulation; no file of the apparatus or the seal is changed.",
+    "test_alone": "The sealed stratified permutation test on all eight contexts with no gate in front of it, as in analysis/autopsy/simulate.py."
+  },
+  "draws": "One set of draws per (cell, replicate), shared by the three quantities, so that they differ only in what is applied to the same draws. Uniforms come from numpy SeedSequence(master_seed, spawn_key=(base index, replicate)), as in the declared simulation.",
+  "quantities": [
+    "P(R2) under the sealed pipeline, and its branch counts R4 / R3 / R1 / R2 / die",
+    "P(R2) under the support pipeline, and its branch counts",
+    "P(test_reject) of the test alone",
+    "P(R4) under the sealed pipeline, by delta: how often the entropy floor fires when the channel-on distribution is moved by delta from this base"
+  ],
+  "reading_rules": [
+    "Every rate is k/n with a Wilson 95% interval, as in the declared simulation. Infeasible cells are reported as infeasible; aliases once, under every name.",
+    "Type-I (delta = 0): the label conservative / compatible / liberal of the declared simulation, for the support pipeline and for the test alone. The sealed pipeline's branch counts are stated.",
+    "Registered delta 0.10, per feasible direction: P(R2) sealed, P(R2) support and P(test_reject), each with its interval and the branch counts.",
+    "The sentence the manuscript may write about what the floor's firing withheld is fixed here, before the run, by these cases, applied to the feasible directions at delta 0.10: (A) if under the support pipeline the Wilson lower limit of P(R2) is at least 0.8 in every feasible direction, and under the sealed pipeline P(R4) is at least 0.8 in every feasible direction, the text may say that on this base the floor stops a design that, behind a gate that reads support, would reach R2 at the registered shift in at least 80% of replicates; (B) if under the support pipeline the Wilson upper limit of P(R2) is below 0.8 in every feasible direction, the text may say that on this base a gate that reads support would not have given the design that reliability either, so the floor's firing did not withhold a decision the design could make reliably at the registered shift; (C) otherwise the text reports the directions one by one and makes no summary statement.",
+    "Under any case, the text says that the comparison is between two pipelines on an assumed truth taken from the primary arm's channel-off draws, at the declared directions, deltas and numbers of draws only.",
+    "Not said, whatever the result: anything about the effect of the channel in the primary arm or elsewhere; anything about the primary arm's channel-on draws; anything outside the declared grid; that a non-rejection shows equivalence or absence of an effect; that the design was adequately powered."
+  ],
+  "environment": "The repository's locked environment (env/uv.lock), as for the declared simulation."
+}

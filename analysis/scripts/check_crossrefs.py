@@ -69,6 +69,7 @@ FROZEN_SCOPE: tuple[str, ...] = (
     "analysis/freeze-provenance.json",
     "analysis/heldout-stay",
     "analysis/autopsy",
+    "analysis/autopsy-primary",
     "data/posthoc",
     "data/prospective/README.md",
     "seal",
