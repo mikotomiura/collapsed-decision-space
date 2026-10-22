@@ -99,7 +99,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (cd from-ubuntu && sha256sum ./*)
-          (cd from-windows && sha256sum ./*)
+          (cd from-ubuntu && find . -type f | sort | xargs sha256sum)
+          (cd from-windows && find . -type f | sort | xargs sha256sum)
           diff -r from-ubuntu from-windows
           echo "OK: data/posthoc は両 OS で byte 一致した"
