@@ -213,9 +213,9 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
         "with commit counts a reader can recompute once the compendium is public.",
     ),
     (
-        "The extent of that assistance is visible in the public record rather than asserted here:",
+        "The extent of that assistance is visible in the public record rather than asserted here,",
         "The extent of that assistance will be visible in the public record after review rather than "
-        "asserted here:",
+        "asserted here,",
     ),
     # §J: the driver's file name again.
     (
@@ -224,8 +224,8 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     ),
     # §K: the continuous integration is public only once the compendium is.
     (
-        "re-run by public continuous\nintegration",
-        "re-run by continuous\nintegration",
+        "re-run by public continuous integration on two operating systems",
+        "re-run by continuous integration on two operating systems",
     ),
     # §K, the table: the upstream repository's URL.
     (

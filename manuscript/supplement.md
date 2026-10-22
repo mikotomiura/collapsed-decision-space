@@ -414,7 +414,7 @@ Return ONLY the JSON object. No prose outside the braces.
 
 **[Post hoc, declared before it ran]** The simulation of §B.3 left the primary arm's base out. This
 one was declared after both prospective arms had been seen and after an internal pre-submission
-review of this manuscript, run by its author with AI reviewers (§K), asked what a pipeline admitting contexts by
+review of this manuscript asked what a pipeline admitting contexts by
 support would have done on that base. Its grid, seeds, replicate counts and reading rules,
 including the sentence the paper may write in each case, are in `analysis/autopsy-primary/grid.json`
 and `DECLARATION.md`, committed at `074e000`, which the tag `autopsy-primary-declared` points at, and
@@ -1125,18 +1125,6 @@ SHA-256 equals the `uv_lock_sha256` pinned in `data/raw/cproper-manifest.json`, 
 checks that equality rather than asserting it.
 
 ---
-
-**Counting the AI co-author trailers of §K.** Trailers are counted **case-insensitively, as commits rather than as trailer lines**, over the
-history reachable from the commit named in each row. Both halves of that sentence are load-bearing.
-A single commit may carry more than one trailer, so the upstream history holds 286 such lines
-across those 205 commits, and a count of lines reported as a count of commits would overstate the
-figure by two fifths. And a count with no commit pinned beside it cannot be reproduced at all,
-because the next commit changes it. Each row is therefore true of the commit it names and of no
-other, which is the most a count of this kind can be: the commit that records a figure cannot be
-included in it, so the row for this repository names the last commit before the one that wrote the
-row. It also has to name a commit a reader can still reach, which is why the row names a commit on
-`main`. Anyone can recompute both with `git log --format=%H%x01%B%x02` over the named commit and count
-the entries whose body matches `co-authored-by:.*claude`, case-insensitively.
 
 ## L. Section numbers cited by files that cannot change
 
