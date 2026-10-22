@@ -3,8 +3,8 @@
 **Three gates, three proxies: auditing the null-report checks of a pre-registered LLM-agent evaluation**
 
 This document holds the lettered sections that the paper cites but does not carry. Section numbers
-§1 to §7 refer to the paper; §E and §K are appended to the paper itself. Reference numbers in
-square brackets refer to the paper's reference list.
+§1 to §7 refer to the paper; §E and §K are appended to the paper itself. The works cited here are
+listed in the paper's reference list.
 
 The sections hold three kinds of material. §C, §D and §F to §H are the record of the sealed
 protocol beside its decision rules (§E, in the paper): its design, analysis plan, eligibility
@@ -127,7 +127,7 @@ margin, and is quoted only in that full form. The first and fourth rows are the 
 relies on: at the registered `delta_tv` the surrogate returns `1.0000` for both bases. All four rows
 are properties of the surrogate; none of them is the power of the permutation test the decision
 turns on (§3). That concentration is not what lowers the computed power follows from the form of
-the statistic, which cells with small expected counts dominate [43].
+the statistic, which cells with small expected counts dominate (Balakrishnan & Wasserman, 2018).
 
 **The sweep against the completed run's base.** §3 quotes one value of this sweep. Against the
 completed run's channel-off base, whose two empty cells §4 describes, the same surrogate behaves
@@ -262,7 +262,12 @@ At the registered shift on the completed run's base, the pipeline reaches R2 in 
 replicates in each of the four feasible directions (D1, D2, D3, D5), and the test alone rejects in
 1,000 of 1,000; D4 and D6 are infeasible there, because one context holds less than 0.10 in `garden`.
 These are not four independent confirmations: the replicates share their channel-off draws, and D1
-and D5 give identical statistics there from `delta_tv` = 0.05 upward. Along D1, as the table shows,
+and D5 give identical statistics there from `delta_tv` = 0.05 upward. The two rates are not computed on the
+same contexts. The pipeline's test runs on the contexts the entropy floor admits; the test alone runs
+on all eight. Where all eight are admitted the two are the same call, and where they are not the
+two can differ: at `C|D1|0.02`, two replicates admitted seven contexts, the pipeline's test did not
+reject on those seven, the test alone rejected on all eight, and P(R2) is 390 where P(test_reject)
+is 392. Along D1, as the table shows,
 the test's rejection rate equals the surrogate's 1.0 from `delta_tv` = 0.05 upward along the
 surrogate's direction and is below it at smaller shifts. At the registered shift the test's rate
 reaches 0.8 in every base and direction the declared grid runs at that size, which is not every
@@ -345,6 +350,48 @@ of the same self-test still reports this one check as skipped. The continuous in
 repository re-parses the two prospective arms as well, whose records are shipped too
 (§I.5). The template quoted in §5 is at `analysis/apparatus/erre_sandbox/cognition/prompting.py`,
 lines 48 and 71.
+
+### B.5 What the entropy floor withheld on the primary arm's base
+
+**Post hoc, declared before it ran.** The simulation of §B.3 left the primary arm's base out. Review
+of the revised manuscript asked what a gate that reads support would have done there, and this
+simulation answers that question on an assumed truth. Its grid, seeds, replicate counts and
+reading rules, including the sentence the paper may write in each case, are in
+`analysis/autopsy-primary/grid.json` and `DECLARATION.md`, committed and pushed before the first
+full run at the commit the tag `autopsy-primary-declared` points at;
+`analysis/autopsy-primary/simulate_primary.py --run` and `--render` refuse to start unless every
+declared file is byte-identical to its copy at that tag. Every declared cell is in
+`data/posthoc/primary/summary.md`, rendered from the per-replicate record
+`data/posthoc/primary/replicates.tsv`.
+
+**Design.** The base is the primary arm's per-context channel-off distribution (base `P`). The
+directions, deltas, roles and sampling of draws are those of §B.3, by reference, with 4,000
+replicates under the null and 500 per shifted cell. Two pipelines and one test are applied to the
+same draws: the sealed pipeline; a counterfactual pipeline identical to it except that the
+scorer's entropy floor is replaced, for that call only, by 1e-9, so that a context is admitted when
+its pooled draws occupy two or more zones; and the permutation test on all eight contexts. The
+primary arm's channel-on draws are not read. D4 is feasible only at 0.01 and D6 only up to 0.02,
+because one context holds too little mass in the cell they move from.
+
+**Results.** Under the null the sealed pipeline stops at R4 in 4,000 of 4,000 replicates; the
+counterfactual pipeline reaches R2 in 187/4000 = `0.04675` [0.040632, 0.053738], compatible with
+0.05, and so does the test alone. At the registered shift:
+
+| Direction | P(R2), counterfactual | P(R4), sealed | P(R2), sealed |
+|---|---|---|---|
+| D1 | 500/500 | 353/500 = `0.706` | 147/500 = `0.294` |
+| D2 | 500/500 | 452/500 = `0.904` | 48/500 = `0.096` |
+| D3 | 500/500 | 500/500 | 0/500 |
+| D5 | 500/500 | 49/500 = `0.098` | 451/500 = `0.902` |
+
+Table: The primary arm's base at the registered shift, per feasible direction.
+
+The counterfactual pipeline first reaches 0.8 at `delta_tv` = 0.02 along D1, D2, D5 and D6 and at
+0.03 along D3. Along D5 the shift moves mass into the zones the base leaves empty, which raises the
+pooled entropy the floor reads, and from 0.075 upward the sealed floor stops fewer replicates. The
+declared reading rule puts the result in its case C: the floor does not stop at least 80% of
+replicates in every feasible direction, so the paper reports the directions one by one and makes
+no summary statement about what the firing withheld.
 
 ## C. Prospective design
 
@@ -452,6 +499,55 @@ single-model scope; R3 failing yields an inconclusive-underpowered result that c
 as a pre-declared constant. No rule in §E re-analyzes any of this material.
 
 ---
+
+### D.4 The quantities the sealed rules read, and how the rules are held
+
+The rules themselves are in §E of the paper. This subsection says what each quantity they read is,
+and what the arrangement of §E does and does not establish.
+
+| Quantity | Read by | Role |
+|---|---|---|
+| `tv_bar` | R1, R2, R5 | The primary estimand; compared against the materiality margin |
+| `rho_hat` | R1–R5 | Fraction of contexts whose per-context entropy of the zone distribution, pooled over both conditions with unparseable draws excluded, reaches `h_min_bits` (apparatus validity). It reads entropy, not the number of zones produced; §4 shows the two coming apart in both directions |
+| `power` | R1–R3, R5 | Monte-Carlo power of a pooled one-sample chi-square goodness-of-fit test against an alternative built by moving mass from the largest to the smallest cell of the empirical channel-off distribution: the nominal sensitivity of a surrogate diagnostic. **This is not the power of the permutation test that produces `permutation_reject`**, which is the test the decision actually turns on; the two use different statistics and are not interchangeable, and §3 simulates the second post hoc. At the registered `delta_tv` it is 1.0 for both bases §B.1 checks, near-uniform and degenerate, so a pass does not distinguish them; §3 shows its sensitivity when a cell of the base is empty |
+| `permutation_reject` | R1, R2, R5 | Outcome of the permutation test at the declared α |
+| `none_rate_max_observed` | R4 | The apparatus computes the fraction of draws yielding no parseable zone **per (context, condition) cell** and records the maximum across cells. No pooled figure is produced anywhere in the run output, so the maximum is the quantity R4 is evaluated on. The sealed text's word "pooled" names a quantity the run output does not contain. The scorer independently returns `INCONCLUSIVE` if any single cell exceeds `none_rate_max`, so R4's second condition partly duplicates a gate upstream of it. It caps the rate in any one cell; it does not read how the rate differs between the conditions (§5) |
+| `verdict` | R5 | The categorical verdict emitted by the scorer for the control arm |
+
+Table: The six quantities the sealed rules read.
+
+No threshold is added by listing these: `none_rate_max` is already among the values in §C.4, and
+`verdict` is categorical.
+
+Stating this explicitly matters: a protocol that named only `tv_bar` would understate what the
+decision after the run actually depends on.
+
+The rules of §E are **not predictions.** They are decision rules, fixed in advance, that determine
+which scope of claim an estimate may be mapped onto once it is obtained. **R1, R2, R3 and R4 are
+all permissible outcomes, and the authors do not predict which will occur.** The branch names are
+category labels, not expectations.
+
+**The rules in §E are not written there by hand.** They are generated from `seal/decision-rules.json`, the
+sealed machine-readable statement of them, by `analysis/scripts/render_decision_rules.py`, and step
+12 of `repro.sh` fails if the block in the paper is not what that file renders to. This is
+the whole of the pre-registration's mechanical content, and it is worth saying why it is arranged
+this way. A protocol whose rules exist only as prose can be re-read after the data arrive, and
+nothing catches it unless a third party holds the rules. There is no such third party here, so the rules are held instead by three checks that do not require one: the sealed
+bytes (step 12), the generated text of §E (step 12), and the evaluator that applies the rules to
+the recorded quantities and reports the branch it reaches (§J). None of the three establishes
+*when* the rules were fixed. What they establish is that the branch reported after the run follows
+from the rules as they stand in §E.
+
+One word of the block needs a pointer. The estimand drops "unparseable" draws,
+meaning every draw whose recorded destination is `None`. §5 shows what those draws are: in the
+completed run the word is exact for all 330 of them, and in the prospective arms for all but
+two of the 418, the other two being a JSON `null` and an absent destination key, which the parser
+treats as an empty destination rather than an error. The block
+reproduces the sealed text exactly, spelling included.
+
+**What an R5 pass states.** A pass states that the five quantities fall inside the declared band.
+That is the whole of its content. It is not a statement about whether the backend upgrade changed
+anything, and §I.1 records this limit.
 
 ## F. Eligibility: what is known at seal time, and what is not
 
@@ -624,7 +720,7 @@ might have shown.
 
 The backend used here does not expose token-level logits, so the five-way decision distribution is
 estimated from sampled generations. For the total-variation distance between two autoregressive
-models, logit access lowers the number of queries an estimate needs, compared with sampling [29];
+models, logit access lowers the number of queries an estimate needs, compared with sampling (Price et al., 2026);
 how much it would lower the cost of this decision-level distance is not examined here. This is a
 constraint of the deployment, and it sets the cost of the design.
 
@@ -729,8 +825,8 @@ tabulates, and on the degenerate base the pipeline stops at R4 in replicates whe
 rejects. None of this changes how a pass of R3 is read here: a
 figure that agrees with the test at one effect size and not at others does not measure it. And the
 simulation is a property of the design under assumed distributions; it does not bear on the
-completed run's estimate (§2.3, and [44] on why a power figure cannot interpret a non-significant
-result).
+completed run's estimate (§3; Hoenig & Heisey, 2001, on why a power figure computed at an observed
+effect cannot interpret a non-significant result).
 
 ### I.7 What would distinguish a shared collapse from a replication
 
@@ -754,37 +850,27 @@ Apart from the archival deposit of the sealed files described in §J, there is n
 supplementary archive: the data, the analysis scripts, the apparatus and the reproduction command
 are all in the repository named here.
 
-**Only this manuscript is maintained; every other form of it is derived and read back.** The PDF
-is built from this manuscript by `analysis/scripts/make_pdf_source.py` with pandoc 3.5, typeset in
-the TMLR style (vendored in `manuscript/tmlr/` and pinned there by SHA-256), and is not edited by
-hand. Its reference list is read from the References section, which is itself rendered from
-`manuscript/refs.json` by `analysis/scripts/render_references.py`. Its
-three figures are drawn by `analysis/scripts/make_figures.py` from the shipped data, and
-`make_figures.py --check` requires every number a figure sets to match that data. The finished PDF
-is then read back: `check_pdf_text.py` requires the headings, the quantities, the characters at risk
-of silent loss, the references and the appendices to begin once each and in order with every figure
-before them (and, for the anonymous build, the references to begin within the page limit of the
-TMLR style), and each figure's numbers row by row,
-`check_claim_boundary.py` runs on its text, and for the anonymous build `check_pdf_identity.py`
-requires that nothing in the file identifies the author. The manual `submission-pdf` workflow
-performs all of it. The anonymous build takes its manuscript from a copy of this repository
-de-identified by `analysis/scripts/make_anonymous_bundle.py`, which reports what identifying strings
-it cannot remove and why; that copy is an intermediate of the build and is not submitted.
-
-There are two forms derived in this way, the PDF and a `.docx` set in APA 7 style, and neither is
-maintained by hand. The `.docx` is built from this manuscript by
+**Only the paper's source is maintained; every other form of it is derived and read back.** The
+`.docx` submitted to this journal is built from `manuscript/main.md` by
 `analysis/scripts/make_docx_source.py` with pandoc 3.5. Its citations and its reference list are set
 from `manuscript/refs.json` by pandoc's citeproc, in the APA style of the Citation Style Language
-project (vendored in `manuscript/docx/` and pinned there by SHA-256), and its figures are the same
-three drawings, each typeset on its own and read back for its numbers before it is converted to an
-image. The conversion records every change it makes: the title page and the Author Note, which take
-the author table and the AI-use disclosure of §K, the citations, the reference list, the labels of
-the figures and tables, each figure's caption set as a title above the figure and a note below it,
-and what it leaves out. `analysis/scripts/check_docx_text.py` then reads
-the `.docx` back. It enumerates the same changes from the inputs on its own and checks each against
-the file, compares the rest of the text with this manuscript word for word, and requires each
-figure's picture to be the image recorded for that figure; copies of the file broken one way at a
-time must each be reported for what was broken. The manual `apa-docx` workflow performs all of it.
+project (vendored in `manuscript/docx/` and pinned there by SHA-256), and its three figures are drawn
+by `analysis/scripts/make_figures.py` from the shipped data, each typeset on its own and read back
+for its numbers before it is converted to an image. The conversion records every change it makes:
+the title page and the Author Note, which take the author table and the AI-use disclosure of §K,
+the citations, the reference list, the labels of the figures and tables, each figure's caption set
+as a title above the figure and a note below it, and what it leaves out.
+`analysis/scripts/check_docx_text.py` then reads the `.docx` back. It enumerates the same changes
+from the inputs on its own and checks each against the file, compares the rest of the text with the
+source word for word, and requires each figure's picture to be the image recorded for that figure;
+copies of the file broken one way at a time must each be reported for what was broken. The manual
+`apa-docx` workflow performs all of it.
+
+A second form, a PDF in the style of a venue this work was earlier prepared for (vendored in
+`manuscript/tmlr/`), is derived from the same source by `analysis/scripts/make_pdf_source.py` and
+read back by `check_pdf_text.py` and `check_claim_boundary.py` in the manual `submission-pdf`
+workflow. It is not the submitted form and is kept as a further check that the source sets
+correctly.
 
 **The paper and this Supplementary Material are two files under one numbering.** The paper is
 `manuscript/main.md`, which carries §E and §K after its references; this document is
@@ -961,6 +1047,18 @@ checks that equality rather than asserting it.
 
 ---
 
+**Counting the AI co-author trailers of §K.** Trailers are counted **case-insensitively, as commits rather than as trailer lines**, over the
+history reachable from the commit named in each row. Both halves of that sentence are load-bearing.
+A single commit may carry more than one trailer, so the upstream history holds 286 such lines
+across those 205 commits, and a count of lines reported as a count of commits would overstate the
+figure by two fifths. And a count with no commit pinned beside it cannot be reproduced at all,
+because the next commit changes it. Each row is therefore true of the commit it names and of no
+other, which is the most a count of this kind can be: the commit that records a figure cannot be
+included in it, so the row for this repository names the last commit before the one that wrote the
+row. It also has to name a commit a reader can still reach, which is why the row names a commit on
+`main`. Anyone can recompute both with `git log --format=%H%x01%B%x02` over the named commit and count
+the entries whose body matches `co-authored-by:.*claude`, case-insensitively.
+
 ## L. Section numbers cited by files that cannot change
 
 Some files cite a section of this manuscript by a number it no longer carries, and cannot be
@@ -1025,6 +1123,11 @@ licenses is reading an unmeasurable arm as agreement; §7.3 carries the reason a
 would not be a replication, and that reasoning applies with more force where there is no estimate
 at all.
 
+**The frozen qualifier on explicit `null`.** The held-out specification allows the paper to write
+that outputs naming `null` as the destination increased only if the same test, applied to the string
+and JSON `null` alone, rejects. It does in the control arm, where it gives *p* = 4.359535e-05, and
+not in the primary arm, where it gives *p* = 2.263667e-01.
+
 ### M.3 The estimates the permutation test did not reject
 
 **[Registered] Neither run that produced an estimate returned one its own permutation test
@@ -1074,14 +1177,14 @@ Only the first two rows are what the label's name describes.
 **Standard results this paper rests on.** The power that bears on a decision is the power of the
 test the decision uses; a figure computed for another statistic does not carry over, and using a
 power figure computed after the data to interpret a non-significant result is a documented misuse
-[44]. Card and colleagues [35] document how often conclusions in NLP rest on designs without the
-power to support them. The sealed rules come close to the form that Hoenig and Heisey [44] warn
+(Hoenig & Heisey, 2001). Card and colleagues (2020) document how often conclusions in NLP rest on designs without the
+power to support them. The sealed rules come close to the form that Hoenig and Heisey (2001) warn
 against: `power` is
 computed after the draws, on the run's own channel-off distribution, though at the registered
 `delta_tv` rather than at an observed effect, and clearing the power gate (`power` ≥ 0.8) is required
 before R1 can be reached (§E). A Pearson goodness-of-fit statistic is highly sensitive to cells with
 small expected counts, and the classical chi-square test can have poor power when many cells are
-small relative to the sample size [43]. The truncated statistic discussed there bounds each cell's
+small relative to the sample size (Balakrishnan & Wasserman, 2018). The truncated statistic discussed there bounds each cell's
 denominator from below so that small cells cannot dominate it. The surrogate behind R3 is a five-cell
 statistic, not a high-dimensional one, but its base has empirically empty cells, and its
 implementation floors the denominators only at a small constant that avoids dividing by zero, which
@@ -1090,39 +1193,39 @@ distribution: a distribution can clear an entropy floor while occupying few cate
 it while occupying several. Dropping a category and renormalizing over the rest removes from the
 comparison any difference between conditions in how often that category occurs.
 
-**Total-variation estimation and equivalence.** Price, Tian, Xun and Zhu [29] give sample-complexity
+**Total-variation estimation and equivalence.** Price, Tian, Xun and Zhu (2026) give sample-complexity
 results for estimating total-variation distance in autoregressive models. Their estimand is
 sequence-level, and their access models (samples of the next token after any prefix, or its logits)
 are richer than independent whole generations; ours is a decision-level five-way
 categorical distance, and the gap between the two is the main efficiency cost of this design (§I.2).
-Jiao, Han and Weissman [42] give minimax rates for estimating the L1 distance, twice the
+Jiao, Han and Weissman (2018) give minimax rates for estimating the L1 distance, twice the
 total-variation distance, between two discrete distributions from samples, and show that in a
 large-alphabet, non-asymptotic setting the plug-in estimate needs more samples than a rate-optimal
 one. Our alphabet has five categories; `tv_bar` averages plug-in distances, and we make no claim about
-its efficiency. Bastian, Dette and Koletzko [41] construct a bootstrap test of whether two
+its efficiency. Bastian, Dette and Koletzko (2024) construct a bootstrap test of whether two
 multinomial distributions are equivalent, in the sense that a norm of the difference between their
 class probabilities, the L1 norm included, lies below a threshold. It is a direct test of the
 question that a margin on a total-variation distance points toward, and this protocol runs neither it
 nor any other equivalence test (§N.2).
 
-**Surface sensitivity of language-model evaluation.** Sclar and colleagues [45] show that
+**Surface sensitivity of language-model evaluation.** Sclar and colleagues (2023) show that
 meaning-preserving changes to prompt formatting can move a model's measured performance by large
 amounts, and that performance across formats correlates only weakly between models. Zheng and
-colleagues [46] show that models prefer particular option positions and identifiers when choosing
-among listed options. Tam and colleagues [47] find that requiring output in a structured format such
+colleagues (2023) show that models prefer particular option positions and identifiers when choosing
+among listed options. Tam and colleagues (2024) find that requiring output in a structured format such
 as JSON lowers models' performance on reasoning tasks, more so the stricter the format. What the fixed
 template, zone order and output schema of this apparatus contribute to the read-out is not measured
 in this work.
 
-**Preregistration, validation and adjacent audits.** Vaccaro [37] discusses preregistration for
-experiments with AI agents. Larooij and Törnberg [38] argue that validation is the central challenge
-for generative social simulation, and Tomašević and colleagues [39]
+**Preregistration, validation and adjacent audits.** Vaccaro (2026) discusses preregistration for
+experiments with AI agents. Larooij and Törnberg (2025) argue that validation is the central challenge
+for generative social simulation, and Tomašević and colleagues (2026)
 report a replicated operational validation of an LLM-agent social simulation. Both motivate measuring
-whether a wired mechanism propagates rather than assuming that it does. Park and colleagues [2]
-provide the generative-agent architecture this apparatus descends from. Singh [28] audits compressed
+whether a wired mechanism propagates rather than assuming that it does. Park and colleagues (2023)
+provide the generative-agent architecture this apparatus descends from. Singh (2026) audits compressed
 language models with a statistical toolkit built around equivalence testing at a declared margin:
-the practice of fixing a bound in advance [36], applied to language-model evaluation, which this
-protocol follows. Otterson [27] separates instrument artifacts from real
+the practice of fixing a bound in advance (Lakens, 2017), applied to language-model evaluation, which this
+protocol follows. Otterson (2026) separates instrument artifacts from real
 effects in a pre-registered causal setting; the separation logic is adjacent to ours, applied to a
 different object.
 
@@ -1130,14 +1233,15 @@ different object.
 
 **Where the value came from, and what is not added to it.** `delta_tv_min = 0.10` was fixed upstream,
 with the other thresholds, before the completed run was executed; §G.2 gives the commits and what
-checking them establishes. Fixing such a bound before analysis is established practice [36], and has
-been applied to language-model evaluation [28]. No substantive justification for the value is
+checking them establishes. Fixing such a bound before analysis is established practice (Lakens, 2017), and has
+been applied to language-model evaluation (Singh, 2026). No substantive justification for the value is
 supplied after the fact: one written with every result in hand would be a rationalization of a sealed
-value rather than a reason for it. Each gate is read at whatever margin is registered, and no claim of
-this paper uses the value.
+value rather than a reason for it. Each gate is read at whatever margin is registered. The claims of the paper do not depend on whether
+the value is well chosen, although whether a pass of the power gate agrees with the test that
+decides does depend on it (§3).
 
 **Relation to equivalence testing.** Where a study aims at evidence of absence, the standard
-recommendation is a frequentist equivalence test [36]. **This protocol does not perform formal TOST
+recommendation is a frequentist equivalence test (Lakens, 2017). **This protocol does not perform formal TOST
 or Bayesian equivalence testing.** What it performs is estimation, comparison against a materiality
 margin declared in advance, and a power guard. We do not call this formal evidence of equivalence, and
 we do not claim that the procedure is the recommended framework under another name. The permutation
@@ -1159,6 +1263,6 @@ The author declares no competing interests.
 
 ---
 
-The abstract at the head of this document and the `abstract` field of `CITATION.cff` are required
-to be the same text; `analysis/scripts/check_claim_boundary.py` compares them on every
+The abstract of the paper and the `abstract` field of `CITATION.cff` are required to be the same
+text; `analysis/scripts/check_claim_boundary.py` compares them on every
 reproduction run, so the manuscript and the repository metadata cannot drift apart silently.

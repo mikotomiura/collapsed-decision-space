@@ -1867,10 +1867,6 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
 
     fragments += [
         (
-            "held-out counts, in the abstract",
-            f"({c_none['on']} against {c_none['off']}; {p_none['on']} against {p_none['off']})",
-        ),
-        (
             "held-out counts of the control arm, in Table 1 or §5",
             f"{c_none['on']} against {c_none['off']} in the control arm",
         ),
@@ -1894,7 +1890,7 @@ def rendered_fragments(root: Path) -> tuple[list[tuple[str, str]], list[str]]:
         ),
         (
             "held-out explicit-null p-values",
-            f"*p* = {arms['control']['explicit_null_test']['p_upper']}, and not for the primary "
+            f"*p* = {arms['control']['explicit_null_test']['p_upper']}, and not in the primary "
             f"arm, where it gives *p* = {arms['primary']['explicit_null_test']['p_upper']}",
         ),
         (

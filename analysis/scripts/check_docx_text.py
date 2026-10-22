@@ -2436,7 +2436,13 @@ def reference_fields(item: dict[str, Any]) -> list[tuple[str, str]]:
     number), then the DOI or the URL.
     """
     fields: list[tuple[str, str]] = []
-    for author in item["author"]:
+    authors = item["author"]
+    # APA 7 lists up to 20 authors; with 21 or more it lists the first 19, an ellipsis and the last.
+    shown = authors if len(authors) <= 20 else [*authors[:19], None, authors[-1]]
+    for author in shown:
+        if author is None:
+            fields.append(("elision", "..."))
+            continue
         fields.append(("author", author.get("literal") or f"{author['family']}, {author['given']}"))
     year = f"({item['issued']['date-parts'][0][0]})" if "issued" in item else "(n.d.)"
     fields.append(("year", year))

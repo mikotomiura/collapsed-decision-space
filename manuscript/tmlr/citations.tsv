@@ -14,7 +14,7 @@ next action from it	2	citep
 validity of such simulations	38, 39	citep
 from the generative-agent architecture	2	citep
 runs no equivalence test	36, 41	citep
-as Hoenig and Heisey	44	citeyearpar
+that Hoenig and Heisey	44	citeyearpar
 statistics are known for	43	citep
 study of a method	49	citep
 dependence of language-model evaluation	45, 47	citep
@@ -32,12 +32,14 @@ whether reviewers check preregistrations	58	citep
 experiments with AI agents	37	citep
 analysis is standard practice	36, 61	citep
 applied to language-model evaluation	28	citep
-its bounds are justified	61	citep
+runs no equivalence test	41, 61	citep
 an effect is absent	62	citep
-is the recommended alternative	60	citep
-two multinomial distributions exist	41	citep
+at an observed effect	60	citep
+of interest is recommended	65	citep
+one way they fail	66	citep
+how answers are extracted	67	citep
 in its own right	29, 42	citep
 on a different object	27	citep
 moves with prompt formatting	45	citep
-identifiers of listed options	46	citep
-with required output formats	47	citep
+formatting [45], listed options	46	citep
+and required output formats	47	citep

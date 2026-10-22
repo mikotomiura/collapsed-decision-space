@@ -179,14 +179,6 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
         "deposit of\nthe sealed files described in §J, the data, the analysis scripts, the apparatus "
         "and the\nreproduction command are all in the compendium named above.\n",
     ),
-    # §J: the de-identification tool the anonymous build is made with.
-    (
-        "The manual `submission-pdf` workflow\nperforms all of it. The anonymous build takes its "
-        "manuscript from a copy of this repository\nde-identified by "
-        "`analysis/scripts/make_anonymous_bundle.py`, which reports what identifying strings\nit "
-        "cannot remove and why; that copy is an intermediate of the build and is not submitted.\n",
-        "A manual workflow\nperforms all of it.\n",
-    ),
     # §H and §J: the archival deposit's identifiers and its registration time, which a search of
     # the archive would resolve to a record carrying the author's name (TASK-POST review).
     (
@@ -220,9 +212,9 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
         "with commit counts a reader can recompute once the compendium is public.",
     ),
     (
-        "The extent of that assistance is visible in the public record rather than asserted here,",
+        "The extent of that assistance is visible in the public record rather than asserted here:",
         "The extent of that assistance will be visible in the public record after review rather than "
-        "asserted here,",
+        "asserted here:",
     ),
     # §J: the driver's file name again.
     (
@@ -243,7 +235,6 @@ ANONYMOUS_REWRITES: tuple[tuple[str, str], ...] = (
     # one author's and says "the author"; the anonymous build must not say how many there are.
     ("reviewed and validated by the author.", "reviewed and validated by the authors."),
     ("does not come from the author.", "does not come from the authors."),
-    ("identifies the author.", "identifies the authors."),
     ("seconds on the author's machine.", "seconds on the machine used for this study."),
     ("validated by the human author, who made the", "validated by the human authors, who made the"),
     ("belonging to the\nauthor, and the models", "belonging to the\nauthors, and the models"),

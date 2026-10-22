@@ -40,6 +40,9 @@ what each reference is doing in the argument.
 | [62] | A non-significant result is not evidence that an effect is absent | §6.3 |
 | [63] | In online experiments, participants who drop out of conditions for different reasons can confound the comparison between them. **An analogy, stated as such**: the dropped draws here are outputs the parser could not read, not participants leaving, and the manuscript applies neither source to them | §1 |
 | [64] | In clinical trials, a difference in dropout rates does not by itself establish bias. **An analogy**, as for [63] | §1 |
+| [65] | Recommends a power analysis to decide whether a language-model evaluation can test a hypothesis of interest. The first diagnostic applies that to the test that decides rather than to a surrogate; cited for the recommendation, not for its formulas | §6.3 |
+| [66] | Asks agentic benchmarks to establish outcome validity, that a check truly indicates success, and names counting an empty response as a success among its failures. Cited for the third diagnostic's place among existing recommendations | §6.3 |
+| [67] | Asks reports of generative evaluations to describe how answers are extracted. Cited with [66] for the third diagnostic; the dropped draws of §5 are an instance of what such a report would show | §6.3 |
 
 ## Verification caveats, stated rather than smoothed over
 
