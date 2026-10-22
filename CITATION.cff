@@ -5,24 +5,23 @@ title: "Three gates, three proxies: auditing the null-report checks of a pre-reg
 # analysis/scripts/check_claim_boundary.py compares them on every run, so editing
 # one without the other fails repro.sh.
 abstract: >-
-  We audit the three gates by which one of our own pre-registered evaluations fixed in advance what
-  a null result would be worth. A language-model agent names which of five zones it moves to next;
-  the evaluation asked whether a channel from its recent movement to its sampling settings, in
-  practice two fixed sampling settings, shifts that choice by more than a total-variation margin of
-  0.10. Each gate ran as written and read a quantity other than the one its reading depends on. The
-  entropy floor decided the reported branch: it stopped the rules on the second of two models
-  although each context and condition produced two to four zones. A post hoc simulation on an
-  assumed truth taken from that model's draws, at its declared shifts only, finds the permutation
-  test that decides detecting a shift of the margin's size in all 500 replicates of each of the four
-  feasible directions, and the floor stopping 353, 452, 500 and 49 of them. The power gate did not
-  change the branch, but it reads the power of a chi-square surrogate, not of that test: simulated
-  on the completed run's draws, the surrogate returns 1.0 at a tenth of the margin, where the test
-  rejects in about one replicate in eight. Nor did the cap on draws with no recorded zone; it reads
-  the worst context and condition, not the difference between conditions, so the estimate describes
-  only the draws that produced a zone. The case motivates three diagnostics: simulate the power of
-  the test that decides, report support beside entropy, and compare dropped outputs between
-  conditions. The claims concern these gates on one apparatus, two models and one prompt, not the
-  effect of the channel.
+  We audit the three gates by which one of our pre-registered evaluations fixed in advance what a
+  null result would be worth. The evaluation asked whether a channel from a language-model agent's
+  recent movement to its sampling settings, in practice two fixed sampling settings, shifts which of
+  five zones it names next by more than a total-variation margin of 0.10. Each gate ran as written
+  but read a proxy for the quantity its reading depends on. The entropy floor decided the reported
+  branch, stopping the rules on the second of two models although each context and condition
+  produced two to four zones. Simulated post hoc on an assumed truth from that model's draws, at its
+  declared shifts only, the deciding test detects a margin-sized shift in all 500 replicates of each
+  of four feasible directions, with the floor stopping 353, 452, 500 and 49 of them. The power gate,
+  which left the branch unchanged, reads the power of a chi-square surrogate, not of that test:
+  simulated on the completed run's draws, the surrogate returns 1.0 at a tenth of the margin, where
+  the test rejects in about one replicate in eight. The cap on draws with no recorded zone, also
+  without effect on the branch, reads the worst cell, not the difference between conditions: the
+  estimate describes only the draws that produced a zone. The case motivates three diagnostics:
+  simulate the power of the test that decides, report support beside entropy, and compare dropped
+  outputs between conditions. The claims concern these gates on one apparatus, two models and one
+  prompt, not the channel's effect.
 type: software
 authors:
   - family-names: "Miura"
